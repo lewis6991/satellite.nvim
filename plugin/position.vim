@@ -30,6 +30,13 @@ function! s:WindowCount() abort
   return l:win_count
 endfunction
 
+function! s:IsCommandLineWindow(winnr) abort
+  let l:bufnr = winbufnr(a:winnr)
+  let l:buftype = nvim_buf_get_option(l:bufnr, 'buftype')
+  let l:bufname = bufname(l:bufnr)
+  return l:buftype ==# 'nofile' && l:bufname ==# '[Command Line]'
+endfunction
+
 let s:bar_winids = []
 
 function! s:ShowBars(winnr) abort
@@ -37,10 +44,18 @@ function! s:ShowBars(winnr) abort
   let l:winid = win_getid(l:winnr)
   let l:bufnr = winbufnr(l:winnr)
   let l:wininfo = getwininfo(l:winid)[0]
+  " Don't show in terminal mode, since the bar won't be properly updated for
+  " insertions.
+  if l:wininfo['terminal']
+    return
+  endif
   let l:topline = l:wininfo['topline']
   " l:wininfo['botline'] is not properly updated for some movements (Issue
-  " #13510). Manually calculate botline instead, using l:wininfo['height'].
-  let l:botline = l:topline + l:wininfo['height']
+  " #13510). To work around this, `l:topline + l:wininfo['height'] - 1` can
+  " alternatively be used. However this is not necessary, since refreshing is
+  " called asynchronously, resulting in l:wininfo['botline'] having the
+  " correct value when this code runs.
+  let l:botline = l:wininfo['botline']
   let l:line_count = nvim_buf_line_count(l:bufnr)
 
   let [l:row, l:col] = win_screenpos(l:winnr)
@@ -89,12 +104,16 @@ function! s:ShowBars(winnr) abort
         \ }
   let l:bar_winid = nvim_open_win(l:buf, 0, l:options)
   call add(s:bar_winids, l:bar_winid)
-  " TODO: apply highlighting properly
-  call nvim_win_set_option(l:bar_winid, 'winblend', 30)
+  " TODO: Highlight color should be user-configurable.
+  let l:highlight = 'Visual'
+  call setwinvar(l:bar_winid, '&winhighlight', 'Normal:' . l:highlight)
+  " Using a winblend of 100 results in the bar becoming invisible on nvim-qt.
+  " TODO: make winblend level user-configurable.
+  call nvim_win_set_option(l:bar_winid, 'winblend', 50)
 endfunction
 
-function! s:Toggle() abort
-  " TODO: remove all bars
+function! s:RemoveBars() abort
+  " Remove all existing bars
   for l:bar_winid in s:bar_winids
     " The floating windows may have been closed (e.g., :only/<ctrl-w>o).
     if getwininfo(l:bar_winid) ==# []
@@ -103,29 +122,51 @@ function! s:Toggle() abort
     noautocmd call nvim_win_close(l:bar_winid, 1)
   endfor
   let s:bar_winids = []
-  let l:win_count = s:WindowCount()
-  for l:winnr in range(1, l:win_count)
-    " TODO: don't enable on command line window. probably due to error...
-    " It might just be problematic when this gets called from there...
-    "if &buftype ==# 'nofile' && bufname('%') ==# '[Command Line]'
-    "  return
-    "endif
-    call s:ShowBars(l:winnr)
-  endfor
+endfunction
+
+function! s:RefreshBarsSync() abort
+  try
+    let l:win_count = s:WindowCount()
+    " Some functionality, like nvim_win_close, cannot be used from the command
+    " line window.
+    if s:IsCommandLineWindow(winnr())
+      return
+    endif
+    call s:RemoveBars()
+    for l:winnr in range(1, l:win_count)
+      let l:bufnr = winbufnr(l:winnr)
+      let l:buftype = nvim_buf_get_option(l:bufnr, 'buftype')
+      let l:bufname = bufname(l:bufnr)
+      call s:ShowBars(l:winnr)
+    endfor
+  catch
+  endtry
+endfunction
+
+" This function refreshes the bars asynchronously. This works better than
+" updating synchronously in various scenarios where updating occurs in an
+" intermediate state of the editor (when opening a command-line window),
+" resulting in bars being placed where they shouldn't be.
+" WARN: For debugging, it's helpful to use synchronous refreshing, so that
+" e.g., echom works as expected.
+function! s:RefreshBarsAsync() abort
+  let Callback = {timer_id -> execute('call s:RefreshBarsSync()')}
+  call timer_start(0, Callback)
 endfunction
 
 augroup scrollbar
   autocmd!
-  autocmd VimEnter * :call s:Toggle()
-  autocmd WinScrolled * :call s:Toggle()
+  autocmd WinScrolled * :call s:RefreshBarsAsync()
+  autocmd CmdwinLeave * :call s:RefreshBarsAsync()
   " This handles the case where text is pasted. TextChangedI is not necessary
-  " since scrolling will occur.
-  autocmd TextChanged * :call s:Toggle()
-  "autocmd WinNew * :call s:Toggle()
-  " Will need this and maybe WinLeave to handle window closes
-  autocmd WinEnter * :call s:Toggle()
-  " The following may be needed in some cases. For <ctrl-w>o with one Window
-  " remaining, an error is displayed.
-  "autocmd WinLeave * :call s:Toggle()
-  "autocmd WinClosed * :call s:Toggle()
+  " WinScrolled will be triggered if there is scrolling.
+  autocmd TextChanged * :call s:RefreshBarsAsync()
+  " The following prevents the scrollbar from disappearing when <ctrl-w>o is
+  " pressed when there is only one window. A side-effect is that the Nvim
+  " warning message, 'Already only one window', which would otherwise be
+  " displayed (when there are no bars), is not shown.
+  autocmd WinClosed * :call s:RefreshBarsAsync()
+  " The following handles when :e is used to load a file.
+  autocmd BufWinEnter * :call s:RefreshBarsAsync()
 augroup END
+command Refresh :call s:RefreshBarsAsync()
