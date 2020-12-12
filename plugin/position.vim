@@ -27,8 +27,12 @@ function! s:WindowCount() abort
   return l:win_count
 endfunction
 
-function! s:IsCommandLineWindow(winnr) abort
-  let l:bufnr = winbufnr(a:winnr)
+function! s:InCommandLineWindow() abort
+  if mode() ==# 'c'
+    return 1
+  endif
+  let l:winnr = winnr()
+  let l:bufnr = winbufnr(l:winnr)
   let l:buftype = nvim_buf_get_option(l:bufnr, 'buftype')
   let l:bufname = bufname(l:bufnr)
   return l:buftype ==# 'nofile' && l:bufname ==# '[Command Line]'
@@ -51,10 +55,10 @@ function! s:ShowBars(winnr) abort
   let l:topline = l:wininfo['topline']
   " WARN: l:wininfo['botline'] is not properly updated for some movements
   " (Issue #13510). To work around this, `l:topline + l:wininfo['height'] - 1`
-  " can alternatively be used. However this is not necessary, since refreshing
-  " is called asynchronously, resulting in l:wininfo['botline'] having the
-  " correct value when this code runs.
-  let l:botline = l:wininfo['botline']
+  " is used instead. This would not be necessary if the code was always being
+  " called in an asynchronous context, where l:wininfo['botline'] would have
+  " the correct values by time this code is executed.
+  let l:botline = l:topline + l:wininfo['height'] - 1
   let l:line_count = nvim_buf_line_count(l:bufnr)
 
   let [l:row, l:col] = win_screenpos(l:winnr)
@@ -123,17 +127,15 @@ function! s:RemoveBars() abort
   let s:bar_winids = []
 endfunction
 
-" TODO: move this into RefreshBarsAsync, since some of the underlying
-" functionality depends on being called asynchronously.
 function! s:RefreshBarsSync() abort
   try
-    let l:win_count = s:WindowCount()
     " Some functionality, like nvim_win_close, cannot be used from the command
     " line window.
-    if s:IsCommandLineWindow(winnr())
+    if s:InCommandLineWindow()
       return
     endif
     call s:RemoveBars()
+    let l:win_count = s:WindowCount()
     for l:winnr in range(1, l:win_count)
       let l:bufnr = winbufnr(l:winnr)
       let l:buftype = nvim_buf_get_option(l:bufnr, 'buftype')
@@ -161,17 +163,22 @@ augroup scrollbar
   " entering the command line window. For the duration of command-line window
   " usage, there will be no bars. Without this, bars can possibly overlap the
   " command line window. This can be problematic particularly when there is a
-  " vertical split with the left bar on the bottom of the screen, where it
-  " would overlap with the center of the command line window. This has the
-  " side-effect that bars can flash off then on when changing the active
-  " window.
+  " vertical split with the left window's bar on the bottom of the screen,
+  " where it would overlap with the center of the command line window.
   autocmd WinLeave * :call s:RemoveBars()
-  " The following handles the bar refreshing when changing the active window,
-  " which was required after the WinLeave handling added above.
-  autocmd WinEnter * :call s:RefreshBarsAsync()
+  " The following handles bar refreshing when changing the active window,
+  " which was required after the WinLeave handling added above. This is done
+  " synchronously to prevent the bars from flashing off then on (which would
+  " arise from the synchronous call to RemoveBars above, followed by an
+  " asyncronous call to RefreshBarsAsync).
+  autocmd WinEnter * :call s:RefreshBarsSync()
+  " The following handles scrolling events, which could arise from various
+  " actions, including resizing windows, movements (e.g., j, k), or scrolling
+  " (e.g., <ctrl-e>, zz).
   autocmd WinScrolled * :call s:RefreshBarsAsync()
   " The following handles the case where text is pasted. TextChangedI is not
-  " necessary since WinScrolled will be triggered if there is scrolling.
+  " necessary since WinScrolled will be triggered if there is corresponding
+  " scrolling.
   autocmd TextChanged * :call s:RefreshBarsAsync()
   " The following prevents the scrollbar from disappearing when <ctrl-w>o is
   " pressed when there is only one window. A side-effect is that the Nvim
