@@ -178,4 +178,3 @@ augroup scrollbar
   " The following is used so that bars are shown when cycling through tabs.
   autocmd TabEnter * :call s:RefreshBarsAsync()
 augroup END
-command Refresh :call s:RefreshBarsAsync()
