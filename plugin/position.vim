@@ -155,11 +155,15 @@ function! s:RefreshBarsAsync() abort
   call timer_start(0, Callback)
 endfunction
 
-" TODO: use some combo of WinLeave/WinEnter to remove scroll bars so that
-" they don't overlap with the command line window.
-
 augroup scrollbar
   autocmd!
+  " Removing bars when leaving windows was added specifically to accommodate
+  " the command line window. For the duration of command-line window usage,
+  " there will be no bars. Without this, bars can possibly overlap the command
+  " line window. This can be problematic particularly when there is a vertical
+  " split with the left bar on the bottom of the screen, where it would
+  " overlap with the center of the command line window.
+  autocmd WinLeave * :call s:RemoveBars()
   autocmd WinScrolled * :call s:RefreshBarsAsync()
   " This handles the case where text is pasted. TextChangedI is not necessary
   " WinScrolled will be triggered if there is scrolling.
