@@ -193,4 +193,17 @@ augroup scrollbar
   autocmd BufWinEnter * :call s:RefreshBars()
   " The following is used so that bars are shown when cycling through tabs.
   autocmd TabEnter * :call s:RefreshBars()
+  " The following error can arise when the last window in a tab is going to be
+  " closed, but there are still open floating windows, and at least one other
+  " tab.
+  "   > "E5601: Cannot close window, only floating window would remain"
+  " Neovim Issue #11440 is open to address this. As of 2020/12/12, this issue
+  " is a 0.6 milestone.
+  " The autocmd below removes bars subsequent to :quit, :wq, or :qall (and
+  " also ZZ and ZQ), to avoid the error. However, the error will still arise
+  " when <ctrl-w>c or :close are used. To avoid the error in those cases,
+  " <ctrl-w>o can be used to first close the floating windows, or
+  " alternatively :tabclose can be used (or one of the alternatives handled
+  " with the autocmd, like ZQ).
+  autocmd QuitPre * :call s:RemoveBars()
 augroup END
