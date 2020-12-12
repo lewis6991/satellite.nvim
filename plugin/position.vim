@@ -10,6 +10,15 @@ if !has('nvim')
   finish
 endif
 
+" Returns true for ordinary windows (not floating and not external), and
+" false otherwise.
+function! s:IsOrdinaryWindow(winid) abort
+  let l:config = nvim_win_get_config(win_getid(a:winid))
+  let l:not_external = !get(l:config, 'external', 0)
+  let l:not_floating = get(l:config, 'relative', '') ==# ''
+  return l:not_external && l:not_floating
+endfunction
+
 " Returns window count, with special handling to exclude floating and external
 " windows in neovim. The windows with numbers less than or equal to the value
 " returned are assumed non-floating and non-external windows. The
@@ -19,8 +28,7 @@ endif
 function! s:WindowCount() abort
   let l:win_count = 0
   for l:winid in range(1, winnr('$'))
-    let l:config = nvim_win_get_config(win_getid(l:winid))
-    if !get(l:config, 'external', 0) && get(l:config, 'relative', '') ==# ''
+    if s:IsOrdinaryWindow(l:winid)
       let l:win_count += 1
     endif
   endfor
@@ -127,7 +135,7 @@ function! s:RemoveBars() abort
   let s:bar_winids = []
 endfunction
 
-function! s:RefreshBarsSync() abort
+function! s:RefreshBars() abort
   try
     " Some functionality, like nvim_win_close, cannot be used from the command
     " line window.
@@ -148,12 +156,12 @@ endfunction
 
 " This function refreshes the bars asynchronously. This works better than
 " updating synchronously in various scenarios where updating occurs in an
-" intermediate state of the editor (when opening a command-line window or
-" terminal window), resulting in bars being placed where they shouldn't be.
+" intermediate state of the editor (e.g., when closing a command-line window),
+" which can result in bars being placed where they shouldn't be.
 " WARN: For debugging, it's helpful to use synchronous refreshing, so that
 " e.g., echom works as expected.
 function! s:RefreshBarsAsync() abort
-  let Callback = {timer_id -> execute('call s:RefreshBarsSync()')}
+  let Callback = {timer_id -> execute('call s:RefreshBars()')}
   call timer_start(0, Callback)
 endfunction
 
@@ -167,26 +175,22 @@ augroup scrollbar
   " where it would overlap with the center of the command line window.
   autocmd WinLeave * :call s:RemoveBars()
   " The following handles bar refreshing when changing the active window,
-  " which was required after the WinLeave handling added above. This is done
-  " synchronously to prevent the bars from flashing off then on (which would
-  " arise from the synchronous call to RemoveBars above, followed by an
-  " asyncronous call to RefreshBarsAsync).
-  autocmd WinEnter * :call s:RefreshBarsSync()
+  " which was required after the WinLeave handling added above.
+  autocmd WinEnter * :call s:RefreshBars()
+  " The following restores bars after leaving the command-line window.
+  " Refreshing must be asynchonous, since the command line window is still in
+  " an intermediate state when the CmdlineLeave event is triggered.
+  autocmd CmdlineLeave * :call s:RefreshBarsAsync()
   " The following handles scrolling events, which could arise from various
   " actions, including resizing windows, movements (e.g., j, k), or scrolling
   " (e.g., <ctrl-e>, zz).
-  autocmd WinScrolled * :call s:RefreshBarsAsync()
+  autocmd WinScrolled * :call s:RefreshBars()
   " The following handles the case where text is pasted. TextChangedI is not
   " necessary since WinScrolled will be triggered if there is corresponding
   " scrolling.
-  autocmd TextChanged * :call s:RefreshBarsAsync()
-  " The following prevents the scrollbar from disappearing when <ctrl-w>o is
-  " pressed when there is only one window. A side-effect is that the Nvim
-  " warning message, 'Already only one window', which would otherwise be
-  " displayed (when there are no bars), is not shown.
-  autocmd WinClosed * :call s:RefreshBarsAsync()
+  autocmd TextChanged * :call s:RefreshBars()
   " The following handles when :e is used to load a file.
-  autocmd BufWinEnter * :call s:RefreshBarsAsync()
+  autocmd BufWinEnter * :call s:RefreshBars()
   " The following is used so that bars are shown when cycling through tabs.
-  autocmd TabEnter * :call s:RefreshBarsAsync()
+  autocmd TabEnter * :call s:RefreshBars()
 augroup END
