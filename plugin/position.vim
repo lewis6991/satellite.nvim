@@ -146,8 +146,8 @@ endfunction
 
 " This function refreshes the bars asynchronously. This works better than
 " updating synchronously in various scenarios where updating occurs in an
-" intermediate state of the editor (when opening a command-line window),
-" resulting in bars being placed where they shouldn't be.
+" intermediate state of the editor (when opening a command-line window or
+" terminal window), resulting in bars being placed where they shouldn't be.
 " WARN: For debugging, it's helpful to use synchronous refreshing, so that
 " e.g., echom works as expected.
 function! s:RefreshBarsAsync() abort
@@ -158,15 +158,20 @@ endfunction
 augroup scrollbar
   autocmd!
   " Removing bars when leaving windows was added specifically to accommodate
-  " the command line window. For the duration of command-line window usage,
-  " there will be no bars. Without this, bars can possibly overlap the command
-  " line window. This can be problematic particularly when there is a vertical
-  " split with the left bar on the bottom of the screen, where it would
-  " overlap with the center of the command line window.
+  " entering the command line window. For the duration of command-line window
+  " usage, there will be no bars. Without this, bars can possibly overlap the
+  " command line window. This can be problematic particularly when there is a
+  " vertical split with the left bar on the bottom of the screen, where it
+  " would overlap with the center of the command line window. This has the
+  " side-effect that bars can flash off then on when changing the active
+  " window.
   autocmd WinLeave * :call s:RemoveBars()
+  " The following handles the bar refreshing when changing the active window,
+  " which was required after the WinLeave handling added above.
+  autocmd WinEnter * :call s:RefreshBarsAsync()
   autocmd WinScrolled * :call s:RefreshBarsAsync()
-  " This handles the case where text is pasted. TextChangedI is not necessary
-  " WinScrolled will be triggered if there is scrolling.
+  " The following handles the case where text is pasted. TextChangedI is not
+  " necessary since WinScrolled will be triggered if there is scrolling.
   autocmd TextChanged * :call s:RefreshBarsAsync()
   " The following prevents the scrollbar from disappearing when <ctrl-w>o is
   " pressed when there is only one window. A side-effect is that the Nvim
