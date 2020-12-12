@@ -34,7 +34,9 @@ function! s:IsCommandLineWindow(winnr) abort
   return l:buftype ==# 'nofile' && l:bufname ==# '[Command Line]'
 endfunction
 
-let s:bar_winids = []
+" s:bar_winids has the winids of existing bars. An existing value is loaded so
+" existing bars can be properly closed when re-sourcing this file.
+let s:bar_winids = get(s:, 'bar_winids', [])
 
 function! s:ShowBars(winnr) abort
   let l:winnr = a:winnr
