@@ -17,9 +17,6 @@ endif
 " bottom-right", which does not ensure this, but checks revealed that floating
 " windows are numbered higher than ordinary windows, regardless of position.
 function! s:WindowCount() abort
-  if !has('nvim') || !exists('*nvim_win_get_config')
-    return winnr('$')
-  endif
   let l:win_count = 0
   for l:winid in range(1, winnr('$'))
     let l:config = nvim_win_get_config(win_getid(l:winid))
@@ -50,10 +47,10 @@ function! s:ShowBars(winnr) abort
     return
   endif
   let l:topline = l:wininfo['topline']
-  " l:wininfo['botline'] is not properly updated for some movements (Issue
-  " #13510). To work around this, `l:topline + l:wininfo['height'] - 1` can
-  " alternatively be used. However this is not necessary, since refreshing is
-  " called asynchronously, resulting in l:wininfo['botline'] having the
+  " WARN: l:wininfo['botline'] is not properly updated for some movements
+  " (Issue #13510). To work around this, `l:topline + l:wininfo['height'] - 1`
+  " can alternatively be used. However this is not necessary, since refreshing
+  " is called asynchronously, resulting in l:wininfo['botline'] having the
   " correct value when this code runs.
   let l:botline = l:wininfo['botline']
   let l:line_count = nvim_buf_line_count(l:bufnr)
@@ -124,6 +121,8 @@ function! s:RemoveBars() abort
   let s:bar_winids = []
 endfunction
 
+" TODO: move this into RefreshBarsAsync, since some of the underlying
+" functionality depends on being called asynchronously.
 function! s:RefreshBarsSync() abort
   try
     let l:win_count = s:WindowCount()
@@ -154,10 +153,12 @@ function! s:RefreshBarsAsync() abort
   call timer_start(0, Callback)
 endfunction
 
+" TODO: use some combo of WinLeave/WinEnter to remove scroll bars so that
+" they don't overlap with the command line window.
+
 augroup scrollbar
   autocmd!
   autocmd WinScrolled * :call s:RefreshBarsAsync()
-  autocmd CmdwinLeave * :call s:RefreshBarsAsync()
   " This handles the case where text is pasted. TextChangedI is not necessary
   " WinScrolled will be triggered if there is scrolling.
   autocmd TextChanged * :call s:RefreshBarsAsync()
@@ -168,5 +169,7 @@ augroup scrollbar
   autocmd WinClosed * :call s:RefreshBarsAsync()
   " The following handles when :e is used to load a file.
   autocmd BufWinEnter * :call s:RefreshBarsAsync()
+  " The following is used so that bars are shown when cycling through tabs.
+  autocmd TabEnter * :call s:RefreshBarsAsync()
 augroup END
 command Refresh :call s:RefreshBarsAsync()
