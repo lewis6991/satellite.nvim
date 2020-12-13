@@ -56,6 +56,8 @@ function! s:CalculatePosition(winnr) abort
   " instead. This would not be necessary if the code was always being called
   " in an asynchronous context, as l:wininfo.botline would have the correct
   " values by time this code is executed.
+  " XXX: 'botline', calculated as a function of 'topline' and 'height', will
+  " not be correctly calculated when there are folded lines on-screen.
   let l:botline = l:topline + l:wininfo.height - 1
   let l:line_count = nvim_buf_line_count(l:bufnr)
   let [l:row, l:col] = win_screenpos(l:winnr)
@@ -93,7 +95,7 @@ function! s:CalculatePosition(winnr) abort
   return l:result
 endfunction
 
-function! s:ShowBars(winnr) abort
+function! s:ShowScrollbar(winnr) abort
   let l:winnr = a:winnr
   let l:winid = win_getid(l:winnr)
   let l:bufnr = winbufnr(l:winnr)
@@ -174,8 +176,11 @@ function! scrollview#RefreshBars() abort
       let l:bufnr = winbufnr(l:winnr)
       let l:buftype = nvim_buf_get_option(l:bufnr, 'buftype')
       let l:bufname = bufname(l:bufnr)
-      call s:ShowBars(l:winnr)
+      call s:ShowScrollbar(l:winnr)
     endfor
+    " Redraw to prevent flickering (which occurred when there were folds, but
+    " not otherwise).
+    redraw
   catch
   endtry
 endfunction
