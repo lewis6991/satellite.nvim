@@ -173,9 +173,6 @@ function! scrollview#RefreshBars() abort
       endfor
     endif
     for l:winnr in l:target_wins
-      let l:bufnr = winbufnr(l:winnr)
-      let l:buftype = nvim_buf_get_option(l:bufnr, 'buftype')
-      let l:bufname = bufname(l:bufnr)
       call s:ShowScrollbar(l:winnr)
     endfor
     " Redraw to prevent flickering (which occurred when there were folds, but
