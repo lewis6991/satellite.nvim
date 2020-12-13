@@ -18,18 +18,18 @@ A package manager can be used to install `nvim-scrollview`.
   - `git clone https://github.com/dstein64/nvim-scrollview ~/.local/share/nvim/site/pack/plugins/start/nvim-scrollview`
 * [Vundle][vundle]:
   - Add `Plugin 'dstein64/nvim-scrollview'` to `~/.config/nvim/init.vim`
-  - `:PluginInstall` or `$ vim +PluginInstall +qall`
+  - `:PluginInstall` or `$ nvim +PluginInstall +qall`
 * [Pathogen][pathogen]:
   - `git clone --depth=1 https://github.com/dstein64/nvim-scrollview ~/.local/share/nvim/site/bundle/nvim-scrollview`
 * [vim-plug][vimplug]:
   - Add `Plug 'dstein64/nvim-scrollview'` to `~/.config/nvim/init.vim`
-  - `:PlugInstall` or `$ vim +PlugInstall +qall`
+  - `:PlugInstall` or `$ nvim +PlugInstall +qall`
 * [dein.vim][dein]:
   - Add `call dein#add('dstein64/nvim-scrollview')` to `~/.config/nvim/init.vim`
   - `:call dein#install()`
 * [NeoBundle][neobundle]:
   - Add `NeoBundle 'dstein64/nvim-scrollview'` to `~/.config/nvim/init.vim`
-  - Re-open vim or execute `:source ~/.config/nvim/init.vim`
+  - Re-open Neovim or execute `:source ~/.config/nvim/init.vim`
 
 </details>
 
@@ -41,7 +41,7 @@ TODO TODO TODO
 
 Documentation can be accessed with:
 
-```vim
+```nvim
 :help nvim-scrollview
 ```
 
@@ -51,8 +51,7 @@ There is documentation on the following topics.
 
 TODO TODO TODO
 
-License
--------
+## License
 
 The source code has an [MIT License](https://en.wikipedia.org/wiki/MIT_License).
 
