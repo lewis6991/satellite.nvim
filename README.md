@@ -35,7 +35,25 @@ A package manager can be used to install `nvim-scrollview`.
 
 ## Usage
 
-TODO TODO TODO
+* `nvim-scrollview` works automatically, displaying (non-interactive)
+  scrollbars.
+* The `:ScrollViewDisable` command disables scrollbars.
+* The `:ScrollViewEnable` command enables scrollbars. This is only necessary
+  if scrollbars have previously been disabled.
+* The `:ScrollViewRefresh` command refreshes the scrollbars. This is relevant
+  when the scrollbars are out-of-sync, which can occur as a result of some
+  window arrangement actions.
+
+## Configuration
+
+There are various settings that can be configured.
+
+* Whether scrollbars are enabled or disabled on startup
+* File types for which scrollbars should not be displayed
+* Scrollbar color and transparency level
+* Whether scrollbars should be displayed in all windows, or just the active window
+
+Please see the documentation for details.
 
 ## Documentation
 
@@ -46,10 +64,6 @@ Documentation can be accessed with:
 ```
 
 The underlying markup is in [scrollview.txt](doc/scrollview.txt).
-
-There is documentation on the following topics.
-
-TODO TODO TODO
 
 ## License
 
