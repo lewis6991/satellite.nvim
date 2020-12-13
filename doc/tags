@@ -1,0 +1,14 @@
+:ScrollViewDisable	scrollview.txt	/*:ScrollViewDisable*
+:ScrollViewEnable	scrollview.txt	/*:ScrollViewEnable*
+:ScrollViewRefresh	scrollview.txt	/*:ScrollViewRefresh*
+g:scrollview_active_only	scrollview.txt	/*g:scrollview_active_only*
+g:scrollview_excluded_filetypes	scrollview.txt	/*g:scrollview_excluded_filetypes*
+g:scrollview_on_startup	scrollview.txt	/*g:scrollview_on_startup*
+g:scrollview_winblend	scrollview.txt	/*g:scrollview_winblend*
+nvim-scrollview	scrollview.txt	/*nvim-scrollview*
+scrollview-color-customization	scrollview.txt	/*scrollview-color-customization*
+scrollview-configuration	scrollview.txt	/*scrollview-configuration*
+scrollview-installation	scrollview.txt	/*scrollview-installation*
+scrollview-requirements	scrollview.txt	/*scrollview-requirements*
+scrollview-usage	scrollview.txt	/*scrollview-usage*
+scrollview.txt	scrollview.txt	/*scrollview.txt*

@@ -1,0 +1,90 @@
+*scrollview.txt*  Plugin that displays (non-interactive) scrollbars
+*nvim-scrollview*
+
+Author: Daniel Steinberg - https://www.dannyadam.com
+Web: https://github.com/dstein64/nvim-scrollview
+
+1. Requirements                            |scrollview-requirements|
+2. Installation                            |scrollview-installation|
+3. Usage                                   |scrollview-usage|
+4. Configuration                           |scrollview-configuration|
+
+|nvim-scrollview| is a plugin that displays (non-interactive) scrollbars.
+The plugin is customizable (see |scrollview-configuration|).
+
+============================================================================
+1. Requirements                            *scrollview-requirements*
+
+* `nvim>=0.5`
+
+============================================================================
+2. Installation                            *scrollview-installation*
+
+Use |packages| or one of the various package managers.
+
+============================================================================
+3. Usage                                   *scrollview-usage*
+
+* |nvim-scrollview| works automatically, displaying (non-interactive)
+  scrollbars.
+* The *:ScrollViewDisable* command disables scrollbars.
+* The *:ScrollViewEnable* command enables scrollbars. This is only necessary
+  if scrollbars have previously been disabled.
+* The *:ScrollViewRefresh* command refreshes the scrollbars. This is relevant
+  when the scrollbars are out-of-sync, which can occur as a result of some
+  window arrangement actions.
+
+============================================================================
+4. Configuration                           *scrollview-configuration*
+
+The following variables can be used to customize the behavior of
+|nvim-scrollview|.
+
+`Variable`                                `Default`
+  Description                             Info
+-------------                           -------
+
+*g:scrollview_on_startup*                 `1`
+  Specifies whether scrollbars are
+  enabled on startup
+*g:scrollview_excluded_filetypes*         `[]`
+  Optional file types for which
+  scrollbars should not be displayed
+*g:scrollview_active_only*                `0`
+  Specifies whether scrollbars should
+  only be displayed in the active
+  window
+*g:scrollview_winblend*                   `50`
+  Specifies the level of transparency     An integer between 0 (opaque)
+  for scrollbars                          and 100 (transparent)
+
+The variables can be customized in your |init.vim|, as shown in the following
+example.
+ >
+	" The exclusion below is for the purpose of illustration. That is,
+	" there isn't a particular reason to disable scrollbars on help
+	" pages.
+	let g:scrollview_excluded_filetypes = ['help']
+	let g:scrollview_active_only = 1
+	let g:scrollview_winblend = 75
+
+Color Customization ~
+                                           *scrollview-color-customization*
+The following highlight group can be configured to change |nvim-scrollview|'s
+colors.
+
+Name         Default   Description
+----         -------   -----------
+`ScrollView`   `Visual`    Color for the scrollbar
+
+The highlight groups can be customized in your |init.vim|, as shown in the
+following example.
+ >
+	" Link ScrollView highlight to Pmenu highlight
+	highlight link ScrollView Pmenu
+
+	" Specify custom highlighting for ScrollView
+	highlight ScrollView ctermbg=159 guibg=LightCyan
+
+============================================================================
+ vim:tw=78:ts=4:ft=help:norl:
