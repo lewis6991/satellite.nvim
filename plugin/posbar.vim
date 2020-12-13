@@ -22,7 +22,7 @@ endif
 " * User Configuration
 " *************************************************
 
-let g:posbar_initially_enabled = get(g:, 'posbar_initially_enabled', 1)
+let g:posbar_on_startup = get(g:, 'posbar_on_startup', 1)
 let g:posbar_excluded_filetypes = get(g:, 'posbar_excluded_filetypes', [])
 let g:posbar_active_only = get(g:, 'posbar_active_only', 0)
 " The default highlight group is specified below.
@@ -56,7 +56,7 @@ endif
 " *************************************************
 
 " Internal flag for tracking posbar state.
-let s:posbar_enabled = g:posbar_initially_enabled
+let s:posbar_enabled = g:posbar_on_startup
 
 function! s:PosbarEnable() abort
   let s:posbar_enabled = 1
@@ -71,7 +71,7 @@ function! s:PosbarEnable() abort
     autocmd WinLeave * :call posbar#RemoveBars()
     " The following handles bar refreshing when changing the active window,
     " which was required after the WinLeave handling added above.
-    autocmd WinEnter * :call posbar#RefreshBars()
+    autocmd WinEnter,TermEnter * :call posbar#RefreshBars()
     " The following restores bars after leaving the command-line window.
     " Refreshing must be asynchonous, since the command line window is still in
     " an intermediate state when the CmdwinLeave event is triggered.

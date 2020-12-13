@@ -5,6 +5,11 @@
 " s:bar_winids has the winids of existing bars. An existing value is loaded so
 " existing bars can be properly closed when re-sourcing this file.
 let s:bar_winids = get(s:, 'bar_winids', [])
+" s:bar_bufnr has the bufnr of the first buffer created for a position bar.
+" Since there is no text displayed in the buffer, they can be used for
+" multiple floating windows. This also prevents the buffer list from getting
+" high from usage of the plugin.
+let s:bar_bufnr = get(s:, 'bar_bufnr', -1)
 
 " *************************************************
 " * Utils
@@ -106,8 +111,9 @@ function! s:ShowBars(winnr) abort
     return
   endif
   let l:bar_position = s:CalculatePosition(l:winnr)
-  " TODO: reuse buffers
-  let l:buf = nvim_create_buf(0, 1)
+  if s:bar_bufnr ==# -1
+    let s:bar_bufnr = nvim_create_buf(0, 1)
+  endif
   let l:options = {
         \   'relative': 'editor',
         \   'focusable': 0,
@@ -117,7 +123,7 @@ function! s:ShowBars(winnr) abort
         \   'row': l:bar_position.row,
         \   'col': l:bar_position.col
         \ }
-  let l:bar_winid = nvim_open_win(l:buf, 0, l:options)
+  let l:bar_winid = nvim_open_win(s:bar_bufnr, 0, l:options)
   call add(s:bar_winids, l:bar_winid)
   call setwinvar(l:bar_winid, '&winhighlight', 'Normal:Posbar')
   call nvim_win_set_option(l:bar_winid, 'winblend', g:posbar_winblend)
