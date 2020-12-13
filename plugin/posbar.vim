@@ -67,7 +67,9 @@ function! s:PosbarEnable() abort
     " usage, there will be no bars. Without this, bars can possibly overlap the
     " command line window. This can be problematic particularly when there is a
     " vertical split with the left window's bar on the bottom of the screen,
-    " where it would overlap with the center of the command line window.
+    " where it would overlap with the center of the command line window. It
+    " was not possible to use CmdwinEnter, since the removal has to occur
+    " prior to that event.
     autocmd WinLeave * :call posbar#RemoveBars()
     " The following handles bar refreshing when changing the active window,
     " which was required after the WinLeave handling added above.
