@@ -50,13 +50,13 @@ function! s:CalculatePosition(winnr) abort
   let l:winid = win_getid(l:winnr)
   let l:bufnr = winbufnr(l:winnr)
   let l:wininfo = getwininfo(l:winid)[0]
-  let l:topline = l:wininfo['topline']
-  " WARN: l:wininfo['botline'] is not properly updated for some movements
-  " (Issue #13510). To work around this, `l:topline + l:wininfo['height'] - 1`
-  " is used instead. This would not be necessary if the code was always being
-  " called in an asynchronous context, as l:wininfo['botline'] would have the
-  " correct values by time this code is executed.
-  let l:botline = l:topline + l:wininfo['height'] - 1
+  let l:topline = l:wininfo.topline
+  " WARN: l:wininfo.botline is not properly updated for some movements (Issue
+  " #13510). To work around this, `l:topline + l:wininfo.height - 1` is used
+  " instead. This would not be necessary if the code was always being called
+  " in an asynchronous context, as l:wininfo.botline would have the correct
+  " values by time this code is executed.
+  let l:botline = l:topline + l:wininfo.height - 1
   let l:line_count = nvim_buf_line_count(l:bufnr)
   let [l:row, l:col] = win_screenpos(l:winnr)
   let l:winheight = winheight(l:winnr)
@@ -113,6 +113,9 @@ function! s:ShowBars(winnr) abort
   let l:bar_position = s:CalculatePosition(l:winnr)
   if s:bar_bufnr ==# -1
     let s:bar_bufnr = nvim_create_buf(0, 1)
+    call setbufvar(s:bar_bufnr, '&modifiable', 0)
+    call setbufvar(s:bar_bufnr, '&filetype', 'scrollview')
+    call setbufvar(s:bar_bufnr, '&buftype', 'nofile')
   endif
   let l:options = {
         \   'relative': 'editor',
@@ -126,7 +129,8 @@ function! s:ShowBars(winnr) abort
   let l:bar_winid = nvim_open_win(s:bar_bufnr, 0, l:options)
   call add(s:bar_winids, l:bar_winid)
   call setwinvar(l:bar_winid, '&winhighlight', 'Normal:ScrollView')
-  call nvim_win_set_option(l:bar_winid, 'winblend', g:scrollview_winblend)
+  call setwinvar(l:bar_winid, '&winblend', g:scrollview_winblend)
+  call setwinvar(l:bar_winid, '&foldcolumn', 0)
 endfunction
 
 function! scrollview#RemoveBars() abort
