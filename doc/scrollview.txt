@@ -61,10 +61,7 @@ The following variables can be used to customize the behavior of
 The variables can be customized in your |init.vim|, as shown in the following
 example.
  >
-	" The exclusion below is for the purpose of illustration. That is,
-	" there isn't a particular reason to disable scrollbars on help
-	" pages.
-	let g:scrollview_excluded_filetypes = ['help']
+	let g:scrollview_excluded_filetypes = ['nerdtree']
 	let g:scrollview_active_only = 1
 	let g:scrollview_winblend = 75
 
