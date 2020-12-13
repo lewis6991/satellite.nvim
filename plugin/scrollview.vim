@@ -2,10 +2,10 @@
 " * Preamble
 " *************************************************
 
-if get(g:, 'loaded_posbar', 0)
+if get(g:, 'loaded_scrollview', 0)
   finish
 endif
-let g:loaded_posbar = 1
+let g:loaded_scrollview = 1
 
 let s:save_cpo = &cpo
 set cpo&vim
@@ -22,45 +22,45 @@ endif
 " * User Configuration
 " *************************************************
 
-let g:posbar_on_startup = get(g:, 'posbar_on_startup', 1)
-let g:posbar_excluded_filetypes = get(g:, 'posbar_excluded_filetypes', [])
-let g:posbar_active_only = get(g:, 'posbar_active_only', 0)
+let g:scrollview_on_startup = get(g:, 'scrollview_on_startup', 1)
+let g:scrollview_excluded_filetypes = get(g:, 'scrollview_excluded_filetypes', [])
+let g:scrollview_active_only = get(g:, 'scrollview_active_only', 0)
 " The default highlight group is specified below.
 " Change this default by defining or linking an alternative highlight group.
 " E.g., the following will use the Pmenu highlight.
-"   :highlight link Posbar Pmenu
+"   :highlight link ScrollView Pmenu
 " E.g., the following will use custom highlight colors.
-"   :highlight Posbar ctermbg=159 guibg=LightCyan
-highlight default link Posbar Visual
+"   :highlight ScrollView ctermbg=159 guibg=LightCyan
+highlight default link ScrollView Visual
 " Using a winblend of 100 results in the bar becoming invisible on nvim-qt.
-let g:posbar_winblend = get(g:, 'posbar_winblend', 50)
+let g:scrollview_winblend = get(g:, 'scrollview_winblend', 50)
 
 " *************************************************
 " * Commands
 " *************************************************
 
-if !exists(':PosbarRefresh')
-  command PosbarRefresh :call s:PosbarRefresh()
+if !exists(':ScrollViewRefresh')
+  command ScrollViewRefresh :call s:ScrollViewRefresh()
 endif
 
-if !exists(':PosbarEnable')
-  command PosbarEnable :call s:PosbarEnable()
+if !exists(':ScrollViewEnable')
+  command ScrollViewEnable :call s:ScrollViewEnable()
 endif
 
-if !exists(':PosbarDisable')
-  command PosbarDisable :call s:PosbarDisable()
+if !exists(':ScrollViewDisable')
+  command ScrollViewDisable :call s:ScrollViewDisable()
 endif
 
 " *************************************************
 " * Core
 " *************************************************
 
-" Internal flag for tracking posbar state.
-let s:posbar_enabled = g:posbar_on_startup
+" Internal flag for tracking scrollview state.
+let s:scrollview_enabled = g:scrollview_on_startup
 
-function! s:PosbarEnable() abort
-  let s:posbar_enabled = 1
-  augroup posbar
+function! s:ScrollViewEnable() abort
+  let s:scrollview_enabled = 1
+  augroup scrollview
     autocmd!
     " Removing bars when leaving windows was added specifically to accommodate
     " entering the command line window. For the duration of command-line window
@@ -70,26 +70,26 @@ function! s:PosbarEnable() abort
     " where it would overlap with the center of the command line window. It
     " was not possible to use CmdwinEnter, since the removal has to occur
     " prior to that event.
-    autocmd WinLeave * :call posbar#RemoveBars()
+    autocmd WinLeave * :call scrollview#RemoveBars()
     " The following handles bar refreshing when changing the active window,
     " which was required after the WinLeave handling added above.
-    autocmd WinEnter,TermEnter * :call posbar#RefreshBars()
+    autocmd WinEnter,TermEnter * :call scrollview#RefreshBars()
     " The following restores bars after leaving the command-line window.
     " Refreshing must be asynchonous, since the command line window is still in
     " an intermediate state when the CmdwinLeave event is triggered.
-    autocmd CmdwinLeave * :call posbar#RefreshBarsAsync()
+    autocmd CmdwinLeave * :call scrollview#RefreshBarsAsync()
     " The following handles scrolling events, which could arise from various
     " actions, including resizing windows, movements (e.g., j, k), or scrolling
     " (e.g., <ctrl-e>, zz).
-    autocmd WinScrolled * :call posbar#RefreshBars()
+    autocmd WinScrolled * :call scrollview#RefreshBars()
     " The following handles the case where text is pasted. TextChangedI is not
     " necessary since WinScrolled will be triggered if there is corresponding
     " scrolling.
-    autocmd TextChanged * :call posbar#RefreshBars()
+    autocmd TextChanged * :call scrollview#RefreshBars()
     " The following handles when :e is used to load a file.
-    autocmd BufWinEnter * :call posbar#RefreshBars()
+    autocmd BufWinEnter * :call scrollview#RefreshBars()
     " The following is used so that bars are shown when cycling through tabs.
-    autocmd TabEnter * :call posbar#RefreshBars()
+    autocmd TabEnter * :call scrollview#RefreshBars()
     " The following error can arise when the last window in a tab is going to be
     " closed, but there are still open floating windows, and at least one other
     " tab.
@@ -102,30 +102,30 @@ function! s:PosbarEnable() abort
     " <ctrl-w>o can be used to first close the floating windows, or
     " alternatively :tabclose can be used (or one of the alternatives handled
     " with the autocmd, like ZQ).
-    autocmd QuitPre * :call posbar#RemoveBars()
-    autocmd VimResized * :call posbar#RefreshBars()
+    autocmd QuitPre * :call scrollview#RemoveBars()
+    autocmd VimResized * :call scrollview#RefreshBars()
   augroup END
-  call posbar#RefreshBars()
+  call scrollview#RefreshBars()
 endfunction
 
-function! s:PosbarDisable() abort
-  let s:posbar_enabled = 0
-  augroup posbar
+function! s:ScrollViewDisable() abort
+  let s:scrollview_enabled = 0
+  augroup scrollview
     autocmd!
   augroup END
-  call posbar#RemoveBars()
+  call scrollview#RemoveBars()
 endfunction
 
-function! s:PosbarRefresh() abort
-  if s:posbar_enabled
-    call posbar#RefreshBars()
+function! s:ScrollViewRefresh() abort
+  if s:scrollview_enabled
+    call scrollview#RefreshBars()
   else
-    call posbar#RemoveBars()
+    call scrollview#RemoveBars()
   endif
 endfunction
 
-if s:posbar_enabled
-  call s:PosbarEnable()
+if s:scrollview_enabled
+  call s:ScrollViewEnable()
 endif
 
 " *************************************************

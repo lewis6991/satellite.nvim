@@ -99,7 +99,7 @@ function! s:ShowBars(winnr) abort
   let l:bufnr = winbufnr(l:winnr)
   let l:buf_filetype = getbufvar(l:bufnr, '&l:filetype', '')
   " Skip if the filetype is on the list of exclusions.
-  if s:Contains(g:posbar_excluded_filetypes, l:buf_filetype)
+  if s:Contains(g:scrollview_excluded_filetypes, l:buf_filetype)
     return
   endif
   " Don't show in terminal mode, since the bar won't be properly updated for
@@ -125,11 +125,11 @@ function! s:ShowBars(winnr) abort
         \ }
   let l:bar_winid = nvim_open_win(s:bar_bufnr, 0, l:options)
   call add(s:bar_winids, l:bar_winid)
-  call setwinvar(l:bar_winid, '&winhighlight', 'Normal:Posbar')
-  call nvim_win_set_option(l:bar_winid, 'winblend', g:posbar_winblend)
+  call setwinvar(l:bar_winid, '&winhighlight', 'Normal:ScrollView')
+  call nvim_win_set_option(l:bar_winid, 'winblend', g:scrollview_winblend)
 endfunction
 
-function! posbar#RemoveBars() abort
+function! scrollview#RemoveBars() abort
   " Remove all existing bars
   for l:bar_winid in s:bar_winids
     " The floating windows may have been closed (e.g., :only/<ctrl-w>o).
@@ -141,7 +141,7 @@ function! posbar#RemoveBars() abort
   let s:bar_winids = []
 endfunction
 
-function! posbar#RefreshBars() abort
+function! scrollview#RefreshBars() abort
   " Use a try block, so that unanticipated errors don't interfere. The worst
   " case scenario is that bars won't be shown properly, which was deemed
   " preferable to an obscure error message that can be interrupting.
@@ -151,9 +151,9 @@ function! posbar#RefreshBars() abort
     if s:InCommandLineWindow()
       return
     endif
-    call posbar#RemoveBars()
+    call scrollview#RemoveBars()
     let l:target_wins = []
-    if g:posbar_active_only
+    if g:scrollview_active_only
       call add(l:target_wins, winnr())
     else
       for l:winid in range(1, winnr('$'))
@@ -178,8 +178,8 @@ endfunction
 " which can result in bars being placed where they shouldn't be.
 " WARN: For debugging, it's helpful to use synchronous refreshing, so that
 " e.g., echom works as expected.
-function! posbar#RefreshBarsAsync() abort
-  let Callback = {timer_id -> execute('call posbar#RefreshBars()')}
+function! scrollview#RefreshBarsAsync() abort
+  let Callback = {timer_id -> execute('call scrollview#RefreshBars()')}
   call timer_start(0, Callback)
 endfunction
 
