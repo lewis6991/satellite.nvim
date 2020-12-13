@@ -22,7 +22,7 @@ A package manager can be used to install `nvim-scrollview`.
 * [Pathogen][pathogen]:
   - `git clone --depth=1 https://github.com/dstein64/nvim-scrollview ~/.local/share/nvim/site/bundle/nvim-scrollview`
 * [vim-plug][vimplug]:
-  - Add `Plug 'dstein64/nvim-scrollview'` to `~/.config/nvim/init.vim`
+  - Add `Plug 'dstein64/nvim-scrollview', { 'branch': 'main' }` to `~/.config/nvim/init.vim`
   - `:PlugInstall` or `$ nvim +PlugInstall +qall`
 * [dein.vim][dein]:
   - Add `call dein#add('dstein64/nvim-scrollview')` to `~/.config/nvim/init.vim`
