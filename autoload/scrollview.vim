@@ -128,7 +128,11 @@ function! s:ShowBars(winnr) abort
         \ }
   let l:bar_winid = nvim_open_win(s:bar_bufnr, 0, l:options)
   call add(s:bar_winids, l:bar_winid)
-  call setwinvar(l:bar_winid, '&winhighlight', 'Normal:ScrollView')
+  " It's not sufficient to just specify Normal highlighting. With just that, a
+  " color scheme's specification of EndOfBuffer would be used to color the
+  " bottom of the scrollbar.
+  let l:winheighlight = 'Normal:ScrollView,EndOfBuffer:ScrollView'
+  call setwinvar(l:bar_winid, '&winhighlight', l:winheighlight)
   call setwinvar(l:bar_winid, '&winblend', g:scrollview_winblend)
   call setwinvar(l:bar_winid, '&foldcolumn', 0)
 endfunction
