@@ -9,6 +9,7 @@ nvim-scrollview	scrollview.txt	/*nvim-scrollview*
 scrollview-color-customization	scrollview.txt	/*scrollview-color-customization*
 scrollview-configuration	scrollview.txt	/*scrollview-configuration*
 scrollview-installation	scrollview.txt	/*scrollview-installation*
+scrollview-issues	scrollview.txt	/*scrollview-issues*
 scrollview-requirements	scrollview.txt	/*scrollview-requirements*
 scrollview-usage	scrollview.txt	/*scrollview-usage*
 scrollview.txt	scrollview.txt	/*scrollview.txt*

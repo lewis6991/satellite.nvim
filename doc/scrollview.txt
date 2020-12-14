@@ -8,6 +8,7 @@ Web: https://github.com/dstein64/nvim-scrollview
 2. Installation                            |scrollview-installation|
 3. Usage                                   |scrollview-usage|
 4. Configuration                           |scrollview-configuration|
+5. Issues                                  |scrollview-issues|
 
 |nvim-scrollview| is a plugin that displays (non-interactive) scrollbars.
 The plugin is customizable (see |scrollview-configuration|).
@@ -31,8 +32,8 @@ Use |packages| or one of the various package managers.
 * The *:ScrollViewEnable* command enables scrollbars. This is only necessary
   if scrollbars have previously been disabled.
 * The *:ScrollViewRefresh* command refreshes the scrollbars. This is relevant
-  when the scrollbars are out-of-sync, which can occur as a result of some
-  window arrangement actions.
+  when the scrollbars are out-of-sync, which can occur e.g., as a result of
+  some window arrangement actions (see |scrollview-issues|).
 
 ============================================================================
 4. Configuration                           *scrollview-configuration*
@@ -82,6 +83,21 @@ following example.
 
 	" Specify custom highlighting for ScrollView
 	highlight ScrollView ctermbg=159 guibg=LightCyan
+
+============================================================================
+5. Issues                                  *scrollview-issues*
+
+* Scrollbars become out-of-sync after window arrangement actions that are not
+  followed by a scroll event. For example, this can be seen by starting `nvim`,
+  issuing |:help|, then typing `<ctrl-w>J` to move the help window to the
+  bottom of the screen. This could be resolved if there was an event that is
+  triggered by the window arrangement actions. `:ScrollViewRefresh`, or
+  scrolling can be used to refresh the scrollbars.
+* Scrollbars become out-of-sync when the mouse wheel is used to scroll a
+  non-active window. This is because the WinScrolled event only corresponds
+  to the active window. The scrollbars can be refreshed with
+  `:ScrollViewRefresh`, scrolling, or changing the active window.
+* Scrollbar positions and sizes do not account for folds.
 
 ============================================================================
  vim:tw=78:ts=4:ft=help:norl:
