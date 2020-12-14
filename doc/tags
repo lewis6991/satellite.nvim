@@ -1,7 +1,7 @@
 :ScrollViewDisable	scrollview.txt	/*:ScrollViewDisable*
 :ScrollViewEnable	scrollview.txt	/*:ScrollViewEnable*
 :ScrollViewRefresh	scrollview.txt	/*:ScrollViewRefresh*
-g:scrollview_active_only	scrollview.txt	/*g:scrollview_active_only*
+g:scrollview_current_only	scrollview.txt	/*g:scrollview_current_only*
 g:scrollview_excluded_filetypes	scrollview.txt	/*g:scrollview_excluded_filetypes*
 g:scrollview_on_startup	scrollview.txt	/*g:scrollview_on_startup*
 g:scrollview_winblend	scrollview.txt	/*g:scrollview_winblend*

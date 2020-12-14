@@ -51,7 +51,8 @@ There are various settings that can be configured.
 * Whether scrollbars are enabled or disabled on startup
 * File types for which scrollbars should not be displayed
 * Scrollbar color and transparency level
-* Whether scrollbars should be displayed in all windows, or just the active window
+* Whether scrollbars should be displayed in all windows, or just the current
+  window
 
 Please see the documentation for details.
 

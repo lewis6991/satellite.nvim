@@ -25,7 +25,7 @@ endif
 let g:scrollview_on_startup = get(g:, 'scrollview_on_startup', 1)
 let g:scrollview_excluded_filetypes = 
       \ get(g:, 'scrollview_excluded_filetypes', [])
-let g:scrollview_active_only = get(g:, 'scrollview_active_only', 0)
+let g:scrollview_current_only = get(g:, 'scrollview_current_only', 0)
 " The default highlight group is specified below.
 " Change this default by defining or linking an alternative highlight group.
 " E.g., the following will use the Pmenu highlight.
@@ -72,7 +72,7 @@ function! s:ScrollViewEnable() abort
     " line window. It was not possible to use CmdwinEnter, since the removal
     " has to occur prior to that event.
     autocmd WinLeave * :call scrollview#RemoveBars()
-    " The following handles bar refreshing when changing the active window,
+    " The following handles bar refreshing when changing the current window,
     " which was required after the WinLeave handling added above.
     autocmd WinEnter,TermEnter * :call scrollview#RefreshBars()
     " The following restores bars after leaving the command-line window.

@@ -51,9 +51,9 @@ The following variables can be used to customize the behavior of
 *g:scrollview_excluded_filetypes*         `[]`
   Optional file types for which
   scrollbars should not be displayed
-*g:scrollview_active_only*                `0`
+*g:scrollview_current_only*               `0`
   Specifies whether scrollbars should
-  only be displayed in the active
+  only be displayed in the current
   window
 *g:scrollview_winblend*                   `50`
   Specifies the level of transparency     An integer between 0 (opaque)
@@ -63,7 +63,7 @@ The variables can be customized in your |init.vim|, as shown in the following
 example.
  >
 	let g:scrollview_excluded_filetypes = ['nerdtree']
-	let g:scrollview_active_only = 1
+	let g:scrollview_current_only = 1
 	let g:scrollview_winblend = 75
 
 Color Customization ~
@@ -94,9 +94,9 @@ following example.
   triggered by the window arrangement actions. `:ScrollViewRefresh`, or
   scrolling can be used to refresh the scrollbars.
 * Scrollbars become out-of-sync when the mouse wheel is used to scroll a
-  non-active window. This is because the WinScrolled event only corresponds
-  to the active window. The scrollbars can be refreshed with
-  `:ScrollViewRefresh`, scrolling, or changing the active window.
+  non-current window. This is because the WinScrolled event only corresponds
+  to the current window. The scrollbars can be refreshed with
+  `:ScrollViewRefresh`, scrolling, or by changing the current window.
 * Scrollbar positions and sizes do not account for folds.
 
 ============================================================================

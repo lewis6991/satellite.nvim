@@ -163,7 +163,7 @@ function! scrollview#RefreshBars() abort
     endif
     call scrollview#RemoveBars()
     let l:target_wins = []
-    if g:scrollview_active_only
+    if g:scrollview_current_only
       call add(l:target_wins, winnr())
     else
       for l:winid in range(1, winnr('$'))
