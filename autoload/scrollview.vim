@@ -186,11 +186,11 @@ let s:pending_async_refresh_count = 0
 
 function! s:RefreshBarsAsyncCallback(timer_id)
   let s:pending_async_refresh_count -= 1
-"  if s:pending_async_refresh_count ># 0
-"    " If there are asynchronous refreshes that will occur subsequently, don't
-"    " execute this one.
-"    return
-"  endif
+  if s:pending_async_refresh_count ># 0
+    " If there are asynchronous refreshes that will occur subsequently, don't
+    " execute this one.
+    return
+  endif
   call scrollview#RefreshBars()
 endfunction
 
