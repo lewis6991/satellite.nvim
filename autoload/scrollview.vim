@@ -108,11 +108,11 @@ function! s:ShowScrollbar(winnr) abort
   if l:winheight ==# 0 || l:winwidth ==# 0
     return
   endif
+  let l:bar_position = s:CalculatePosition(l:winnr)
   " Don't show the position bar when it would span the entire screen.
-  if l:winheight >=# nvim_buf_line_count(l:bufnr)
+  if l:winheight ==# l:bar_position.height
     return
   endif
-  let l:bar_position = s:CalculatePosition(l:winnr)
   if s:bar_bufnr ==# -1
     let s:bar_bufnr = nvim_create_buf(0, 1)
     call setbufvar(s:bar_bufnr, '&modifiable', 0)
