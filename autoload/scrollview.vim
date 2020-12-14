@@ -60,10 +60,6 @@ function! s:CalculatePosition(winnr) abort
   let l:line_count = nvim_buf_line_count(l:bufnr)
   let [l:row, l:col] = win_screenpos(l:winnr)
   let l:winheight = winheight(l:winnr)
-  " Don't show the position bar when it would span the entire screen.
-  if l:winheight >=# l:line_count
-    return
-  endif
   " l:top is relative to the window, and 0-indexed.
   let l:top = 0
   if l:line_count ># 1
@@ -98,6 +94,8 @@ function! s:ShowScrollbar(winnr) abort
   let l:winid = win_getid(l:winnr)
   let l:bufnr = winbufnr(l:winnr)
   let l:buf_filetype = getbufvar(l:bufnr, '&l:filetype', '')
+  let l:winheight = winheight(l:winnr)
+  let l:winwidth = winwidth(l:winnr)
   " Skip if the filetype is on the list of exclusions.
   if s:Contains(g:scrollview_excluded_filetypes, l:buf_filetype)
     return
@@ -107,7 +105,11 @@ function! s:ShowScrollbar(winnr) abort
   if getwininfo(l:winid)[0].terminal
     return
   endif
-  if winheight(l:winnr) ==# 0 || winwidth(l:winnr) ==# 0
+  if l:winheight ==# 0 || l:winwidth ==# 0
+    return
+  endif
+  " Don't show the position bar when it would span the entire screen.
+  if l:winheight >=# nvim_buf_line_count(l:bufnr)
     return
   endif
   let l:bar_position = s:CalculatePosition(l:winnr)
