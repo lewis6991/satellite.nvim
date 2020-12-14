@@ -52,14 +52,11 @@ function! s:CalculatePosition(winnr) abort
   let l:bufnr = winbufnr(l:winnr)
   let l:wininfo = getwininfo(l:winid)[0]
   let l:topline = l:wininfo.topline
-  " WARN: l:wininfo.botline is not properly updated for some movements (Issue
-  " #13510). To work around this, `l:topline + l:wininfo.height - 1` is used
-  " instead. This would not be necessary if the code was always being called
-  " in an asynchronous context, as l:wininfo.botline would have the correct
-  " values by time this code is executed.
-  " XXX: 'botline', calculated as a function of 'topline' and 'height', will
-  " not be correctly calculated when there are folded lines on-screen.
-  let l:botline = l:topline + l:wininfo.height - 1
+  " WARN: l:wininfo.botline is not properly updated for some movements (Neovim
+  " Issue #13510). Correct behavior depends on this function being executed in
+  " an asynchronous context for the corresponding movements (e.g., gg, G).
+  " This is handled by having WinScrolled trigger an asychronous refresh.
+  let l:botline = l:wininfo.botline
   let l:line_count = nvim_buf_line_count(l:bufnr)
   let [l:row, l:col] = win_screenpos(l:winnr)
   let l:winheight = winheight(l:winnr)
@@ -183,6 +180,18 @@ function! scrollview#RefreshBars() abort
   endtry
 endfunction
 
+let s:pending_async_refresh_count = 0
+
+function! s:RefreshBarsAsyncCallback(timer_id)
+  let s:pending_async_refresh_count -= 1
+"  if s:pending_async_refresh_count ># 0
+"    " If there are asynchronous refreshes that will occur subsequently, don't
+"    " execute this one.
+"    return
+"  endif
+  call scrollview#RefreshBars()
+endfunction
+
 " This function refreshes the bars asynchronously. This works better than
 " updating synchronously in various scenarios where updating occurs in an
 " intermediate state of the editor (e.g., when closing a command-line window),
@@ -190,7 +199,6 @@ endfunction
 " WARN: For debugging, it's helpful to use synchronous refreshing, so that
 " e.g., echom works as expected.
 function! scrollview#RefreshBarsAsync() abort
-  let Callback = {timer_id -> execute('call scrollview#RefreshBars()')}
-  call timer_start(0, Callback)
+  let s:pending_async_refresh_count += 1
+  call timer_start(0, function('s:RefreshBarsAsyncCallback'))
 endfunction
-

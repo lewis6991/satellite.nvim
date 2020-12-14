@@ -81,8 +81,11 @@ function! s:ScrollViewEnable() abort
     autocmd CmdwinLeave * :call scrollview#RefreshBarsAsync()
     " The following handles scrolling events, which could arise from various
     " actions, including resizing windows, movements (e.g., j, k), or
-    " scrolling (e.g., <ctrl-e>, zz).
-    autocmd WinScrolled * :call scrollview#RefreshBars()
+    " scrolling (e.g., <ctrl-e>, zz). Refreshing is asynchronous so that
+    " 'botline' is correctly calculcated where applicable, and so that mouse
+    " wheel scrolls are more responsive (since redundant refreshes are
+    " dropped).
+    autocmd WinScrolled * :call scrollview#RefreshBarsAsync()
     " The following handles the case where text is pasted. TextChangedI is not
     " necessary since WinScrolled will be triggered if there is corresponding
     " scrolling.
