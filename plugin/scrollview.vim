@@ -90,8 +90,12 @@ function! s:ScrollViewEnable() abort
     " necessary since WinScrolled will be triggered if there is corresponding
     " scrolling.
     autocmd TextChanged * :call scrollview#RefreshBars()
-    " The following handles when :e is used to load a file.
-    autocmd BufWinEnter * :call scrollview#RefreshBars()
+    " The following handles when :e is used to load a file. The asynchronous
+    " version is used to handle the case where :e is used to reload an
+    " existing file, that is already scrolled. This avoids a scenario where
+    " the scrollbar is refreshed while the window is an intermediate state,
+    " resulting in the scrollbar moving to the top of the window.
+    autocmd BufWinEnter * :call scrollview#RefreshBarsAsync()
     " The following is used so that bars are shown when cycling through tabs.
     autocmd TabEnter * :call scrollview#RefreshBars()
     " The following error can arise when the last window in a tab is going to
