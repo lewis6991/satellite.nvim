@@ -5,12 +5,15 @@
 " s:bar_winids has the winids of existing bars. An existing value is loaded so
 " existing bars can be properly closed when re-sourcing this file.
 let s:bar_winids = get(s:, 'bar_winids', [])
+
 " s:bar_bufnr has the bufnr of the first buffer created for a position bar.
 " Since there is no text displayed in the buffer, the same buffer can be used
 " for multiple floating windows. This also prevents the buffer list from
-" getting
-" high from usage of the plugin.
+" getting high from usage of the plugin.
 let s:bar_bufnr = get(s:, 'bar_bufnr', -1)
+
+" Keep count of pending async refreshes.
+let s:pending_async_refresh_count = 0
 
 " *************************************************
 " * Utils
@@ -181,8 +184,6 @@ function! scrollview#RefreshBars() abort
   catch
   endtry
 endfunction
-
-let s:pending_async_refresh_count = 0
 
 function! s:RefreshBarsAsyncCallback(timer_id)
   let s:pending_async_refresh_count -= 1
