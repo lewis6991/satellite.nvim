@@ -1,3 +1,6 @@
+" WARN: Sometimes 1-indexing is used (primarily for mutual Vim/Neovim API
+" calls) and sometimes 0-indexing (primarily for Neovim-specific API calls).
+
 " *************************************************
 " * Globals
 " *************************************************
@@ -21,6 +24,31 @@ let s:pending_async_refresh_count = 0
 
 function! s:Contains(list, element) abort
   return index(a:list, a:element) !=# -1
+endfunction
+
+" Executes a list of commands in the context of the specified window.
+" Autocommands will not be triggered (unless the commands change eventignore
+" accordingly). If a local result variable is set, it will be returned.
+" WARN: This differ's from Vim's win_execute, as that triggers autocommands
+" when executing a command.
+function! s:WinExecute(winid, commands) abort
+  let l:eventignore = &eventignore
+  try
+    set eventignore=all
+    let l:current_winid = win_getid(winnr())
+    call win_gotoid(a:winid)
+    for l:command in a:commands
+      execute l:command
+    endfor
+    call win_gotoid(l:current_winid)
+  finally
+    let &eventignore = l:eventignore
+  endtry
+  if exists('l:result')
+    return l:result
+  else
+    return
+  endif
 endfunction
 
 " *************************************************
@@ -47,6 +75,36 @@ function! s:InCommandLineWindow() abort
   return l:buftype ==# 'nofile' && l:bufname ==# '[Command Line]'
 endfunction
 
+" Returns the window column where the buffer's text begins. This may be
+" negative due to horizontal scrolling. This may be greater than one due to
+" the sign column and 'number' column.
+function! s:BufferTextBeginsColumn(winid) abort
+  " The calculation assumes lines don't wrap, so 'nowrap' is temporarily set.
+  let l:commands = [
+        \   'let l:wrap = &l:wrap',
+        \   'setlocal nowrap',
+        \   'let l:result = wincol() - virtcol(".") + 1',
+        \   'let &l:wrap = l:wrap'
+        \ ]
+  let l:result = s:WinExecute(a:winid, l:commands)
+  return l:result
+endfunction
+
+" Returns the window column where the view of the buffer begins. This can be
+" greater than one due to the sign column and 'number' column.
+function! s:BufferViewBeginsColumn(winid) abort
+  " The calculation assumes lines don't wrap, so 'nowrap' is temporarily set.
+  let l:commands = [
+        \   'let l:wrap = &l:wrap',
+        \   'setlocal nowrap',
+        \   'let l:result = wincol() - virtcol(".")'
+        \       . ' + winsaveview().leftcol + 1',
+        \   'let &l:wrap = l:wrap'
+        \ ]
+  let l:result = s:WinExecute(a:winid, l:commands)
+  return l:result
+endfunction
+
 " Calculates the bar position for the specified window. Returns a dictionary
 " with a height, row, and col.
 function! s:CalculatePosition(winnr) abort
@@ -63,6 +121,7 @@ function! s:CalculatePosition(winnr) abort
   let l:line_count = nvim_buf_line_count(l:bufnr)
   let [l:row, l:col] = win_screenpos(l:winnr)
   let l:winheight = winheight(l:winnr)
+  let l:winwidth = winwidth(l:winnr)
   " l:top is relative to the window, and 0-indexed.
   let l:top = 0
   if l:line_count ># 1
@@ -82,12 +141,23 @@ function! s:CalculatePosition(winnr) abort
   if l:top + l:height ># l:winheight
     let l:top = l:winheight - l:height
   endif
-  let l:col += winwidth(l:winnr) - 1
+  " At this point, l:col corresponds the window's leftmost column.
+  if g:scrollview_base ==# 'left'
+    let l:col += g:scrollview_column - 1
+  elseif g:scrollview_base ==# 'right'
+    let l:col += l:winwidth - g:scrollview_column
+  elseif g:scrollview_base ==# 'buffer'
+    let l:col += g:scrollview_column - 1
+          \ + s:BufferTextBeginsColumn(l:winid) - 1
+  else
+    " For an unknown base, use the default position (right edge of window).
+    let l:col += l:winwidth - 1
+  endif
   let l:line = l:row + l:top
   let l:result = {
         \   'height': l:height,
-        \   'row': l:line - 1,
-        \   'col': l:col - 1
+        \   'row': l:line,
+        \   'col': l:col
         \ }
   return l:result
 endfunction
@@ -116,6 +186,19 @@ function! s:ShowScrollbar(winnr) abort
   if l:winheight ==# l:bar_position.height
     return
   endif
+  " Don't show scrollbar when its column is beyond what's valid.
+  let l:min_valid_col = 1
+  let l:max_valid_col = l:winwidth
+  if g:scrollview_base ==# 'buffer'
+    let l:min_valid_col = s:BufferViewBeginsColumn(l:winid)
+  endif
+  let l:col = l:bar_position.col - win_screenpos(l:winnr)[1] + 1
+  if l:col <# l:min_valid_col
+    return
+  endif
+  if l:col ># l:winwidth
+    return
+  endif
   if s:bar_bufnr ==# -1
     let s:bar_bufnr = nvim_create_buf(0, 1)
     call setbufvar(s:bar_bufnr, '&modifiable', 0)
@@ -128,8 +211,8 @@ function! s:ShowScrollbar(winnr) abort
         \   'style': 'minimal',
         \   'height': l:bar_position.height,
         \   'width': 1,
-        \   'row': l:bar_position.row,
-        \   'col': l:bar_position.col
+        \   'row': l:bar_position.row - 1,
+        \   'col': l:bar_position.col - 1
         \ }
   let l:bar_winid = nvim_open_win(s:bar_bufnr, 0, l:options)
   call add(s:bar_winids, l:bar_winid)
