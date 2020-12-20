@@ -105,6 +105,44 @@ function! s:BufferViewBeginsColumn(winid) abort
   return l:result
 endfunction
 
+" Returns the specified variable. There are two optional arguments, for
+" specifying precedence and a default value. Without specifying precedence,
+" highest precedence is given to window variables, then tab page variables,
+" then buffer variables, then global variables. Without specifying a default
+" value, 0 will be used.
+function! s:GetVariable(name, winnr, ...) abort
+  " WARN: The try block approach below is used instead of getwinvar(a:winnr,
+  " a:name), since the latter approach provides no way to know whether a
+  " returned default value was from a missing key or a match that
+  " coincidentally had the same value.
+  let l:precedence = 'wtbg'
+  if a:0 ># 0
+    let l:precedence = a:1
+  endif
+  for l:idx in range(strchars(l:precedence))
+    let l:c = strcharpart(l:precedence, l:idx, 1)
+    if l:c ==# 'w'
+      let l:winvars = getwinvar(a:winnr, '')
+      try | return l:winvars[a:name] | catch | endtry
+    elseif l:c ==# 't'
+      try | return t:[a:name] | catch | endtry
+    elseif l:c ==# 'b'
+      let l:bufnr = winbufnr(a:winnr)
+      let l:bufvars = getbufvar(l:bufnr, '')
+      try | return l:bufvars[a:name] | catch | endtry
+    elseif l:c ==# 'g'
+      try | return g:[a:name] | catch | endtry
+    else
+      throw 'Unknown variable type ' . l:c
+    endif
+  endfor
+  let l:default = 0
+  if a:0 ># 1
+    let l:default = a:2
+  endif
+  return l:default
+endfunction
+
 " Calculates the bar position for the specified window. Returns a dictionary
 " with a height, row, and col.
 function! s:CalculatePosition(winnr) abort
@@ -142,12 +180,14 @@ function! s:CalculatePosition(winnr) abort
     let l:top = l:winheight - l:height
   endif
   " At this point, l:col corresponds the window's leftmost column.
-  if g:scrollview_base ==# 'left'
-    let l:col += g:scrollview_column - 1
-  elseif g:scrollview_base ==# 'right'
-    let l:col += l:winwidth - g:scrollview_column
-  elseif g:scrollview_base ==# 'buffer'
-    let l:col += g:scrollview_column - 1
+  let l:column = s:GetVariable('scrollview_column', l:winnr)
+  let l:base = s:GetVariable('scrollview_base', l:winnr)
+  if l:base ==# 'left'
+    let l:col += l:column - 1
+  elseif l:base ==# 'right'
+    let l:col += l:winwidth - l:column
+  elseif l:base ==# 'buffer'
+    let l:col += l:column - 1
           \ + s:BufferTextBeginsColumn(l:winid) - 1
   else
     " For an unknown base, use the default position (right edge of window).
@@ -170,7 +210,9 @@ function! s:ShowScrollbar(winnr) abort
   let l:winheight = winheight(l:winnr)
   let l:winwidth = winwidth(l:winnr)
   " Skip if the filetype is on the list of exclusions.
-  if s:Contains(g:scrollview_excluded_filetypes, l:buf_filetype)
+  let l:excluded_filetypes =
+        \ s:GetVariable('scrollview_excluded_filetypes', l:winnr)
+  if s:Contains(l:excluded_filetypes, l:buf_filetype)
     return
   endif
   " Don't show in terminal mode, since the bar won't be properly updated for
@@ -189,7 +231,8 @@ function! s:ShowScrollbar(winnr) abort
   " Don't show scrollbar when its column is beyond what's valid.
   let l:min_valid_col = 1
   let l:max_valid_col = l:winwidth
-  if g:scrollview_base ==# 'buffer'
+  let l:base = s:GetVariable('scrollview_base', l:winnr)
+  if l:base ==# 'buffer'
     let l:min_valid_col = s:BufferViewBeginsColumn(l:winid)
   endif
   let l:col = l:bar_position.col - win_screenpos(l:winnr)[1] + 1
@@ -221,7 +264,8 @@ function! s:ShowScrollbar(winnr) abort
   " bottom of the scrollbar.
   let l:winheighlight = 'Normal:ScrollView,EndOfBuffer:ScrollView'
   call setwinvar(l:bar_winid, '&winhighlight', l:winheighlight)
-  call setwinvar(l:bar_winid, '&winblend', g:scrollview_winblend)
+  let l:winblend = s:GetVariable('scrollview_winblend', l:winnr)
+  call setwinvar(l:bar_winid, '&winblend', l:winblend)
   call setwinvar(l:bar_winid, '&foldcolumn', 0)
 endfunction
 
@@ -249,7 +293,9 @@ function! scrollview#RefreshBars() abort
     endif
     call scrollview#RemoveBars()
     let l:target_wins = []
-    if g:scrollview_current_only
+    let l:current_only =
+          \ s:GetVariable('scrollview_current_only', winnr(), 'tg')
+    if l:current_only
       call add(l:target_wins, winnr())
     else
       for l:winid in range(1, winnr('$'))
