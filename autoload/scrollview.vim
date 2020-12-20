@@ -143,6 +143,34 @@ function! s:GetVariable(name, winnr, ...) abort
   return l:default
 endfunction
 
+" Returns the count of visible lines between (inclusive) the specified start
+" and end lines, in the current window. A closed fold counts as one visible
+" line.
+" TODO: Port to Lua to execute faster, or alternatively use Vim's built-in
+" fold movement commands to figure out the count of visible lines.
+function! s:VisibleLineCount(start, end) abort
+  let l:result = 0
+  let l:line = a:start
+  while l:line <=# a:end
+    let l:result += 1
+    let l:foldclosedend = foldclosedend(l:line)
+    if l:foldclosedend !=# -1
+      let l:line = l:foldclosedend
+    endif
+    let l:line += 1
+  endwhile
+  return l:result
+endfunction
+
+" Same as VisibleLineCount, but operates on the specified window, as opposed
+" to the current window.
+function! s:WinVisibleLineCount(winid, start, end) abort
+  let l:command =
+        \ 'let l:result = s:VisibleLineCount(' . a:start . ', ' . a:end . ')'
+  let l:result = s:WinExecute(a:winid, [l:command])
+  return l:result
+endfunction
+
 " Calculates the bar position for the specified window. Returns a dictionary
 " with a height, row, and col.
 function! s:CalculatePosition(winnr) abort
