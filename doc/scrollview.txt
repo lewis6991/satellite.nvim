@@ -43,29 +43,29 @@ The following variables can be used to customize the behavior of
 and/or 4) global scope, with that order of precedence (i.e., window variables
 have the highest precedence, and global variables have the lowest).
 
-`Variable`                                 `Default`
-  Description                              Info
--------------                            -------
+`Variable`                                `Default`
+  Description                             Info
+-------------                           -------
 
-*scrollview_on_startup*                    `1`
-  Specifies whether scrollbars are         Considered only at global scope
+*scrollview_on_startup*                   `1`
+  Specifies whether scrollbars are        Considered only at global scope
   enabled on startup
-*scrollview_excluded_filetypes*            `[]`
+*scrollview_excluded_filetypes*           `[]`
   Optional file types for which
   scrollbars should not be displayed
-*scrollview_current_only*                  `0`
-  Specifies whether scrollbars should      Considered only at tab and global
-  only be displayed in the current         scopes
+*scrollview_current_only*                 `0`
+  Specifies whether scrollbars should     Considered only at tab and global
+  only be displayed in the current        scopes
   window
-*scrollview_winblend*                      `50`
-  Specifies the level of transparency      An integer between 0 (opaque) and
-  for scrollbars                           100 (transparent)
-*scrollview_base*                          `right`
-  Specifies where the scrollbar is         `left` or `right` for corresponding
-  anchored                                 window edges, or `buffer` for buffer
-*scrollview_column*                        `1`
-  Specifies the scrollbar column           An integer greater than or equal
-  (relative to |scrollview_base|)          to 1
+*scrollview_winblend*                     `50`
+  Specifies the level of transparency     An integer between 0 (opaque) and
+  for scrollbars                          100 (transparent)
+*scrollview_base*                         `'right'`
+  Specifies where the scrollbar is        `'left'` or `'right'` for corresponding
+  anchored                                window edges, or `'buffer'` for buffer
+*scrollview_column*                       `1`
+  Specifies the scrollbar column          An integer greater than or equal
+  (relative to |scrollview_base|)           to 1
 
 
 The variables can be customized in your |init.vim|, as shown in the following
