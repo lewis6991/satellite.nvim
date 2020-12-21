@@ -31,6 +31,10 @@ endfunction
 " accordingly). If a local result variable is set, it will be returned.
 " WARN: This differ's from Vim's win_execute, as that triggers autocommands
 " when executing a command.
+" WARN: Loops within the specified commands cannot be executed, due to their
+" interaction with the for loop in this function. To resolve, instead of
+" putting loops into the commands, extract the loops to separate functions,
+" and have the specified commands call those functions.
 function! s:WinExecute(winid, commands) abort
   let l:eventignore = &eventignore
   try
@@ -143,31 +147,31 @@ function! s:GetVariable(name, winnr, ...) abort
   return l:default
 endfunction
 
-" Returns the count of visible lines between (inclusive) the specified start
-" and end lines, in the current window. A closed fold counts as one visible
-" line.
-" TODO: Port to Lua to execute faster, or alternatively use Vim's built-in
-" fold movement commands to figure out the count of visible lines.
-function! s:VisibleLineCount(start, end) abort
-  let l:result = 0
-  let l:line = a:start
-  while l:line <=# a:end
-    let l:result += 1
-    let l:foldclosedend = foldclosedend(l:line)
-    if l:foldclosedend !=# -1
-      let l:line = l:foldclosedend
+" Returns the count of visible lines between the specified start and end lines
+" (both inclusive), in the specified window. A closed fold counts as one
+" visible line. '$' can be used as the end line, to represent the last line.
+" The function currently depends on a Lua function for faster execution, as
+" there is a loop over all lines in the specified window's buffer.
+" TODO: Using Vim fold movements (zj, zk), instead of looping over every line,
+" may be a way to speed this up further, but would presumably require a more
+" complicated implementation.
+function! s:VisibleLineCount(winid, start, end) abort
+  let l:eventignore = &eventignore
+  let l:result = -1
+  try
+    set eventignore=all
+    let l:current_winid = win_getid(winnr())
+    call win_gotoid(a:winid)
+    let l:end = a:end
+    if l:end ==# '$'
+      let l:end = line('$')
     endif
-    let l:line += 1
-  endwhile
-  return l:result
-endfunction
-
-" Same as VisibleLineCount, but operates on the specified window, as opposed
-" to the current window.
-function! s:WinVisibleLineCount(winid, start, end) abort
-  let l:command =
-        \ 'let l:result = s:VisibleLineCount(' . a:start . ', ' . a:end . ')'
-  let l:result = s:WinExecute(a:winid, [l:command])
+    let l:module = luaeval('require("scrollview")')
+    let l:result = l:module.visible_line_count(a:start, l:end)
+    call win_gotoid(l:current_winid)
+  finally
+    let &eventignore = l:eventignore
+  endtry
   return l:result
 endfunction
 
