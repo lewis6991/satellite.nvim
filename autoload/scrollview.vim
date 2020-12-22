@@ -48,6 +48,10 @@ function! s:WinExecute(winid, commands) abort
   endif
 endfunction
 
+function! s:NumberToFloat(number) abort
+  return a:number + 0.0
+endfunction
+
 " *************************************************
 " * Core
 " *************************************************
@@ -207,7 +211,7 @@ function! s:CalculatePosition(winnr) abort
     if l:mode ==# 'document'
       let l:numerator = l:botline - l:topline + 1
     endif
-    let l:height = str2float(l:numerator) / l:line_count
+    let l:height = s:NumberToFloat(l:numerator) / l:line_count
     let l:height = float2nr(ceil(l:height * l:winheight))
   endif
   " Make sure bar properly reflects bottom of document.
