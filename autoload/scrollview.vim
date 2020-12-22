@@ -336,6 +336,7 @@ endfunction
 " *************************************************
 " * Main (entry points)
 " *************************************************
+
 function! scrollview#RemoveBars() abort
   let l:state = s:Init()
   try
