@@ -270,6 +270,12 @@ function! s:ShowScrollbar(winid) abort
     return
   endif
   let l:bar_position = s:CalculatePosition(l:winnr)
+  " Height has to be positive for the call to nvim_open_win. When opening a
+  " terminal, the topline and botline can be set such that height is negative
+  " when you're using scrollview document mode.
+  if l:bar_position.height <=# 0
+    return
+  endif
   " Don't show scrollbar when its column is beyond what's valid.
   let l:min_valid_col = 1
   let l:max_valid_col = l:winwidth
@@ -349,15 +355,13 @@ function! scrollview#RemoveBars() abort
       call nvim_win_close(l:bar_winid, 1)
     endfor
     let s:bar_winids = []
+  catch
   finally
     call s:Restore(l:state)
   endtry
 endfunction
 
 function! scrollview#RefreshBars() abort
-  " Use a try block, so that unanticipated errors don't interfere. The worst
-  " case scenario is that bars won't be shown properly, which was deemed
-  " preferable to an obscure error message that can be interrupting.
   let l:state = s:Init()
   try
     " Some functionality, like nvim_win_close, cannot be used from the command
@@ -385,6 +389,10 @@ function! scrollview#RefreshBars() abort
     " Redraw to prevent flickering (which occurred when there were folds, but
     " not otherwise).
     redraw
+  catch
+    " Use a catch block, so that unanticipated errors don't interfere. The
+    " worst case scenario is that bars won't be shown properly, which was
+    " deemed preferable to an obscure error message that can be interrupting.
   finally
     call s:Restore(l:state)
   endtry
