@@ -27,8 +27,7 @@ function! s:Contains(list, element) abort
 endfunction
 
 " Executes a list of commands in the context of the specified window.
-" Autocommands will not be triggered (unless the commands change eventignore
-" accordingly). If a local result variable is set, it will be returned.
+" If a local result variable is set, it will be returned.
 " WARN: This differ's from Vim's win_execute, as that triggers autocommands
 " when executing a command.
 " WARN: Loops within the specified commands cannot be executed, due to their
@@ -36,18 +35,12 @@ endfunction
 " putting loops into the commands, extract the loops to separate functions,
 " and have the specified commands call those functions.
 function! s:WinExecute(winid, commands) abort
-  let l:eventignore = &eventignore
-  try
-    set eventignore=all
-    let l:current_winid = win_getid(winnr())
-    call win_gotoid(a:winid)
-    for l:command in a:commands
-      execute l:command
-    endfor
-    call win_gotoid(l:current_winid)
-  finally
-    let &eventignore = l:eventignore
-  endtry
+  let l:current_winid = win_getid(winnr())
+  call win_gotoid(a:winid)
+  for l:command in a:commands
+    execute l:command
+  endfor
+  call win_gotoid(l:current_winid)
   if exists('l:result')
     return l:result
   else
@@ -156,22 +149,16 @@ endfunction
 " may be a way to speed this up further, but would presumably require a more
 " complicated implementation.
 function! s:VisibleLineCount(winid, start, end) abort
-  let l:eventignore = &eventignore
   let l:result = -1
-  try
-    set eventignore=all
-    let l:current_winid = win_getid(winnr())
-    call win_gotoid(a:winid)
-    let l:end = a:end
-    if type(l:end) ==# v:t_string && l:end ==# '$'
-      let l:end = line('$')
-    endif
-    let l:module = luaeval('require("scrollview")')
-    let l:result = l:module.visible_line_count(a:start, l:end)
-    call win_gotoid(l:current_winid)
-  finally
-    let &eventignore = l:eventignore
-  endtry
+  let l:current_winid = win_getid(winnr())
+  call win_gotoid(a:winid)
+  let l:end = a:end
+  if type(l:end) ==# v:t_string && l:end ==# '$'
+    let l:end = line('$')
+  endif
+  let l:module = luaeval('require("scrollview")')
+  let l:result = l:module.visible_line_count(a:start, l:end)
+  call win_gotoid(l:current_winid)
   return l:result
 endfunction
 
@@ -324,22 +311,53 @@ function! s:ShowScrollbar(winid) abort
   call setwinvar(l:bar_winid, '&foldcolumn', 0)
 endfunction
 
+" Sets global state that is assumed by the core functionality and returns a
+" state that can be used for restoration.
+function! s:Init()
+  let l:state = {
+        \   'eventignore': &eventignore,
+        \   'winwidth': &winwidth,
+        \   'winheight': &winheight
+        \ }
+  " Minimize winwidth and winheight so that moving around doesn't unexpectedly
+  " cause window resizing.
+  set eventignore=all
+  let &winwidth = max([1, &winminwidth])
+  let &winheight = max([1, &winminheight])
+  return l:state
+endfunction
+
+function! s:Restore(state)
+  let &winwidth = a:state.winwidth
+  let &winheight = a:state.winheight
+  let &eventignore = a:state.eventignore
+endfunction
+
+" *************************************************
+" * Main (entry points)
+" *************************************************
 function! scrollview#RemoveBars() abort
-  " Remove all existing bars
-  for l:bar_winid in s:bar_winids
-    " The floating windows may have been closed (e.g., :only/<ctrl-w>o).
-    if getwininfo(l:bar_winid) ==# []
-      continue
-    endif
-    noautocmd call nvim_win_close(l:bar_winid, 1)
-  endfor
-  let s:bar_winids = []
+  let l:state = s:Init()
+  try
+    " Remove all existing bars
+    for l:bar_winid in s:bar_winids
+      " The floating windows may have been closed (e.g., :only/<ctrl-w>o).
+      if getwininfo(l:bar_winid) ==# []
+        continue
+      endif
+      call nvim_win_close(l:bar_winid, 1)
+    endfor
+    let s:bar_winids = []
+  finally
+    call s:Restore(l:state)
+  endtry
 endfunction
 
 function! scrollview#RefreshBars() abort
   " Use a try block, so that unanticipated errors don't interfere. The worst
   " case scenario is that bars won't be shown properly, which was deemed
   " preferable to an obscure error message that can be interrupting.
+  let l:state = s:Init()
   try
     " Some functionality, like nvim_win_close, cannot be used from the command
     " line window.
@@ -366,7 +384,8 @@ function! scrollview#RefreshBars() abort
     " Redraw to prevent flickering (which occurred when there were folds, but
     " not otherwise).
     redraw
-  catch
+  finally
+    call s:Restore(l:state)
   endtry
 endfunction
 
