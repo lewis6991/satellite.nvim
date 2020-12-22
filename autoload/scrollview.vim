@@ -62,7 +62,7 @@ endfunction
 " Returns true for ordinary windows (not floating and not external), and
 " false otherwise.
 function! s:IsOrdinaryWindow(winid) abort
-  let l:config = nvim_win_get_config(win_getid(a:winid))
+  let l:config = nvim_win_get_config(a:winid)
   let l:not_external = !get(l:config, 'external', 0)
   let l:not_floating = get(l:config, 'relative', '') ==# ''
   return l:not_external && l:not_floating
@@ -254,9 +254,9 @@ function! s:CalculatePosition(winnr) abort
   return l:result
 endfunction
 
-function! s:ShowScrollbar(winnr) abort
-  let l:winnr = a:winnr
-  let l:winid = win_getid(l:winnr)
+function! s:ShowScrollbar(winid) abort
+  let l:winid = a:winid
+  let l:winnr = win_id2win(l:winid)
   let l:bufnr = winbufnr(l:winnr)
   let l:buf_filetype = getbufvar(l:bufnr, '&l:filetype', '')
   let l:winheight = winheight(l:winnr)
@@ -351,16 +351,17 @@ function! scrollview#RefreshBars() abort
     let l:current_only =
           \ s:GetVariable('scrollview_current_only', winnr(), 'tg')
     if l:current_only
-      call add(l:target_wins, winnr())
+      call add(l:target_wins, win_getid(winnr()))
     else
-      for l:winid in range(1, winnr('$'))
+      for l:winnr in range(1, winnr('$'))
+        let l:winid = win_getid(l:winnr)
         if s:IsOrdinaryWindow(l:winid)
           call add(l:target_wins, l:winid)
         endif
       endfor
     endif
-    for l:winnr in l:target_wins
-      call s:ShowScrollbar(l:winnr)
+    for l:winid in l:target_wins
+      call s:ShowScrollbar(l:winid)
     endfor
     " Redraw to prevent flickering (which occurred when there were folds, but
     " not otherwise).
