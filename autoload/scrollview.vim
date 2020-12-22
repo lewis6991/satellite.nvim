@@ -329,8 +329,8 @@ function! s:Init()
         \   'winwidth': &winwidth,
         \   'winheight': &winheight
         \ }
-  " Minimize winwidth and winheight so that moving around doesn't unexpectedly
-  " cause window resizing.
+  " Minimize winwidth and winheight so that changing the current window
+  " doesn't unexpectedly cause window resizing.
   set eventignore=all
   let &winwidth = max([1, &winminwidth])
   let &winheight = max([1, &winminheight])
