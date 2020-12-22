@@ -163,7 +163,7 @@ function! s:VisibleLineCount(winid, start, end) abort
     let l:current_winid = win_getid(winnr())
     call win_gotoid(a:winid)
     let l:end = a:end
-    if l:end ==# '$'
+    if type(l:end) ==# v:t_string && l:end ==# '$'
       let l:end = line('$')
     endif
     let l:module = luaeval('require("scrollview")')
@@ -192,7 +192,23 @@ function! s:CalculatePosition(winnr) abort
   let [l:row, l:col] = win_screenpos(l:winnr)
   let l:winheight = winheight(l:winnr)
   let l:winwidth = winwidth(l:winnr)
-  " l:top is relative to the window, and 0-indexed.
+  let l:mode = s:GetVariable('scrollview_mode', l:winnr)
+  if l:mode ==# 'virtual'
+    " Update topline, botline, and line_count to correspond to virtual lines,
+    " which account for closed folds.
+    let l:virtual_counts = {
+          \   'before': s:VisibleLineCount(l:winid, 1, l:topline - 1),
+          \   'here': s:VisibleLineCount(l:winid, l:topline, l:botline),
+          \   'after': s:VisibleLineCount(l:winid, l:botline + 1, '$')
+          \ }
+    let l:topline = l:virtual_counts.before + 1
+    let l:botline = l:virtual_counts.before + l:virtual_counts.here
+    let l:line_count = l:virtual_counts.before
+          \ + l:virtual_counts.here
+          \ + l:virtual_counts.after
+  endif
+  " l:top is the position for the top of the scrollbar, relative to the
+  " window, and 0-indexed.
   let l:top = 0
   if l:line_count ># 1
     let l:top = (l:topline - 1.0) / (l:line_count - 1)
@@ -200,7 +216,11 @@ function! s:CalculatePosition(winnr) abort
   endif
   let l:height = l:winheight
   if l:line_count ># l:height
-    let l:height = str2float(l:winheight) / l:line_count
+    let l:numerator = l:winheight
+    if l:mode ==# 'document'
+      let l:numerator = l:botline - l:topline + 1
+    endif
+    let l:height = str2float(l:numerator) / l:line_count
     let l:height = float2nr(ceil(l:height * l:winheight))
   endif
   " Make sure bar properly reflects bottom of document.
@@ -247,19 +267,22 @@ function! s:ShowScrollbar(winnr) abort
   if s:Contains(l:excluded_filetypes, l:buf_filetype)
     return
   endif
+  let l:wininfo = getwininfo(l:winid)[0]
   " Don't show in terminal mode, since the bar won't be properly updated for
   " insertions.
-  if getwininfo(l:winid)[0].terminal
+  if l:wininfo.terminal
     return
   endif
   if l:winheight ==# 0 || l:winwidth ==# 0
     return
   endif
-  let l:bar_position = s:CalculatePosition(l:winnr)
-  " Don't show the position bar when it would span the entire screen.
-  if l:winheight ==# l:bar_position.height
+  let l:line_count = nvim_buf_line_count(l:bufnr)
+  " Don't show the position bar when all lines are on screen.
+  " WARN: See the botline usage warning in CalculatePosition.
+  if l:wininfo.botline - l:wininfo.topline + 1 ==# l:line_count
     return
   endif
+  let l:bar_position = s:CalculatePosition(l:winnr)
   " Don't show scrollbar when its column is beyond what's valid.
   let l:min_valid_col = 1
   let l:max_valid_col = l:winwidth

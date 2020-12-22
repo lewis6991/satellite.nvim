@@ -23,6 +23,7 @@ endif
 " *************************************************
 
 let g:scrollview_on_startup = get(g:, 'scrollview_on_startup', 1)
+let g:scrollview_mode = get(g:, 'scrollview_mode', 'default')
 let g:scrollview_excluded_filetypes = 
       \ get(g:, 'scrollview_excluded_filetypes', [])
 let g:scrollview_current_only = get(g:, 'scrollview_current_only', 0)
