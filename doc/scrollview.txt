@@ -135,10 +135,12 @@ following example.
   bottom of the screen. This could be resolved if there was an event that is
   triggered by the window arrangement actions. `:ScrollViewRefresh`, or
   scrolling can be used to refresh the scrollbars.
+
 * Scrollbars become out-of-sync when the mouse wheel is used to scroll a
   non-current window. This is because the WinScrolled event only corresponds
   to the current window. The scrollbars can be refreshed with
   `:ScrollViewRefresh`, scrolling, or by changing the current window.
+
 * Scrollbar positions and sizes do not account for folds.
 
 ============================================================================
