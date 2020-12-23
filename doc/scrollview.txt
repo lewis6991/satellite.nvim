@@ -84,7 +84,8 @@ example.
 Scrollview Modes ~
                                            *scrollview-modes*
 The following modes are available for the |scrollview_mode| configuration
-setting (set as a |string|).
+setting (set as a |string|). Without closed |folds|, all three modes work the
+same way.
 
 Mode       Description
 ----       -----------
@@ -92,12 +93,12 @@ Mode       Description
            relative to the document's line count. The scrollbar height reflects
            the size of the window relative to the document's line count.
 
-*document*   The scrollbar top position reflects the window's top line number
-           relative to the document's line count. The scrollbar bottom
-           position reflects the window's bottom line number relative to the
-           document's line count. Thus, the scrollbar height reflects the
-           number of lines in the window (counting lines in closed folds)
-           relative to the document's line count.
+*flexible*   The scrollbar height adapts to reflect the number of lines in the
+           window, counting lines in closed folds, relative to the document's
+           line count. The scrollbar top position reflects the window's top
+           line number relative to the document's line count. The scrollbar
+           bottom position reflects the window's bottom line number relative
+           to the document's line count.
 
 *virtual*    The scrollbar position and height are calculated similarly to
            the |simple| mode, but line numbers and the document line count

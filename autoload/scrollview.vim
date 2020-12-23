@@ -5,10 +5,6 @@
 " * Globals
 " *************************************************
 
-" s:bar_winids has the winids of existing bars. An existing value is loaded so
-" existing bars can be properly closed when re-sourcing this file.
-let s:bar_winids = get(s:, 'bar_winids', [])
-
 " s:bar_bufnr has the bufnr of the first buffer created for a position bar.
 " Since there is no text displayed in the buffer, the same buffer can be used
 " for multiple floating windows. This also prevents the buffer list from
@@ -17,6 +13,12 @@ let s:bar_bufnr = get(s:, 'bar_bufnr', -1)
 
 " Keep count of pending async refreshes.
 let s:pending_async_refresh_count = 0
+
+" A window variable is set on each scrollview window, as a way to check for
+" scrollview windows. This was preferable versus maintaining a list of window
+" IDs.
+let s:win_var = 'scrollview_key'
+let s:win_val = 'scrollview_val'
 
 " *************************************************
 " * Utils
@@ -208,7 +210,7 @@ function! s:CalculatePosition(winnr) abort
   let l:height = l:winheight
   if l:line_count ># l:height
     let l:numerator = l:winheight
-    if l:mode ==# 'document'
+    if l:mode ==# 'flexible'
       let l:numerator = l:botline - l:topline + 1
     endif
     let l:height = s:NumberToFloat(l:numerator) / l:line_count
@@ -310,15 +312,50 @@ function! s:ShowScrollbar(winid) abort
         \   'col': l:bar_position.col - 1
         \ }
   let l:bar_winid = nvim_open_win(s:bar_bufnr, 0, l:options)
-  call add(s:bar_winids, l:bar_winid)
   " It's not sufficient to just specify Normal highlighting. With just that, a
   " color scheme's specification of EndOfBuffer would be used to color the
   " bottom of the scrollbar.
+  let l:bar_winnr = win_id2win(l:bar_winid)
   let l:winheighlight = 'Normal:ScrollView,EndOfBuffer:ScrollView'
-  call setwinvar(l:bar_winid, '&winhighlight', l:winheighlight)
+  call setwinvar(l:bar_winnr, '&winhighlight', l:winheighlight)
   let l:winblend = s:GetVariable('scrollview_winblend', l:winnr)
-  call setwinvar(l:bar_winid, '&winblend', l:winblend)
-  call setwinvar(l:bar_winid, '&foldcolumn', 0)
+  call setwinvar(l:bar_winnr, '&winblend', l:winblend)
+  call setwinvar(l:bar_winnr, '&foldcolumn', 0)
+  call setwinvar(l:bar_winnr, s:win_var, s:win_val)
+endfunction
+
+function! s:IsScrollViewWindow(winid) abort
+  if s:IsOrdinaryWindow(a:winid)
+    return 0
+  endif
+  if getwinvar(win_id2win(a:winid), s:win_var, '') !=# s:win_val
+    return 0
+  endif
+  let l:bufnr = winbufnr(a:winid)
+  return l:bufnr ==# s:bar_bufnr
+endfunction
+
+function! s:GetScrollViewWindows() abort
+  let l:result = []
+  for l:winnr in range(1, winnr('$'))
+    let l:winid = win_getid(l:winnr)
+    if s:IsScrollViewWindow(l:winid)
+      call add(l:result, l:winid)
+    endif
+  endfor
+  return l:result
+endfunction
+
+function! s:CloseScrollViewWindow(winid) abort
+  let l:winid = a:winid
+  " The floating window may have been closed (e.g., :only/<ctrl-w>o).
+  if getwininfo(l:winid) ==# []
+    return
+  endif
+  if !s:IsScrollViewWindow(l:winid)
+    return
+  endif
+  silent! noautocmd call nvim_win_close(l:winid, 1)
 endfunction
 
 " Sets global state that is assumed by the core functionality and returns a
@@ -348,17 +385,13 @@ endfunction
 " *************************************************
 
 function! scrollview#RemoveBars() abort
+  if s:bar_bufnr ==# -1 | return | endif
   let l:state = s:Init()
   try
     " Remove all existing bars
-    for l:bar_winid in s:bar_winids
-      " The floating windows may have been closed (e.g., :only/<ctrl-w>o).
-      if getwininfo(l:bar_winid) ==# []
-        continue
-      endif
-      call nvim_win_close(l:bar_winid, 1)
+    for l:winid in s:GetScrollViewWindows()
+      call s:CloseScrollViewWindow(l:winid)
     endfor
-    let s:bar_winids = []
   catch
   finally
     call s:Restore(l:state)
@@ -373,7 +406,10 @@ function! scrollview#RefreshBars() abort
     if s:InCommandLineWindow()
       return
     endif
-    call scrollview#RemoveBars()
+    " Existing windows are determined before adding new windows, but removed
+    " later (they have to be removed after adding to prevent flickering from
+    " the delay between removal and adding).
+    let l:existing_wins = s:GetScrollViewWindows()
     let l:target_wins = []
     let l:current_only =
           \ s:GetVariable('scrollview_current_only', winnr(), 'tg')
@@ -390,9 +426,21 @@ function! scrollview#RefreshBars() abort
     for l:winid in l:target_wins
       call s:ShowScrollbar(l:winid)
     endfor
-    " Redraw to prevent flickering (which occurred when there were folds, but
-    " not otherwise).
-    redraw
+    for l:winid in l:existing_wins
+      " Remove bars asynchronously to prevent flickering. Even when
+      " nvim_win_close is called synchronously after the code that adds the
+      " other windows, the window removal still happens earlier in time, as
+      " confirmed by using 'writedelay'. Even with asyncronous execution, the
+      " call to timer_start must still occur after the code for the window
+      " additions.
+      " WARN: The statement is put in a string to prevent a closure whereby
+      " the variable used in the lambda will have its value change by the time
+      " the code executes. By putting this in a string, the window ID becomes
+      " fixed at string-creation time.
+      let l:cmd = 'silent! call s:CloseScrollViewWindow(' . l:winid . ')'
+      let l:expr = 'call timer_start(0, {-> execute("' . l:cmd . '")})'
+      execute l:expr
+    endfor
   catch
     " Use a catch block, so that unanticipated errors don't interfere. The
     " worst case scenario is that bars won't be shown properly, which was
