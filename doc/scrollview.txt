@@ -141,7 +141,5 @@ following example.
   to the current window. The scrollbars can be refreshed with
   `:ScrollViewRefresh`, scrolling, or by changing the current window.
 
-* Scrollbar positions and sizes do not account for folds.
-
 ============================================================================
  vim:tw=78:ts=4:ft=help:norl:
