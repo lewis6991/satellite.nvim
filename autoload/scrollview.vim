@@ -411,7 +411,7 @@ function! scrollview#RefreshBars() abort
       " with the center of the command line window. It was not possible to use
       " CmdwinEnter, since the removal has to occur prior to that event.
       " Rather, this is triggered by the WinEnter event, just prior to the
-      " relevant relevant funcionality becoming unavailable.
+      " relevant funcionality becoming unavailable.
       silent! call scrollview#RemoveBars()
       return
     endif
