@@ -66,17 +66,9 @@ function! s:ScrollViewEnable() abort
   let s:scrollview_enabled = 1
   augroup scrollview
     autocmd!
-    " Removing bars when leaving windows was added specifically to accommodate
-    " entering the command line window. For the duration of command-line
-    " window usage, there will be no bars. Without this, bars can possibly
-    " overlap the command line window. This can be problematic particularly
-    " when there is a vertical split with the left window's bar on the bottom
-    " of the screen, where it would overlap with the center of the command
-    " line window. It was not possible to use CmdwinEnter, since the removal
-    " has to occur prior to that event.
-    autocmd WinLeave * :call scrollview#RemoveBars()
-    " The following handles bar refreshing when changing the current window,
-    " which was required after the WinLeave handling added above.
+    " The following handles bar refreshing when changing the current window.
+    " There is code in RefreshBars() that removes the bars when entering the
+    " command line window.
     autocmd WinEnter,TermEnter * :call scrollview#RefreshBars()
     " The following restores bars after leaving the command-line window.
     " Refreshing must be asynchonous, since the command line window is still

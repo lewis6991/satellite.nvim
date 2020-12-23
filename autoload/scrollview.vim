@@ -404,6 +404,15 @@ function! scrollview#RefreshBars() abort
     " Some functionality, like nvim_win_close, cannot be used from the command
     " line window.
     if s:InCommandLineWindow()
+      " For the duration of command-line window usage, there will be no bars.
+      " Without this, bars can possibly overlap the command line window. This
+      " can be problematic particularly when there is a vertical split with the
+      " left window's bar on the bottom of the screen, where it would overlap
+      " with the center of the command line window. It was not possible to use
+      " CmdwinEnter, since the removal has to occur prior to that event.
+      " Rather, this is triggered by the WinEnter event, just prior to the
+      " relevant relevant funcionality becoming unavailable.
+      silent! call scrollview#RemoveBars()
       return
     endif
     " Existing windows are determined before adding new windows, but removed
