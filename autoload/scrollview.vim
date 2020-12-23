@@ -15,8 +15,9 @@ let s:bar_bufnr = get(s:, 'bar_bufnr', -1)
 let s:pending_async_refresh_count = 0
 
 " A window variable is set on each scrollview window, as a way to check for
-" scrollview windows. This was preferable versus maintaining a list of window
-" IDs.
+" scrollview windows, in addition to matching the scrollview buffer number
+" saved in s:bar_bufnr. This was preferable versus maintaining a list of
+" window IDs.
 let s:win_var = 'scrollview_key'
 let s:win_val = 'scrollview_val'
 
