@@ -129,11 +129,11 @@ following example.
 ============================================================================
 5. Issues                                  *scrollview-issues*
 
-* Scrollbars become out-of-sync after window arrangement actions that are not
-  followed by a scroll event. For example, this can be seen by starting `nvim`,
-  issuing |:help|, then typing `<ctrl-w>J` to move the help window to the
-  bottom of the screen. This could be resolved if there was an event that is
-  triggered by the window arrangement actions. `:ScrollViewRefresh`, or
+* Scrollbars can become out-of-sync after window arrangement actions that are
+  not followed by a scroll event. For example, this can be seen by starting
+  `nvim`, issuing |:help|, then typing `<ctrl-w>J` to move the help window to
+  the bottom of the screen. This could be resolved if there was an event that
+  is triggered by the window arrangement actions. `:ScrollViewRefresh`, or
   scrolling can be used to refresh the scrollbars.
   - Workaround: Remap the problematic key sequences accordingly. >
     nnoremap <silent> <c-w>H <c-w>H:silent! ScrollViewRefresh<cr>
