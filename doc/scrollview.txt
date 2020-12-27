@@ -74,12 +74,12 @@ have the highest precedence, and global variables have the lowest).
 The variables can be customized in your |init.vim|, as shown in the following
 example.
  >
-	let g:scrollview_excluded_filetypes = ['nerdtree']
-	let g:scrollview_current_only = 1
-	let g:scrollview_winblend = 75
-	" Position the scrollbar at the 80th character of the buffer
-	let g:scrollview_base = 'buffer'
-	let g:scrollview_column = 80
+    let g:scrollview_excluded_filetypes = ['nerdtree']
+    let g:scrollview_current_only = 1
+    let g:scrollview_winblend = 75
+    " Position the scrollbar at the 80th character of the buffer
+    let g:scrollview_base = 'buffer'
+    let g:scrollview_column = 80
 
 Scrollview Modes ~
                                            *scrollview-modes*
@@ -120,11 +120,11 @@ Name         Default   Description
 The highlight groups can be customized in your |init.vim|, as shown in the
 following example.
  >
-	" Link ScrollView highlight to Pmenu highlight
-	highlight link ScrollView Pmenu
+    " Link ScrollView highlight to Pmenu highlight
+    highlight link ScrollView Pmenu
 
-	" Specify custom highlighting for ScrollView
-	highlight ScrollView ctermbg=159 guibg=LightCyan
+    " Specify custom highlighting for ScrollView
+    highlight ScrollView ctermbg=159 guibg=LightCyan
 
 ============================================================================
 5. Issues                                  *scrollview-issues*
@@ -135,11 +135,41 @@ following example.
   bottom of the screen. This could be resolved if there was an event that is
   triggered by the window arrangement actions. `:ScrollViewRefresh`, or
   scrolling can be used to refresh the scrollbars.
+  - Workaround: Remap the problematic key sequences accordingly. >
+    nnoremap <silent> <c-w>H <c-w>H:silent! ScrollViewRefresh<cr>
+    nnoremap <silent> <c-w>J <c-w>J:silent! ScrollViewRefresh<cr>
+    nnoremap <silent> <c-w>K <c-w>K:silent! ScrollViewRefresh<cr>
+    nnoremap <silent> <c-w>L <c-w>L:silent! ScrollViewRefresh<cr>
+<    This won't resolve the issue in all cases (e.g., when using `:wincmd`).
 
 * Scrollbars become out-of-sync when the mouse wheel is used to scroll a
-  non-current window. This is because the WinScrolled event only corresponds
+  non-current window. This is because the |WinScrolled| event only corresponds
   to the current window. The scrollbars can be refreshed with
   `:ScrollViewRefresh`, scrolling, or by changing the current window.
+  - Workaround: Remap the problematic key sequences accordingly. >
+    nnoremap <silent> <scrollwheelup>
+          \ <scrollwheelup>:silent! ScrollViewRefresh<cr>
+    nnoremap <silent> <scrollwheeldown>
+          \ <scrollwheeldown>:silent! ScrollViewRefresh<cr>
+
+* When attempting to close the last window in a tab with |:close| or
+  `<ctrl-w>c`, with the scrollbar displayed, and at least one other tab, the
+  following error is shown: >
+    E5601: Cannot close window, only floating window would remain
+<  Neovim Issue #11440 is the corresponding issue, opened November 23, 2019.
+  - Workaround 1: Use |:quit|, |ZZ|, |ZQ|, or another command that quits the
+    current window (as opposed to a window-closing command).
+  - Workaround 2: Use |:only| or `<ctrl-w>o` on the last window of the tab,
+    which has the side-effect of closing all floating windows (including
+    scrollbars). A subsequent window-closing command works without error.
+  - Workaround 3: Use |:tabclose|.
+  - Workaround 4: Remap the problematic key sequence accordingly. >
+    nnoremap <silent> <c-w>c
+          \ :silent! ScrollViewDisable<cr>
+          \ <c-w>c
+          \ :silent! ScrollViewEnable<cr>
+<    This won't resolve the issue in all cases (e.g., when using `:close` or
+    `:wincmd`).
 
 ============================================================================
  vim:tw=78:ts=4:ft=help:norl:
