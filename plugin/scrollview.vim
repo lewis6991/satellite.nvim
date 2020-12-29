@@ -44,15 +44,15 @@ let g:scrollview_base = get(g:, 'scrollview_base', 'right')
 " *************************************************
 
 if !exists(':ScrollViewRefresh')
-  command ScrollViewRefresh :call s:ScrollViewRefresh()
+  command -bar ScrollViewRefresh :call s:ScrollViewRefresh()
 endif
 
 if !exists(':ScrollViewEnable')
-  command ScrollViewEnable :call s:ScrollViewEnable()
+  command -bar ScrollViewEnable :call s:ScrollViewEnable()
 endif
 
 if !exists(':ScrollViewDisable')
-  command ScrollViewDisable :call s:ScrollViewDisable()
+  command -bar ScrollViewDisable :call s:ScrollViewDisable()
 endif
 
 " *************************************************
@@ -77,14 +77,16 @@ function! s:ScrollViewEnable() abort
     " The following handles scrolling events, which could arise from various
     " actions, including resizing windows, movements (e.g., j, k), or
     " scrolling (e.g., <ctrl-e>, zz). Refreshing is asynchronous so that
-    " 'botline' is correctly calculcated where applicable, and so that mouse
+    " 'botline' is correctly calculated where applicable, and so that mouse
     " wheel scrolls are more responsive (since redundant refreshes are
     " dropped).
     autocmd WinScrolled * :call scrollview#RefreshBarsAsync()
     " The following handles the case where text is pasted. TextChangedI is not
     " necessary since WinScrolled will be triggered if there is corresponding
-    " scrolling.
-    autocmd TextChanged * :call scrollview#RefreshBars()
+    " scrolling. Refreshing is asynchronous so that 'botline' is correctly
+    " calculated where applicable (e.g., dG command, to delete from current
+    " line until the end of the document).
+    autocmd TextChanged * :call scrollview#RefreshBarsAsync()
     " The following handles when :e is used to load a file. The asynchronous
     " version is used to handle the case where :e is used to reload an
     " existing file, that is already scrolled. This avoids a scenario where
@@ -108,7 +110,12 @@ function! s:ScrollViewEnable() abort
     autocmd QuitPre * :call scrollview#RemoveBars()
     autocmd VimResized * :call scrollview#RefreshBars()
   augroup END
-  call scrollview#RefreshBars()
+  " The initial refresh is asynchronous, since :ScrollViewEnable can be used
+  " in a context where Neovim is in an intermediate state. For example, for
+  " ':bdelete | ScrollViewEnable', with synchronous processing, the 'topline'
+  " and 'botline' in getwininfo's results correspond to the existing buffer
+  " that :bdelete was called on.
+  call scrollview#RefreshBarsAsync()
 endfunction
 
 function! s:ScrollViewDisable() abort

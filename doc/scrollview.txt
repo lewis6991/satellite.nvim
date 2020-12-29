@@ -171,5 +171,21 @@ following example.
 <    This won't resolve the issue in all cases (e.g., when using `:close` or
     `:wincmd`).
 
+* Deleting a buffer with |:bdelete|, when it's the only visible buffer and there
+  are multiple buffers on the buffer list, results in the following error (with
+  duplicate lines, as shown): >
+    E444: Cannot close last window
+    E444: Cannot close last window
+<  The buffer may not be deleted from the buffer list. Neovim Issue #13628 is
+  the corresponding issue, opened December 28, 2020.
+  - Workaround 1: Use |:only| or `<ctrl-w>o`, which has the side-effect of closing
+    all floating windows (including scrollbars). A subsequent |:bdelete| command
+    works without error.
+  - Workaround 2: Create a `Bdelete` command that avoids the issue. >
+    command Bdelete
+          \ silent! ScrollViewDisable
+          \ | bdelete
+          \ | silent! ScrollViewEnable
+
 ============================================================================
  vim:tw=78:ts=4:ft=help:norl:
