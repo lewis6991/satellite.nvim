@@ -133,19 +133,19 @@ following example.
   not followed by a scroll event. For example, this can be seen by starting
   `nvim`, issuing |:help|, then typing `<ctrl-w>J` to move the help window to
   the bottom of the screen. This could be resolved if there was an event that
-  is triggered by the window arrangement actions. `:ScrollViewRefresh`, or
+  is triggered by the window arrangement actions. |:ScrollViewRefresh|, or
   scrolling can be used to refresh the scrollbars.
   - Workaround: Remap the problematic key sequences accordingly. >
     nnoremap <silent> <c-w>H <c-w>H:silent! ScrollViewRefresh<cr>
     nnoremap <silent> <c-w>J <c-w>J:silent! ScrollViewRefresh<cr>
     nnoremap <silent> <c-w>K <c-w>K:silent! ScrollViewRefresh<cr>
     nnoremap <silent> <c-w>L <c-w>L:silent! ScrollViewRefresh<cr>
-<    This won't resolve the issue in all cases (e.g., when using `:wincmd`).
+<    This won't resolve the issue in all cases (e.g., when using |:wincmd|).
 
 * Scrollbars become out-of-sync when the mouse wheel is used to scroll a
   non-current window. This is because the |WinScrolled| event only corresponds
   to the current window. The scrollbars can be refreshed with
-  `:ScrollViewRefresh`, scrolling, or by changing the current window.
+  |:ScrollViewRefresh|, scrolling, or by changing the current window.
   - Workaround: Remap the problematic key sequences accordingly. >
     nnoremap <silent> <scrollwheelup>
           \ <scrollwheelup>:silent! ScrollViewRefresh<cr>
@@ -168,8 +168,8 @@ following example.
           \ :silent! ScrollViewDisable<cr>
           \ <c-w>c
           \ :silent! ScrollViewEnable<cr>
-<    This won't resolve the issue in all cases (e.g., when using `:close` or
-    `:wincmd`).
+<    This won't resolve the issue in all cases (e.g., when using |:close| or
+    |:wincmd|).
 
 * Deleting a buffer with |:bdelete|, when it's the only visible buffer and there
   are multiple buffers on the buffer list, results in the following error (with
