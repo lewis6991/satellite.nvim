@@ -129,6 +129,8 @@ following example.
 ============================================================================
 5. Issues                                  *scrollview-issues*
 
+Synchronization Issues ~
+                                           *scrollview-synchronization-issues*
 * Scrollbars can become out-of-sync after window arrangement actions that are
   not followed by a scroll event. For example, this can be seen by starting
   `nvim`, issuing |:help|, then typing `<ctrl-w>J` to move the help window to
@@ -152,6 +154,16 @@ following example.
     nnoremap <silent> <scrollwheeldown>
           \ <scrollwheeldown>:silent! ScrollViewRefresh<cr>
 
+* Scrollbars become out-of-sync after fold commands when using a
+  |scrollview-mode| that accounts for folds. Because there are no |autocmd-events|
+  for folding, the plugin is unable to refresh the scrollbars.
+  - Workaround: Remap the problematic fold command key sequences accordingly,
+    depending on the fold commands you use. >
+    nnoremap <silent> zo zo:silent! ScrollViewRefresh<cr>
+    nnoremap <silent> zc zc:silent! ScrollViewRefresh<cr>
+
+Error Message Issues ~
+                                           *scrollview-error-message-issues*
 * When attempting to close the last window in a tab with |:close| or
   `<ctrl-w>c`, with the scrollbar displayed, and at least one other tab, the
   following error is shown: >
