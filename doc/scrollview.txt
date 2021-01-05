@@ -149,10 +149,10 @@ Synchronization Issues ~
   is triggered by the window arrangement actions. |:ScrollViewRefresh|, or
   scrolling can be used to refresh the scrollbars.
   - Workaround: Remap the problematic key sequences accordingly. >
-    nmap <silent> <c-w>H <c-w>H<plug>(ScrollViewRefresh)
-    nmap <silent> <c-w>J <c-w>J<plug>(ScrollViewRefresh)
-    nmap <silent> <c-w>K <c-w>K<plug>(ScrollViewRefresh)
-    nmap <silent> <c-w>L <c-w>L<plug>(ScrollViewRefresh)
+    nmap <c-w>H <c-w>H<plug>(ScrollViewRefresh)
+    nmap <c-w>J <c-w>J<plug>(ScrollViewRefresh)
+    nmap <c-w>K <c-w>K<plug>(ScrollViewRefresh)
+    nmap <c-w>L <c-w>L<plug>(ScrollViewRefresh)
 <    This won't resolve the issue in all cases (e.g., when using |:wincmd|).
 
 * Scrollbars become out-of-sync when the mouse wheel is used to scroll a
@@ -160,16 +160,16 @@ Synchronization Issues ~
   to the current window. The scrollbars can be refreshed with
   |:ScrollViewRefresh|, scrolling, or by changing the current window.
   - Workaround: Remap the problematic key sequences accordingly. >
-    nmap <silent> <scrollwheelup> <scrollwheelup><plug>(ScrollViewRefresh)
-    nmap <silent> <scrollwheeldown> <scrollwheeldown><plug>(ScrollViewRefresh)
+    nmap <scrollwheelup> <scrollwheelup><plug>(ScrollViewRefresh)
+    nmap <scrollwheeldown> <scrollwheeldown><plug>(ScrollViewRefresh)
 
 * Scrollbars become out-of-sync after fold commands when using a
   |scrollview-mode| that accounts for folds. Because there are no |autocmd-events|
   for folding, the plugin is unable to refresh the scrollbars.
   - Workaround: Remap the problematic fold command key sequences accordingly,
     depending on the fold commands you use. >
-    nmap <silent> zo zo<plug>(ScrollViewRefresh)
-    nmap <silent> zc zc<plug>(ScrollViewRefresh)
+    nmap zo zo<plug>(ScrollViewRefresh)
+    nmap zc zc<plug>(ScrollViewRefresh)
 
 Error Message Issues ~
                                            *scrollview-error-message-issues*

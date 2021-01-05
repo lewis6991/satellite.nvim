@@ -64,10 +64,11 @@ endif
 " of <plug> mappings requires recursive map commands, this prevents mappings
 " that both call <plug> functions and have the left-hand-side key sequences
 " repeated not at the beginning of the right-hand-side (see :help
-" recursive_mapping for details).
-noremap <plug>(ScrollViewDisable) <cmd>ScrollViewDisable<cr>
-noremap <plug>(ScrollViewEnable) <cmd>ScrollViewEnable<cr>
-noremap <plug>(ScrollViewRefresh) <cmd>ScrollViewRefresh<cr>
+" recursive_mapping for details). Experimentation suggests <silent> is not
+" necessary for <cmd> mappings, but it's added to make it explicit.
+noremap <silent> <plug>(ScrollViewDisable) <cmd>ScrollViewDisable<cr>
+noremap <silent> <plug>(ScrollViewEnable) <cmd>ScrollViewEnable<cr>
+noremap <silent> <plug>(ScrollViewRefresh) <cmd>ScrollViewRefresh<cr>
 
 " *************************************************
 " * Core
