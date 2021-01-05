@@ -49,10 +49,21 @@ A package manager can be used to install `nvim-scrollview`.
 There are various settings that can be configured.
 
 * Whether scrollbars are enabled or disabled on startup
+  - `scrollview_on_startup`
 * File types for which scrollbars should not be displayed
+  - `scrollview_excluded_filetypes`
 * Scrollbar color and transparency level
+  - `ScrollView` highlight group
+  - `scrollview_winblend`
 * Whether scrollbars should be displayed in all windows, or just the current
   window
+  - `scrollview_current_only`
+* What the scrollbar position and size correspond to (corresponds to how folds
+  are accounted for)
+  - `scrollview_mode`
+* Scrollbar anchor column and offset
+  - `scrollview_base`
+  - `scrollview_column`
 
 Please see the documentation for details.
 
