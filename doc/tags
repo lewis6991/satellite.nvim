@@ -4,10 +4,12 @@
 flexible	scrollview.txt	/*flexible*
 nvim-scrollview	scrollview.txt	/*nvim-scrollview*
 scrollview-color-customization	scrollview.txt	/*scrollview-color-customization*
+scrollview-commands	scrollview.txt	/*scrollview-commands*
 scrollview-configuration	scrollview.txt	/*scrollview-configuration*
 scrollview-error-message-issues	scrollview.txt	/*scrollview-error-message-issues*
 scrollview-installation	scrollview.txt	/*scrollview-installation*
 scrollview-issues	scrollview.txt	/*scrollview-issues*
+scrollview-mappings	scrollview.txt	/*scrollview-mappings*
 scrollview-modes	scrollview.txt	/*scrollview-modes*
 scrollview-requirements	scrollview.txt	/*scrollview-requirements*
 scrollview-synchronization-issues	scrollview.txt	/*scrollview-synchronization-issues*

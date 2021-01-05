@@ -56,6 +56,20 @@ if !exists(':ScrollViewDisable')
 endif
 
 " *************************************************
+" * Mappings
+" *************************************************
+
+" <plug> mappings are defined for convenience of creating user-defined
+" mappings that call nvim-scrollview functionality. However, since the usage
+" of <plug> mappings requires recursive map commands, this prevents mappings
+" that both call <plug> functions and have the left-hand-side key sequences
+" repeated not at the beginning of the right-hand-side (see :help
+" recursive_mapping for details).
+noremap <plug>(ScrollViewDisable) <cmd>ScrollViewDisable<cr>
+noremap <plug>(ScrollViewEnable) <cmd>ScrollViewEnable<cr>
+noremap <plug>(ScrollViewRefresh) <cmd>ScrollViewRefresh<cr>
+
+" *************************************************
 " * Core
 " *************************************************
 

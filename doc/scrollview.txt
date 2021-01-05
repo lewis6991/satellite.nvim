@@ -28,12 +28,23 @@ Use |packages| or one of the various package managers.
 
 * |nvim-scrollview| works automatically, displaying (non-interactive)
   scrollbars.
+
+                                           *scrollview-commands*
 * The *:ScrollViewDisable* command disables scrollbars.
 * The *:ScrollViewEnable* command enables scrollbars. This is only necessary
   if scrollbars have previously been disabled.
 * The *:ScrollViewRefresh* command refreshes the scrollbars. This is relevant
   when the scrollbars are out-of-sync, which can occur e.g., as a result of
   some window arrangement actions (see |scrollview-issues|).
+
+                                           *scrollview-mappings*
+The following |<Plug>| mappings are defined for convenience.
+
+Left-hand-side              Right-hand-side
+--------------              ---------------
+`<Plug>(ScrollViewDisable)`   `<cmd>ScrollViewDisable<cr>`
+`<Plug>(ScrollViewEnable)`    `<cmd>ScrollViewEnable<cr>`
+`<Plug>(ScrollViewRefresh)`   `<cmd>ScrollViewRefresh<cr>`
 
 ============================================================================
 4. Configuration                           *scrollview-configuration*
@@ -138,10 +149,10 @@ Synchronization Issues ~
   is triggered by the window arrangement actions. |:ScrollViewRefresh|, or
   scrolling can be used to refresh the scrollbars.
   - Workaround: Remap the problematic key sequences accordingly. >
-    nnoremap <silent> <c-w>H <c-w>H:silent! ScrollViewRefresh<cr>
-    nnoremap <silent> <c-w>J <c-w>J:silent! ScrollViewRefresh<cr>
-    nnoremap <silent> <c-w>K <c-w>K:silent! ScrollViewRefresh<cr>
-    nnoremap <silent> <c-w>L <c-w>L:silent! ScrollViewRefresh<cr>
+    nmap <silent> <c-w>H <c-w>H<plug>(ScrollViewRefresh)
+    nmap <silent> <c-w>J <c-w>J<plug>(ScrollViewRefresh)
+    nmap <silent> <c-w>K <c-w>K<plug>(ScrollViewRefresh)
+    nmap <silent> <c-w>L <c-w>L<plug>(ScrollViewRefresh)
 <    This won't resolve the issue in all cases (e.g., when using |:wincmd|).
 
 * Scrollbars become out-of-sync when the mouse wheel is used to scroll a
@@ -149,18 +160,16 @@ Synchronization Issues ~
   to the current window. The scrollbars can be refreshed with
   |:ScrollViewRefresh|, scrolling, or by changing the current window.
   - Workaround: Remap the problematic key sequences accordingly. >
-    nnoremap <silent> <scrollwheelup>
-          \ <scrollwheelup>:silent! ScrollViewRefresh<cr>
-    nnoremap <silent> <scrollwheeldown>
-          \ <scrollwheeldown>:silent! ScrollViewRefresh<cr>
+    nmap <silent> <scrollwheelup> <scrollwheelup><plug>(ScrollViewRefresh)
+    nmap <silent> <scrollwheeldown> <scrollwheeldown><plug>(ScrollViewRefresh)
 
 * Scrollbars become out-of-sync after fold commands when using a
   |scrollview-mode| that accounts for folds. Because there are no |autocmd-events|
   for folding, the plugin is unable to refresh the scrollbars.
   - Workaround: Remap the problematic fold command key sequences accordingly,
     depending on the fold commands you use. >
-    nnoremap <silent> zo zo:silent! ScrollViewRefresh<cr>
-    nnoremap <silent> zc zc:silent! ScrollViewRefresh<cr>
+    nmap <silent> zo zo<plug>(ScrollViewRefresh)
+    nmap <silent> zc zc<plug>(ScrollViewRefresh)
 
 Error Message Issues ~
                                            *scrollview-error-message-issues*
@@ -181,7 +190,9 @@ Error Message Issues ~
           \ <c-w>c
           \ :silent! ScrollViewEnable<cr>
 <    This won't resolve the issue in all cases (e.g., when using |:close| or
-    |:wincmd|).
+    |:wincmd|). |<Plug>| mappings cannot be used, as they require recursive maps,
+    and <c-w>c would infinitely recurse, as its usage on the right-hand-side
+    is not at the beginning (see |recursive_mapping| for details).
 
 * Deleting a buffer with |:bdelete|, when it's the only visible buffer and there
   are multiple buffers on the buffer list, results in the following error (with
