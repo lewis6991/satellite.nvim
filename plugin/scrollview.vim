@@ -150,7 +150,10 @@ function! s:ScrollViewRefresh() abort
 endfunction
 
 if s:scrollview_enabled
-  call s:ScrollViewEnable()
+  " Enable scrollview asynchronously. This avoids an issue that prevents diff
+  " mode from functioning properly when it's launched at startup (i.e., with
+  " nvim -d). The issue is reported in Neovim Issue #13720.
+  call timer_start(0, {-> execute('call s:ScrollViewEnable()')})
 endif
 
 " *************************************************
