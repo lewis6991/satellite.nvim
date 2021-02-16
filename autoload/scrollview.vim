@@ -21,6 +21,9 @@ let s:pending_async_refresh_count = 0
 let s:win_var = 'scrollview_key'
 let s:win_val = 'scrollview_val'
 
+" A key for saving scrollbar properties using a window variable.
+let s:props_var = 'scrollview_props'
+
 " *************************************************
 " * Utils
 " *************************************************
@@ -183,7 +186,6 @@ function! s:CalculatePosition(winnr) abort
   " This is handled by having WinScrolled trigger an asychronous refresh.
   let l:botline = l:wininfo.botline
   let l:line_count = nvim_buf_line_count(l:bufnr)
-  let [l:row, l:col] = win_screenpos(l:winnr)
   let l:winheight = winheight(l:winnr)
   let l:winwidth = winwidth(l:winnr)
   let l:mode = s:GetVariable('scrollview_mode', l:winnr)
@@ -225,25 +227,26 @@ function! s:CalculatePosition(winnr) abort
   if l:top + l:height ># l:winheight
     let l:top = l:winheight - l:height
   endif
-  " At this point, l:col corresponds the window's leftmost column.
+  " l:left is the position for the left of the scrollbar, relative to the
+  " window, and 0-indexed.
+  let l:left = 0
   let l:column = s:GetVariable('scrollview_column', l:winnr)
   let l:base = s:GetVariable('scrollview_base', l:winnr)
   if l:base ==# 'left'
-    let l:col += l:column - 1
+    let l:left += l:column - 1
   elseif l:base ==# 'right'
-    let l:col += l:winwidth - l:column
+    let l:left += l:winwidth - l:column
   elseif l:base ==# 'buffer'
-    let l:col += l:column - 1
+    let l:left += l:column - 1
           \ + s:BufferTextBeginsColumn(l:winid) - 1
   else
     " For an unknown base, use the default position (right edge of window).
-    let l:col += l:winwidth - 1
+    let l:left += l:winwidth - 1
   endif
-  let l:line = l:row + l:top
   let l:result = {
         \   'height': l:height,
-        \   'row': l:line,
-        \   'col': l:col
+        \   'row': l:top + 1,
+        \   'col': l:left + 1
         \ }
   return l:result
 endfunction
@@ -290,11 +293,10 @@ function! s:ShowScrollbar(winid) abort
   if l:base ==# 'buffer'
     let l:min_valid_col = s:BufferViewBeginsColumn(l:winid)
   endif
-  let l:col = l:bar_position.col - win_screenpos(l:winnr)[1] + 1
-  if l:col <# l:min_valid_col
+  if l:bar_position.col < l:min_valid_col
     return
   endif
-  if l:col ># l:winwidth
+  if l:bar_position.col ># l:winwidth
     return
   endif
   if s:bar_bufnr ==# -1
@@ -304,7 +306,8 @@ function! s:ShowScrollbar(winid) abort
     call setbufvar(s:bar_bufnr, '&buftype', 'nofile')
   endif
   let l:options = {
-        \   'relative': 'editor',
+        \   'win': l:winid,
+        \   'relative': 'win',
         \   'focusable': 0,
         \   'style': 'minimal',
         \   'height': l:bar_position.height,
@@ -323,6 +326,13 @@ function! s:ShowScrollbar(winid) abort
   call setwinvar(l:bar_winnr, '&winblend', l:winblend)
   call setwinvar(l:bar_winnr, '&foldcolumn', 0)
   call setwinvar(l:bar_winnr, s:win_var, s:win_val)
+  let l:props = {
+        \   'parent_winid': l:winid,
+        \   'height': l:bar_position.height,
+        \   'row': l:bar_position.row,
+        \   'col': l:bar_position.col
+        \ }
+  call setwinvar(l:bar_winnr, s:props_var, l:props)
 endfunction
 
 function! s:IsScrollViewWindow(winid) abort
