@@ -629,6 +629,8 @@ function! LeftMouse() abort
     " <LeftMouse> event, so it's approximated after the drag event that follows
     " (where the position will be captured since getchar() is used).
     let l:count = 0
+    let l:winid = 0  " The target window ID for a mouse scroll.
+    let l:winnr = 0  " The target window number for a mouse scroll.
     while 1
       let l:input = GetChar()
       let l:char = l:input.char
@@ -636,6 +638,7 @@ function! LeftMouse() abort
       let l:mouse_row = l:input.mouse_row
       let l:mouse_col = l:input.mouse_col
       if l:mouse_winid ==# 0
+        " There was no mouse event.
         call feedkeys("\<LeftMouse>" . l:char, 'n')
         return
       endif
@@ -667,13 +670,17 @@ function! LeftMouse() abort
           return
         endif
         let l:offset = l:mouse_row - l:props.row
-        let l:previous_lnum = 0
+        let l:previous_lnum = 0  " Always refresh for the initial movement.
+        let l:winid = l:mouse_winid
+        let l:winnr = win_id2win(l:winid)
       endif
-
-      if l:previous_lnum !=# l:mouse_row
+      " Only update scroll position if 1) the scroll event window matches the
+      " first scroll event window, and 2) the position differs from the last
+      " scroll event.
+      if l:winid ==# l:mouse_winid && l:previous_lnum !=# l:mouse_row
         let l:pos = (100 * (l:mouse_row - l:offset)) / winheight(l:props.parent_winid)
         let l:pos = max([1, l:pos])
-        let l:init_winid = win_getid()
+        let l:init_winid = win_getid()  " The current window.
         call win_gotoid(l:mouse_winid)
         execute 'normal ' . l:pos . '%zt'
         call win_gotoid(l:init_winid)
@@ -683,8 +690,11 @@ function! LeftMouse() abort
       let l:previous_lnum = l:mouse_row
       let l:count += 1
     endwhile
-  catch
   finally
+    if get(l:, 'winid', 0) !=# 0
+      " Set the scrolled window as the current window.
+      call win_gotoid(l:winid)
+    endif
     call s:Restore(l:state)
   endtry
 endfun
