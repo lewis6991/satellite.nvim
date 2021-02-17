@@ -521,6 +521,11 @@ function! GetChar() abort
   " column, when lines span multiple screen rows from wrapping, or when the last
   " line of the buffer is not at the last line of the window due to a short
   " document or scrolling past the end).
+
+  " *************************************************
+  " * Configure overlay
+  " *************************************************
+
   if s:overlay_bufnr ==# -1 || !bufexists(s:overlay_bufnr)
     let s:overlay_bufnr = nvim_create_buf(0, 1)
     call setbufvar(s:overlay_bufnr, '&modifiable', 0)
@@ -547,6 +552,10 @@ function! GetChar() abort
       let l:overlay_height = l:winheight
     endif
   endfor
+
+  " *************************************************
+  " * Save state and load overlay
+  " *************************************************
 
   let l:win_states = {}
   for l:winid in l:target_wins
@@ -575,7 +584,17 @@ function! GetChar() abort
     call nvim_win_set_option(l:winid, 'foldcolumn', '0')
     call nvim_win_set_option(l:winid, 'signcolumn', 'no')
   endfor
+
+  " *************************************************
+  " * Call getchar()
+  " *************************************************
+
   let l:char = getchar()
+
+  " *************************************************
+  " * Remove overlay and restore state
+  " *************************************************
+
   for l:winid in l:target_wins
     let l:state = l:win_states[l:winid]
     call nvim_win_set_buf(l:winid, l:state.bufnr)
@@ -594,13 +613,17 @@ function! GetChar() abort
     call win_gotoid(l:init_winid)
   endfor
 
-  let l:output = {
+  " *************************************************
+  " * Return result
+  " *************************************************
+
+  let l:result = {
         \   'char': l:char,
         \   'mouse_winid': v:mouse_winid,
         \   'mouse_row': v:mouse_lnum,
         \   'mouse_col': v:mouse_col
         \ }
-  return l:output
+  return l:result
 endfunction
 
 " TODO: ADD SUPPORT FOR scrollview_mode
