@@ -548,8 +548,6 @@ function! GetChar() abort
   " column, when lines span multiple screen rows from wrapping, or when the last
   " line of the buffer is not at the last line of the window due to a short
   " document or scrolling past the end).
-  " TODO: Handle 'hide' and anything else that would prevent changing
-  " buffer...
   let l:win_states = {}
   for l:winid in l:target_wins
     let l:bufnr = winbufnr(l:winid)
@@ -558,28 +556,37 @@ function! GetChar() abort
     call win_gotoid(l:init_winid)
     let l:state = {
           \   'bufnr': l:bufnr,
-          \   'options': {
-          \         'number': getwinvar(l:winid, '&number'),
-          \         'relativenumber': getwinvar(l:winid, '&relativenumber'),
-          \         'foldcolumn': getwinvar(l:winid, '&foldcolumn'),
-          \         'signcolumn': getwinvar(l:winid, '&signcolumn'),
+          \   'win_options': {
+          \         'number': nvim_win_get_option(l:winid, 'number'),
+          \         'relativenumber': nvim_win_get_option(l:winid, 'relativenumber'),
+          \         'foldcolumn': nvim_win_get_option(l:winid, 'foldcolumn'),
+          \         'signcolumn': nvim_win_get_option(l:winid, 'signcolumn'),
+          \      },
+          \   'buf_options': {
+          \         'bufhidden': nvim_buf_get_option(l:bufnr, 'bufhidden'),
           \      },
           \   'view': l:view
           \ }
     let l:win_states[l:winid] = l:state
+    " Set options on initial buffer.
+    call nvim_buf_set_option(l:bufnr, 'bufhidden', 'hide')
     call nvim_win_set_buf(l:winid, s:overlay_bufnr)
+    " Set options on overlay window/buffer.
     call nvim_win_set_cursor(l:winid, [1, 0])
-    call setwinvar(l:winid, '&number', 0)
-    call setwinvar(l:winid, '&relativenumber', 0)
-    call setwinvar(l:winid, '&foldcolumn', 0)
-    call setwinvar(l:winid, '&signcolumn', 'no')
+    call nvim_win_set_option(l:winid, 'number', v:false)
+    call nvim_win_set_option(l:winid, 'relativenumber', v:false)
+    call nvim_win_set_option(l:winid, 'foldcolumn', '0')
+    call nvim_win_set_option(l:winid, 'signcolumn', 'no')
   endfor
   let l:char = getchar()
   for l:winid in l:target_wins
     let l:state = l:win_states[l:winid]
     call nvim_win_set_buf(l:winid, l:state.bufnr)
-    for [l:key, l:value] in items(l:state.options)
-      call setwinvar(l:winid, '&' . l:key, l:value)
+    for [l:key, l:value] in items(l:state.win_options)
+      call nvim_win_set_option(l:winid, l:key, l:value)
+    endfor
+    for [l:key, l:value] in items(l:state.buf_options)
+      call nvim_buf_set_option(l:state.bufnr, l:key, l:value)
     endfor
     call win_gotoid(l:winid)
     call winrestview(l:state.view)
