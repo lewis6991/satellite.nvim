@@ -515,6 +515,12 @@ endfunction
 "   4) mouse_col
 " The mouse values are 0 when there was no mouse event.
 function! GetChar() abort
+  " An overlay is displayed in each window so that mouse position can be
+  " properly determined. Otherwise, lnum may not correspond to the actual
+  " position of the click (e.g., when there is a sign/number/relativenumber/fold
+  " column, when lines span multiple screen rows from wrapping, or when the last
+  " line of the buffer is not at the last line of the window due to a short
+  " document or scrolling past the end).
   if s:overlay_bufnr ==# -1 || !bufexists(s:overlay_bufnr)
     let s:overlay_bufnr = nvim_create_buf(0, 1)
     call setbufvar(s:overlay_bufnr, '&modifiable', 0)
@@ -542,12 +548,6 @@ function! GetChar() abort
     endif
   endfor
 
-  " An overlay is displayed in each window so that mouse position can be
-  " properly determined. Otherwise, lnum may not correspond to the actual
-  " position of the click (e.g., when there is a sign/number/relativenumber/fold
-  " column, when lines span multiple screen rows from wrapping, or when the last
-  " line of the buffer is not at the last line of the window due to a short
-  " document or scrolling past the end).
   let l:win_states = {}
   for l:winid in l:target_wins
     let l:bufnr = winbufnr(l:winid)
@@ -652,7 +652,6 @@ function! LeftMouse() abort
         let l:previous_lnum = 0
       endif
 
-      let l:wininfo = getwininfo(l:props.parent_winid)[0]
       if l:previous_lnum !=# v:mouse_lnum
         let l:pos = (100 * (v:mouse_lnum - l:offset)) / winheight(l:props.parent_winid)
         let l:pos = max([1, l:pos])
