@@ -670,8 +670,8 @@ function! LeftMouse() abort
         let l:previous_lnum = 0
       endif
 
-      if l:previous_lnum !=# v:mouse_lnum
-        let l:pos = (100 * (v:mouse_lnum - l:offset)) / winheight(l:props.parent_winid)
+      if l:previous_lnum !=# l:mouse_row
+        let l:pos = (100 * (l:mouse_row - l:offset)) / winheight(l:props.parent_winid)
         let l:pos = max([1, l:pos])
         let l:init_winid = win_getid()
         call win_gotoid(l:mouse_winid)
@@ -680,7 +680,7 @@ function! LeftMouse() abort
         call scrollview#RefreshBars(0)
         redraw
       endif
-      let l:previous_lnum = v:mouse_lnum
+      let l:previous_lnum = l:mouse_row
       let l:count += 1
     endwhile
   catch
