@@ -525,7 +525,6 @@ function! GetChar() abort
   " *************************************************
   " * Configure overlay
   " *************************************************
-
   if s:overlay_bufnr ==# -1 || !bufexists(s:overlay_bufnr)
     let s:overlay_bufnr = nvim_create_buf(0, 1)
     call setbufvar(s:overlay_bufnr, '&modifiable', 0)
@@ -556,7 +555,6 @@ function! GetChar() abort
   " *************************************************
   " * Save state and load overlay
   " *************************************************
-
   let l:win_states = {}
   for l:winid in l:target_wins
     let l:bufnr = winbufnr(l:winid)
@@ -588,13 +586,11 @@ function! GetChar() abort
   " *************************************************
   " * Call getchar()
   " *************************************************
-
   let l:char = getchar()
 
   " *************************************************
   " * Remove overlay and restore state
   " *************************************************
-
   for l:winid in l:target_wins
     let l:state = l:win_states[l:winid]
     call nvim_win_set_buf(l:winid, l:state.bufnr)
@@ -616,7 +612,6 @@ function! GetChar() abort
   " *************************************************
   " * Return result
   " *************************************************
-
   let l:result = {
         \   'char': l:char,
         \   'mouse_winid': v:mouse_winid,
