@@ -320,8 +320,8 @@ function! s:ShowScrollbar(winid) abort
   " color scheme's specification of EndOfBuffer would be used to color the
   " bottom of the scrollbar.
   let l:bar_winnr = win_id2win(l:bar_winid)
-  let l:winheighlight = 'Normal:ScrollView,EndOfBuffer:ScrollView'
-  call setwinvar(l:bar_winnr, '&winhighlight', l:winheighlight)
+  let l:winhighlight = 'Normal:ScrollView,EndOfBuffer:ScrollView'
+  call setwinvar(l:bar_winnr, '&winhighlight', l:winhighlight)
   let l:winblend = s:GetVariable('scrollview_winblend', l:winnr)
   call setwinvar(l:bar_winnr, '&winblend', l:winblend)
   call setwinvar(l:bar_winnr, '&foldcolumn', 0)
@@ -409,7 +409,13 @@ function! scrollview#RemoveBars() abort
   endtry
 endfunction
 
-function! scrollview#RefreshBars() abort
+" Refreshes scrollbars. There is an optional argument that specifies whether
+" removing existing scrollbars is asynchronous (defaults to true).
+function! scrollview#RefreshBars(...) abort
+  let l:async_removal = 1
+  if a:0 ># 0
+    let l:async_removal = a:1
+  endif
   let l:state = s:Init()
   try
     " Some functionality, like nvim_win_close, cannot be used from the command
@@ -446,20 +452,27 @@ function! scrollview#RefreshBars() abort
     for l:winid in l:target_wins
       call s:ShowScrollbar(l:winid)
     endfor
-    for l:winid in l:existing_wins
-      " Remove bars asynchronously to prevent flickering. Even when
-      " nvim_win_close is called synchronously after the code that adds the
-      " other windows, the window removal still happens earlier in time, as
-      " confirmed by using 'writedelay'. Even with asyncronous execution, the
-      " call to timer_start must still occur after the code for the window
-      " additions.
-      " WARN: The statement is put in a string to prevent a closure whereby
-      " the variable used in the lambda will have its value change by the time
-      " the code executes. By putting this in a string, the window ID becomes
-      " fixed at string-creation time.
-      let l:cmd = 'silent! call s:CloseScrollViewWindow(' . l:winid . ')'
-      let l:expr = 'call timer_start(0, {-> execute("' . l:cmd . '")})'
-      execute l:expr
+      if l:async_removal
+        " Remove bars asynchronously to prevent flickering. Even when
+        " nvim_win_close is called synchronously after the code that adds the
+        " other windows, the window removal still happens earlier in time, as
+        " confirmed by using 'writedelay'. Even with asyncronous execution, the
+        " call to timer_start must still occur after the code for the window
+        " additions.
+        " WARN: The statement is put in a string to prevent a closure whereby
+        " the variable used in the lambda will have its value change by the time
+        " the code executes. By putting this in a string, the window ID becomes
+        " fixed at string-creation time.
+        for l:winid in l:existing_wins
+          let l:cmd = 'silent! call s:CloseScrollViewWindow(' . l:winid . ')'
+          let l:expr = 'call timer_start(0, {-> execute("' . l:cmd . '")})'
+          execute l:expr
+        endfor
+      else
+        for l:winid in l:existing_wins
+          call s:CloseScrollViewWindow(l:winid)
+        endfor
+      endif
     endfor
   catch
     " Use a catch block, so that unanticipated errors don't interfere. The
@@ -490,3 +503,81 @@ function! scrollview#RefreshBarsAsync() abort
   let s:pending_async_refresh_count += 1
   call timer_start(0, function('s:RefreshBarsAsyncCallback'))
 endfunction
+
+
+" EXPERIMENTAL
+
+function! GetChar() abort
+  let l:bufnr = bufnr()
+  let l:view = winsaveview()
+  set ei=all
+  enew
+  set nonu nornu
+  let l:char = getchar()
+  set nu rnu
+  echo v:mouse_col . ' ' . v:mouse_lnum
+  execute l:bufnr . 'buffer'
+  call winrestview(l:view)
+  set ei=
+  return l:char
+endfunction
+
+function! LeftMouse() abort
+  " It's not possible to capture the starting column and line number of a
+  " <LeftMouse> event, so it's approximated after the drag event that follows
+  " (where the position will be captured since getchar() is used).
+  let l:count = 0
+  while 1
+    let l:char = getchar()
+    if v:mouse_winid ==# 0
+      call feedkeys("\<LeftMouse>" . l:char, 'n')
+      return
+    endif
+    if l:char ==# "\<LeftRelease>"
+      if l:count ==# 0
+        call feedkeys("\<LeftMouse>\<LeftRelease>", 'n')
+      endif
+      return
+    endif
+    if l:count ==# 0
+      for l:scrollview_winid in s:GetScrollViewWindows()
+        let l:props = getwinvar(l:scrollview_winid, s:props_var)
+        if l:props.parent_winid ==# v:mouse_winid
+          break
+        endif
+        unlet l:props
+      endfor
+      if !exists('l:props')
+        " There was no scrollbar in the window where a click occurred.
+        call feedkeys("\<LeftMouse>" . l:char, 'n')
+        return
+      endif
+      let l:screenpos = screenpos(v:mouse_winid, v:mouse_lnum, v:mouse_col)
+      let [l:win_row, l:win_col] = win_screenpos(v:mouse_winid)
+      " TODO: handle incorrect column
+      if (l:screenpos.row < l:props.row + l:win_row - 1)
+            \ || (l:screenpos.row >= l:props.row + l:props.height + l:win_row - 1)
+        call feedkeys("\<LeftMouse>" . l:char, 'n')
+        return
+      endif
+      " TODO: make sure movement commands happen in the correct window, which
+      " may not be active...
+      let l:last_lnum = 0
+    endif
+    
+    let l:wininfo = getwininfo(l:props.parent_winid)[0]
+    if l:last_lnum !=# v:mouse_lnum
+      let l:topline = l:wininfo.topline
+      let l:pos = (100 * (v:mouse_lnum - l:topline + 1)) / winheight(l:props.parent_winid)
+      execute 'normal ' . l:pos . '%zt'
+      call scrollview#RefreshBars(0)
+      redraw
+    endif
+    let l:last_lnum = v:mouse_lnum
+    let l:count += 1
+  endwhile
+endfun
+
+nnoremap <silent> <LeftMouse> <cmd>call LeftMouse()<cr>
+inoremap <silent> <LeftMouse> <cmd>call LeftMouse()<cr>
+vnoremap <silent> <LeftMouse> <esc><cmd>call LeftMouse()<cr>
