@@ -5,11 +5,15 @@
 " * Globals
 " *************************************************
 
-" s:bar_bufnr has the bufnr of the first buffer created for a position bar.
-" Since there is no text displayed in the buffer, the same buffer can be used
-" for multiple floating windows. This also prevents the buffer list from
-" getting high from usage of the plugin.
+" Since there is no text displayed in the buffers, the same buffers are used
+" for multiple windows. This also prevents the buffer list from getting high
+" from usage of the plugin.
+
+" s:bar_bufnr has the bufnr of the buffer created for a position bar.
 let s:bar_bufnr = get(s:, 'bar_bufnr', -1)
+
+" s:overlay_bufnr has the bufnr of the buffer created for the click overlay.
+let s:overlay_bufnr = get(s:, 'overlay_bufnr', -1)
 
 " Keep count of pending async refreshes.
 let s:pending_async_refresh_count = 0
@@ -34,8 +38,6 @@ endfunction
 
 " Executes a list of commands in the context of the specified window.
 " If a local result variable is set, it will be returned.
-" WARN: This differ's from Vim's win_execute, as that triggers autocommands
-" when executing a command.
 " WARN: Loops within the specified commands cannot be executed, due to their
 " interaction with the for loop in this function. To resolve, instead of
 " putting loops into the commands, extract the loops to separate functions,
@@ -72,9 +74,8 @@ function! s:IsOrdinaryWindow(winid) abort
 endfunction
 
 function! s:InCommandLineWindow() abort
-  if mode() ==# 'c'
-    return 1
-  endif
+  if win_gettype() ==# 'command' | return 1 | endif
+  if mode() ==# 'c' | return 1 | endif
   let l:winnr = winnr()
   let l:bufnr = winbufnr(l:winnr)
   let l:buftype = nvim_buf_get_option(l:bufnr, 'buftype')
@@ -299,7 +300,7 @@ function! s:ShowScrollbar(winid) abort
   if l:bar_position.col ># l:winwidth
     return
   endif
-  if s:bar_bufnr ==# -1
+  if s:bar_bufnr ==# -1 || !bufexists(s:bar_bufnr)
     let s:bar_bufnr = nvim_create_buf(0, 1)
     call setbufvar(s:bar_bufnr, '&modifiable', 0)
     call setbufvar(s:bar_bufnr, '&filetype', 'scrollview')
@@ -452,28 +453,27 @@ function! scrollview#RefreshBars(...) abort
     for l:winid in l:target_wins
       call s:ShowScrollbar(l:winid)
     endfor
-      if l:async_removal
-        " Remove bars asynchronously to prevent flickering. Even when
-        " nvim_win_close is called synchronously after the code that adds the
-        " other windows, the window removal still happens earlier in time, as
-        " confirmed by using 'writedelay'. Even with asyncronous execution, the
-        " call to timer_start must still occur after the code for the window
-        " additions.
-        " WARN: The statement is put in a string to prevent a closure whereby
-        " the variable used in the lambda will have its value change by the time
-        " the code executes. By putting this in a string, the window ID becomes
-        " fixed at string-creation time.
-        for l:winid in l:existing_wins
-          let l:cmd = 'silent! call s:CloseScrollViewWindow(' . l:winid . ')'
-          let l:expr = 'call timer_start(0, {-> execute("' . l:cmd . '")})'
-          execute l:expr
-        endfor
-      else
-        for l:winid in l:existing_wins
-          call s:CloseScrollViewWindow(l:winid)
-        endfor
-      endif
-    endfor
+    if l:async_removal
+      " Remove bars asynchronously to prevent flickering. Even when
+      " nvim_win_close is called synchronously after the code that adds the
+      " other windows, the window removal still happens earlier in time, as
+      " confirmed by using 'writedelay'. Even with asyncronous execution, the
+      " call to timer_start must still occur after the code for the window
+      " additions.
+      " WARN: The statement is put in a string to prevent a closure whereby
+      " the variable used in the lambda will have its value change by the time
+      " the code executes. By putting this in a string, the window ID becomes
+      " fixed at string-creation time.
+      for l:winid in l:existing_wins
+        let l:cmd = 'silent! call s:CloseScrollViewWindow(' . l:winid . ')'
+        let l:expr = 'call timer_start(0, {-> execute("' . l:cmd . '")})'
+        execute l:expr
+      endfor
+    else
+      for l:winid in l:existing_wins
+        call s:CloseScrollViewWindow(l:winid)
+      endfor
+    endif
   catch
     " Use a catch block, so that unanticipated errors don't interfere. The
     " worst case scenario is that bars won't be shown properly, which was
@@ -504,78 +504,164 @@ function! scrollview#RefreshBarsAsync() abort
   call timer_start(0, function('s:RefreshBarsAsyncCallback'))
 endfunction
 
-
+" TODO: Move this to appropriate place and section label accordingly
 " EXPERIMENTAL
 
+" Get the next character press, including mouse clicks and drags. Returns a
+" dictionary that includes the following fields:
+"   1) char
+"   2) mouse_winid
+"   3) mouse_row
+"   4) mouse_col
+" The mouse values are 0 when there was no mouse event.
 function! GetChar() abort
-  let l:bufnr = bufnr()
-  let l:view = winsaveview()
-  set ei=all
-  enew
-  set nonu nornu
+  if s:overlay_bufnr ==# -1 || !bufexists(s:overlay_bufnr)
+    let s:overlay_bufnr = nvim_create_buf(0, 1)
+    call setbufvar(s:overlay_bufnr, '&modifiable', 0)
+    call setbufvar(s:overlay_bufnr, '&buftype', 'nofile')
+  endif
+  let l:init_winid = win_getid()
+  let l:target_wins = []
+  for l:winnr in range(1, winnr('$'))
+    let l:winid = win_getid(l:winnr)
+    if s:IsOrdinaryWindow(l:winid)
+      call add(l:target_wins, l:winid)
+    endif
+  endfor
+
+  " Make sure that the buffer size is at least as big as the largest window.
+  let l:overlay_height = getbufinfo(s:overlay_bufnr)[0].linecount
+  for l:winid in l:target_wins
+    let l:winheight = winheight(l:winid)
+    if l:winheight ># l:overlay_height
+      call setbufvar(s:overlay_bufnr, '&modifiable', 1)
+      let l:delta = l:winheight - l:overlay_height
+      call nvim_buf_set_lines(s:overlay_bufnr, 0, 0, 0, repeat([''], l:delta))
+      call setbufvar(s:overlay_bufnr, '&modifiable', 0)
+      let l:overlay_height = l:winheight
+    endif
+  endfor
+
+  " An overlay is displayed in each window so that mouse position can be
+  " properly determined. Otherwise, lnum may not correspond to the actual
+  " position of the click (e.g., when there is a sign/number/relativenumber/fold
+  " column, when lines span multiple screen rows from wrapping, or when the last
+  " line of the buffer is not at the last line of the window due to a short
+  " document or scrolling past the end).
+  " TODO: Handle 'hide' and anything else that would prevent changing
+  " buffer...
+  let l:win_states = {}
+  for l:winid in l:target_wins
+    let l:bufnr = winbufnr(l:winid)
+    call win_gotoid(l:winid)
+    let l:view = winsaveview()
+    call win_gotoid(l:init_winid)
+    let l:state = {
+          \   'bufnr': l:bufnr,
+          \   'options': {
+          \         'number': getwinvar(l:winid, '&number'),
+          \         'relativenumber': getwinvar(l:winid, '&relativenumber'),
+          \         'foldcolumn': getwinvar(l:winid, '&foldcolumn'),
+          \         'signcolumn': getwinvar(l:winid, '&signcolumn'),
+          \      },
+          \   'view': l:view
+          \ }
+    let l:win_states[l:winid] = l:state
+    call nvim_win_set_buf(l:winid, s:overlay_bufnr)
+    call nvim_win_set_cursor(l:winid, [1, 0])
+    call setwinvar(l:winid, '&number', 0)
+    call setwinvar(l:winid, '&relativenumber', 0)
+    call setwinvar(l:winid, '&foldcolumn', 0)
+    call setwinvar(l:winid, '&signcolumn', 'no')
+  endfor
   let l:char = getchar()
-  set nu rnu
-  echo v:mouse_col . ' ' . v:mouse_lnum
-  execute l:bufnr . 'buffer'
-  call winrestview(l:view)
-  set ei=
-  return l:char
+  for l:winid in l:target_wins
+    let l:state = l:win_states[l:winid]
+    call nvim_win_set_buf(l:winid, l:state.bufnr)
+    for [l:key, l:value] in items(l:state.options)
+      call setwinvar(l:winid, '&' . l:key, l:value)
+    endfor
+    call win_gotoid(l:winid)
+    call winrestview(l:state.view)
+    call win_gotoid(l:init_winid)
+  endfor
+
+  let l:output = {
+        \   'char': l:char,
+        \   'mouse_winid': v:mouse_winid,
+        \   'mouse_row': v:mouse_lnum,
+        \   'mouse_col': v:mouse_col
+        \ }
+  return l:output
 endfunction
 
+" TODO: ADD SUPPORT FOR scrollview_mode
 function! LeftMouse() abort
-  " It's not possible to capture the starting column and line number of a
-  " <LeftMouse> event, so it's approximated after the drag event that follows
-  " (where the position will be captured since getchar() is used).
-  let l:count = 0
-  while 1
-    let l:char = getchar()
-    if v:mouse_winid ==# 0
-      call feedkeys("\<LeftMouse>" . l:char, 'n')
-      return
-    endif
-    if l:char ==# "\<LeftRelease>"
-      if l:count ==# 0
-        call feedkeys("\<LeftMouse>\<LeftRelease>", 'n')
+  let l:state = s:Init()
+  try
+    " It's not possible to capture the starting column and line number of a
+    " <LeftMouse> event, so it's approximated after the drag event that follows
+    " (where the position will be captured since getchar() is used).
+    let l:count = 0
+    while 1
+      let l:input = GetChar()
+      let l:char = l:input.char
+      let l:mouse_winid = l:input.mouse_winid
+      let l:mouse_row = l:input.mouse_row
+      let l:mouse_col = l:input.mouse_col
+      if l:mouse_winid ==# 0
+        call feedkeys("\<LeftMouse>" . l:char, 'n')
+        return
       endif
-      return
-    endif
-    if l:count ==# 0
-      for l:scrollview_winid in s:GetScrollViewWindows()
-        let l:props = getwinvar(l:scrollview_winid, s:props_var)
-        if l:props.parent_winid ==# v:mouse_winid
-          break
+      if l:char ==# "\<LeftRelease>"
+        if l:count ==# 0
+          call feedkeys("\<LeftMouse>\<LeftRelease>", 'n')
         endif
-        unlet l:props
-      endfor
-      if !exists('l:props')
-        " There was no scrollbar in the window where a click occurred.
-        call feedkeys("\<LeftMouse>" . l:char, 'n')
         return
       endif
-      let l:screenpos = screenpos(v:mouse_winid, v:mouse_lnum, v:mouse_col)
-      let [l:win_row, l:win_col] = win_screenpos(v:mouse_winid)
-      " TODO: handle incorrect column
-      if (l:screenpos.row < l:props.row + l:win_row - 1)
-            \ || (l:screenpos.row >= l:props.row + l:props.height + l:win_row - 1)
-        call feedkeys("\<LeftMouse>" . l:char, 'n')
-        return
+      if l:count ==# 0
+        for l:scrollview_winid in s:GetScrollViewWindows()
+          let l:props = getwinvar(l:scrollview_winid, s:props_var)
+          if l:props.parent_winid ==# l:mouse_winid
+            break
+          endif
+          unlet l:props
+        endfor
+        if !exists('l:props')
+          " There was no scrollbar in the window where a click occurred.
+          call feedkeys("\<LeftMouse>" . l:char, 'n')
+          return
+        endif
+        let l:padding = 1  " Extra horizontal padding for grabbing the scrollbar.
+        if l:mouse_row < l:props.row
+              \ || l:mouse_row >= l:props.row + l:props.height
+              \ || l:mouse_col < l:props.col - l:padding
+              \ || l:mouse_col > l:props.col + l:padding
+          call feedkeys("\<LeftMouse>" . l:char, 'n')
+          return
+        endif
+        let l:offset = l:mouse_row - l:props.row
+        let l:previous_lnum = 0
       endif
-      " TODO: make sure movement commands happen in the correct window, which
-      " may not be active...
-      let l:last_lnum = 0
-    endif
-    
-    let l:wininfo = getwininfo(l:props.parent_winid)[0]
-    if l:last_lnum !=# v:mouse_lnum
-      let l:topline = l:wininfo.topline
-      let l:pos = (100 * (v:mouse_lnum - l:topline + 1)) / winheight(l:props.parent_winid)
-      execute 'normal ' . l:pos . '%zt'
-      call scrollview#RefreshBars(0)
-      redraw
-    endif
-    let l:last_lnum = v:mouse_lnum
-    let l:count += 1
-  endwhile
+
+      let l:wininfo = getwininfo(l:props.parent_winid)[0]
+      if l:previous_lnum !=# v:mouse_lnum
+        let l:pos = (100 * (v:mouse_lnum - l:offset)) / winheight(l:props.parent_winid)
+        let l:pos = max([1, l:pos])
+        let l:init_winid = win_getid()
+        call win_gotoid(l:mouse_winid)
+        execute 'normal ' . l:pos . '%zt'
+        call win_gotoid(l:init_winid)
+        call scrollview#RefreshBars(0)
+        redraw
+      endif
+      let l:previous_lnum = v:mouse_lnum
+      let l:count += 1
+    endwhile
+  catch
+  finally
+    call s:Restore(l:state)
+  endtry
 endfun
 
 nnoremap <silent> <LeftMouse> <cmd>call LeftMouse()<cr>
