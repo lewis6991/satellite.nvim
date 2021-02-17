@@ -584,7 +584,7 @@ function! GetChar() abort
   endfor
 
   " *************************************************
-  " * Call getchar()
+  " * Obtain input
   " *************************************************
   let l:char = getchar()
 
