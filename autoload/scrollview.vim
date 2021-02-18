@@ -647,11 +647,15 @@ function! scrollview#HandleMouse() abort
           call feedkeys("\<LeftMouse>" . l:char, 'n')
           return
         endif
-        let l:padding = 1  " Extra horizontal padding for grabbing the scrollbar.
+        " Add 1 cell horizonal padding for grabbing the scrollbar. Don't do
+        " this when the padding would extend past the window, as it will
+        " interfere with dragging the vertical separator to resize the window.
+        let l:lpad = l:props.col > 1 ? 1 : 0
+        let l:rpad = l:props.col < winwidth(l:props.parent_winid) ? 1 : 0
         if l:mouse_row < l:props.row
               \ || l:mouse_row >= l:props.row + l:props.height
-              \ || l:mouse_col < l:props.col - l:padding
-              \ || l:mouse_col > l:props.col + l:padding
+              \ || l:mouse_col < l:props.col - l:lpad
+              \ || l:mouse_col > l:props.col + l:rpad
           call feedkeys("\<LeftMouse>" . l:char, 'n')
           return
         endif
