@@ -399,6 +399,8 @@ endfunction
 "   3) mouse_row
 "   4) mouse_col
 " The mouse values are 0 when there was no mouse event.
+" WARN: Clicking on a window's status line or vertical separtor will be
+" captured as clicking on an adjacent cell in the window.
 function! s:GetChar() abort
   " An overlay is displayed in each window so that mouse position can be
   " properly determined. Otherwise, lnum may not correspond to the actual
@@ -683,6 +685,7 @@ function! scrollview#HandleMouse() abort
       let l:previous_row = l:mouse_row
       let l:count += 1
     endwhile
+  catch
   finally
     if get(l:, 'winid', 0) !=# 0
       " Set the scrolled window as the current window.
