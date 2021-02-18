@@ -656,14 +656,16 @@ function! scrollview#HandleMouse() abort
           return
         endif
         let l:offset = l:mouse_row - l:props.row
-        let l:previous_lnum = 0  " Always refresh for the initial movement.
+        let l:previous_row = 0  " Always refresh for the initial movement.
         let l:winid = l:mouse_winid
         let l:winnr = win_id2win(l:winid)
       endif
-      " Only update scroll position if 1) the scroll event window matches the
-      " first scroll event window, and 2) the position differs from the last
-      " scroll event.
-      if l:winid ==# l:mouse_winid && l:previous_lnum !=# l:mouse_row
+      if l:winid !=# l:mouse_winid
+        " The current window does not match that of the initial movement.
+        continue
+      endif
+      " Only update scrollbar if the row changed.
+      if l:previous_row !=# l:mouse_row
         " TODO: ADD SUPPORT FOR scrollview_mode
         let l:pos = (100 * (l:mouse_row - l:offset)) / winheight(l:props.parent_winid)
         let l:pos = max([1, l:pos])
@@ -674,7 +676,7 @@ function! scrollview#HandleMouse() abort
         call scrollview#RefreshBars(0)
         redraw
       endif
-      let l:previous_lnum = l:mouse_row
+      let l:previous_row = l:mouse_row
       let l:count += 1
     endwhile
   finally
@@ -685,4 +687,3 @@ function! scrollview#HandleMouse() abort
     call s:Restore(l:state)
   endtry
 endfun
-
