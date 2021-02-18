@@ -392,6 +392,110 @@ function! s:Restore(state)
   let &eventignore = a:state.eventignore
 endfunction
 
+" Get the next character press, including mouse clicks and drags. Returns a
+" dictionary that includes the following fields:
+"   1) char
+"   2) mouse_winid
+"   3) mouse_row
+"   4) mouse_col
+" The mouse values are 0 when there was no mouse event.
+function! s:GetChar() abort
+  " An overlay is displayed in each window so that mouse position can be
+  " properly determined. Otherwise, lnum may not correspond to the actual
+  " position of the click (e.g., when there is a sign/number/relativenumber/fold
+  " column, when lines span multiple screen rows from wrapping, or when the last
+  " line of the buffer is not at the last line of the window due to a short
+  " document or scrolling past the end).
+
+  " === Configure overlay ===
+  if s:overlay_bufnr ==# -1 || !bufexists(s:overlay_bufnr)
+    let s:overlay_bufnr = nvim_create_buf(0, 1)
+    call setbufvar(s:overlay_bufnr, '&modifiable', 0)
+    call setbufvar(s:overlay_bufnr, '&buftype', 'nofile')
+  endif
+  let l:init_winid = win_getid()
+  let l:target_wins = []
+  for l:winnr in range(1, winnr('$'))
+    let l:winid = win_getid(l:winnr)
+    if s:IsOrdinaryWindow(l:winid)
+      call add(l:target_wins, l:winid)
+    endif
+  endfor
+
+  " Make sure that the buffer size is at least as big as the largest window.
+  let l:overlay_height = getbufinfo(s:overlay_bufnr)[0].linecount
+  for l:winid in l:target_wins
+    let l:winheight = winheight(l:winid)
+    if l:winheight ># l:overlay_height
+      call setbufvar(s:overlay_bufnr, '&modifiable', 1)
+      let l:delta = l:winheight - l:overlay_height
+      call nvim_buf_set_lines(s:overlay_bufnr, 0, 0, 0, repeat([''], l:delta))
+      call setbufvar(s:overlay_bufnr, '&modifiable', 0)
+      let l:overlay_height = l:winheight
+    endif
+  endfor
+
+  " === Save state and load overlay ===
+  let l:win_states = {}
+  for l:winid in l:target_wins
+    let l:bufnr = winbufnr(l:winid)
+    call win_gotoid(l:winid)
+    let l:view = winsaveview()
+    call win_gotoid(l:init_winid)
+    " All buffer and window variables are restored; not just those that were
+    " manually modified. This is because some are automatically modified, like
+    " 'conceallevel', which was noticed when testing the functionality on help
+    " pages, and confirmed further for 'concealcursor' and 'foldenable'.
+    let l:state = {
+          \   'bufnr': l:bufnr,
+          \   'win_options': getwinvar(l:winid, '&'),
+          \   'buf_options': getbufvar(l:bufnr, '&'),
+          \   'view': l:view
+          \ }
+    let l:win_states[l:winid] = l:state
+    " Set options on initial buffer.
+    call nvim_buf_set_option(l:bufnr, 'bufhidden', 'hide')
+    call nvim_win_set_buf(l:winid, s:overlay_bufnr)
+    " Set options on overlay window/buffer.
+    call nvim_win_set_cursor(l:winid, [1, 0])
+    call nvim_win_set_option(l:winid, 'number', v:false)
+    call nvim_win_set_option(l:winid, 'relativenumber', v:false)
+    call nvim_win_set_option(l:winid, 'foldcolumn', '0')
+    call nvim_win_set_option(l:winid, 'signcolumn', 'no')
+  endfor
+
+  " === Obtain input ===
+  let l:char = getchar()
+
+  " === Remove overlay and restore state ===
+  for l:winid in l:target_wins
+    let l:state = l:win_states[l:winid]
+    call nvim_win_set_buf(l:winid, l:state.bufnr)
+    for [l:key, l:value] in items(l:state.win_options)
+      if getwinvar(l:winid, '&' . l:key) !=# l:value
+        call setwinvar(l:winid, '&' . l:key, l:value)
+      endif
+    endfor
+    for [l:key, l:value] in items(l:state.buf_options)
+      if getbufvar(l:bufnr, '&' . l:key) !=# l:value
+        call setbufvar(l:bufnr, '&' . l:key, l:value)
+      endif
+    endfor
+    call win_gotoid(l:winid)
+    call winrestview(l:state.view)
+    call win_gotoid(l:init_winid)
+  endfor
+
+  " === Return result ===
+  let l:result = {
+        \   'char': l:char,
+        \   'mouse_winid': v:mouse_winid,
+        \   'mouse_row': v:mouse_lnum,
+        \   'mouse_col': v:mouse_col
+        \ }
+  return l:result
+endfunction
+
 " *************************************************
 " * Main (entry points)
 " *************************************************
@@ -504,125 +608,7 @@ function! scrollview#RefreshBarsAsync() abort
   call timer_start(0, function('s:RefreshBarsAsyncCallback'))
 endfunction
 
-" TODO: Move this to appropriate place and section label accordingly
-" EXPERIMENTAL
-
-" Get the next character press, including mouse clicks and drags. Returns a
-" dictionary that includes the following fields:
-"   1) char
-"   2) mouse_winid
-"   3) mouse_row
-"   4) mouse_col
-" The mouse values are 0 when there was no mouse event.
-function! GetChar() abort
-  " An overlay is displayed in each window so that mouse position can be
-  " properly determined. Otherwise, lnum may not correspond to the actual
-  " position of the click (e.g., when there is a sign/number/relativenumber/fold
-  " column, when lines span multiple screen rows from wrapping, or when the last
-  " line of the buffer is not at the last line of the window due to a short
-  " document or scrolling past the end).
-
-  " *************************************************
-  " * Configure overlay
-  " *************************************************
-  if s:overlay_bufnr ==# -1 || !bufexists(s:overlay_bufnr)
-    let s:overlay_bufnr = nvim_create_buf(0, 1)
-    call setbufvar(s:overlay_bufnr, '&modifiable', 0)
-    call setbufvar(s:overlay_bufnr, '&buftype', 'nofile')
-  endif
-  let l:init_winid = win_getid()
-  let l:target_wins = []
-  for l:winnr in range(1, winnr('$'))
-    let l:winid = win_getid(l:winnr)
-    if s:IsOrdinaryWindow(l:winid)
-      call add(l:target_wins, l:winid)
-    endif
-  endfor
-
-  " Make sure that the buffer size is at least as big as the largest window.
-  let l:overlay_height = getbufinfo(s:overlay_bufnr)[0].linecount
-  for l:winid in l:target_wins
-    let l:winheight = winheight(l:winid)
-    if l:winheight ># l:overlay_height
-      call setbufvar(s:overlay_bufnr, '&modifiable', 1)
-      let l:delta = l:winheight - l:overlay_height
-      call nvim_buf_set_lines(s:overlay_bufnr, 0, 0, 0, repeat([''], l:delta))
-      call setbufvar(s:overlay_bufnr, '&modifiable', 0)
-      let l:overlay_height = l:winheight
-    endif
-  endfor
-
-  " *************************************************
-  " * Save state and load overlay
-  " *************************************************
-  let l:win_states = {}
-  for l:winid in l:target_wins
-    let l:bufnr = winbufnr(l:winid)
-    call win_gotoid(l:winid)
-    let l:view = winsaveview()
-    call win_gotoid(l:init_winid)
-    " All buffer and window variables are restored; not just those that were
-    " manually modified. This is because some are automatically modified, like
-    " 'conceallevel', which was noticed when testing the functionality on help
-    " pages, and confirmed further for 'concealcursor' and 'foldenable'.
-    let l:state = {
-          \   'bufnr': l:bufnr,
-          \   'win_options': getwinvar(l:winid, '&'),
-          \   'buf_options': getbufvar(l:bufnr, '&'),
-          \   'view': l:view
-          \ }
-    let l:win_states[l:winid] = l:state
-    " Set options on initial buffer.
-    call nvim_buf_set_option(l:bufnr, 'bufhidden', 'hide')
-    call nvim_win_set_buf(l:winid, s:overlay_bufnr)
-    " Set options on overlay window/buffer.
-    call nvim_win_set_cursor(l:winid, [1, 0])
-    call nvim_win_set_option(l:winid, 'number', v:false)
-    call nvim_win_set_option(l:winid, 'relativenumber', v:false)
-    call nvim_win_set_option(l:winid, 'foldcolumn', '0')
-    call nvim_win_set_option(l:winid, 'signcolumn', 'no')
-  endfor
-
-  " *************************************************
-  " * Obtain input
-  " *************************************************
-  let l:char = getchar()
-
-  " *************************************************
-  " * Remove overlay and restore state
-  " *************************************************
-  for l:winid in l:target_wins
-    let l:state = l:win_states[l:winid]
-    call nvim_win_set_buf(l:winid, l:state.bufnr)
-    for [l:key, l:value] in items(l:state.win_options)
-      if getwinvar(l:winid, '&' . l:key) !=# l:value
-        call setwinvar(l:winid, '&' . l:key, l:value)
-      endif
-    endfor
-    for [l:key, l:value] in items(l:state.buf_options)
-      if getbufvar(l:bufnr, '&' . l:key) !=# l:value
-        call setbufvar(l:bufnr, '&' . l:key, l:value)
-      endif
-    endfor
-    call win_gotoid(l:winid)
-    call winrestview(l:state.view)
-    call win_gotoid(l:init_winid)
-  endfor
-
-  " *************************************************
-  " * Return result
-  " *************************************************
-  let l:result = {
-        \   'char': l:char,
-        \   'mouse_winid': v:mouse_winid,
-        \   'mouse_row': v:mouse_lnum,
-        \   'mouse_col': v:mouse_col
-        \ }
-  return l:result
-endfunction
-
-" TODO: ADD SUPPORT FOR scrollview_mode
-function! LeftMouse() abort
+function! scrollview#HandleMouse() abort
   let l:state = s:Init()
   try
     " It's not possible to capture the starting column and line number of a
@@ -632,7 +618,7 @@ function! LeftMouse() abort
     let l:winid = 0  " The target window ID for a mouse scroll.
     let l:winnr = 0  " The target window number for a mouse scroll.
     while 1
-      let l:input = GetChar()
+      let l:input = s:GetChar()
       let l:char = l:input.char
       let l:mouse_winid = l:input.mouse_winid
       let l:mouse_row = l:input.mouse_row
@@ -678,6 +664,7 @@ function! LeftMouse() abort
       " first scroll event window, and 2) the position differs from the last
       " scroll event.
       if l:winid ==# l:mouse_winid && l:previous_lnum !=# l:mouse_row
+        " TODO: ADD SUPPORT FOR scrollview_mode
         let l:pos = (100 * (l:mouse_row - l:offset)) / winheight(l:props.parent_winid)
         let l:pos = max([1, l:pos])
         let l:init_winid = win_getid()  " The current window.
@@ -699,6 +686,3 @@ function! LeftMouse() abort
   endtry
 endfun
 
-nnoremap <silent> <LeftMouse> <cmd>call LeftMouse()<cr>
-inoremap <silent> <LeftMouse> <cmd>call LeftMouse()<cr>
-vnoremap <silent> <LeftMouse> <esc><cmd>call LeftMouse()<cr>

@@ -70,6 +70,11 @@ noremap <silent> <plug>(ScrollViewDisable) <cmd>ScrollViewDisable<cr>
 noremap <silent> <plug>(ScrollViewEnable) <cmd>ScrollViewEnable<cr>
 noremap <silent> <plug>(ScrollViewRefresh) <cmd>ScrollViewRefresh<cr>
 
+" TODO: Disable these by default, and add a way to toggle
+nnoremap <silent> <LeftMouse> <cmd>call scrollview#HandleMouse()<cr>
+inoremap <silent> <LeftMouse> <cmd>call scrollview#HandleMouse()<cr>
+vnoremap <silent> <LeftMouse> <esc><cmd>call scrollview#HandleMouse()<cr>
+
 " *************************************************
 " * Core
 " *************************************************
