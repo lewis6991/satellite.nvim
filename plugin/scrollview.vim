@@ -59,13 +59,30 @@ endif
 " * Mappings
 " *************************************************
 
-" <plug> mappings are defined for convenience of creating user-defined
-" mappings that call nvim-scrollview functionality. However, since the usage
-" of <plug> mappings requires recursive map commands, this prevents mappings
-" that both call <plug> functions and have the left-hand-side key sequences
-" repeated not at the beginning of the right-hand-side (see :help
-" recursive_mapping for details). Experimentation suggests <silent> is not
-" necessary for <cmd> mappings, but it's added to make it explicit.
+" <plug> mappings for mouse functionality.
+" E.g., <plug>(ScrollViewLeftMouse)
+let s:mouse_plug_pairs = [
+      \   ['ScrollViewLeftMouse',   'left'  ],
+      \   ['ScrollViewMiddleMouse', 'middle'],
+      \   ['ScrollViewRightMouse',  'right' ],
+      \   ['ScrollViewX1Mouse',     'x1'    ],
+      \   ['ScrollViewX2Mouse',     'x2'    ],
+      \ ]
+for [s:plug_name, s:button] in s:mouse_plug_pairs
+  let s:lhs = printf('<silent> <plug>(%s)', s:plug_name)
+  let s:rhs = printf('<cmd>call scrollview#HandleMouse("%s")<cr>', s:button)
+  execute 'noremap ' . s:lhs . ' ' . s:rhs
+  execute 'inoremap ' . s:lhs . ' ' . s:rhs
+endfor
+
+" Additional <plug> mappings are defined for convenience of creating
+" user-defined mappings that call nvim-scrollview functionality. However,
+" since the usage of <plug> mappings requires recursive map commands, this
+" prevents mappings that both call <plug> functions and have the
+" left-hand-side key sequences repeated not at the beginning of the
+" right-hand-side (see :help recursive_mapping for details). Experimentation
+" suggests <silent> is not necessary for <cmd> mappings, but it's added to
+" make it explicit.
 noremap <silent> <plug>(ScrollViewDisable) <cmd>ScrollViewDisable<cr>
 noremap <silent> <plug>(ScrollViewEnable) <cmd>ScrollViewEnable<cr>
 noremap <silent> <plug>(ScrollViewRefresh) <cmd>ScrollViewRefresh<cr>

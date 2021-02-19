@@ -399,8 +399,6 @@ endfunction
 "   3) mouse_row
 "   4) mouse_col
 " The mouse values are 0 when there was no mouse event.
-" WARN: Clicking on a window's status line or vertical separtor will be
-" captured as clicking on an adjacent cell in the window.
 function! s:GetChar() abort
   " An overlay is displayed in each window so that mouse position can be
   " properly determined. Otherwise, lnum may not correspond to the actual
@@ -408,6 +406,9 @@ function! s:GetChar() abort
   " column, when lines span multiple screen rows from wrapping, or when the last
   " line of the buffer is not at the last line of the window due to a short
   " document or scrolling past the end).
+  " XXX: If/when Vim's getmousepos is ported to Neovim, an overlay would not
+  " be necessary. That function would return the necessary information, making
+  " most of the steps in this function unnecessary.
 
   " === Configure overlay ===
   if s:overlay_bufnr ==# -1 || !bufexists(s:overlay_bufnr)
@@ -425,17 +426,15 @@ function! s:GetChar() abort
   endfor
 
   " Make sure that the buffer size is at least as big as the largest window.
+  " Use 'lines' option for this, since a window height can't exceed this.
   let l:overlay_height = getbufinfo(s:overlay_bufnr)[0].linecount
-  for l:winid in l:target_wins
-    let l:winheight = winheight(l:winid)
-    if l:winheight ># l:overlay_height
-      call setbufvar(s:overlay_bufnr, '&modifiable', 1)
-      let l:delta = l:winheight - l:overlay_height
-      call nvim_buf_set_lines(s:overlay_bufnr, 0, 0, 0, repeat([''], l:delta))
-      call setbufvar(s:overlay_bufnr, '&modifiable', 0)
-      let l:overlay_height = l:winheight
-    endif
-  endfor
+  if &g:lines > l:overlay_height
+    call setbufvar(s:overlay_bufnr, '&modifiable', 1)
+    let l:delta = &g:lines - l:overlay_height
+    call nvim_buf_set_lines(s:overlay_bufnr, 0, 0, 0, repeat([''], l:delta))
+    call setbufvar(s:overlay_bufnr, '&modifiable', 0)
+    let l:overlay_height = &g:lines
+  endif
 
   " === Save state and load overlay ===
   let l:win_states = {}
@@ -456,14 +455,15 @@ function! s:GetChar() abort
           \ }
     let l:win_states[l:winid] = l:state
     " Set options on initial buffer.
-    call nvim_buf_set_option(l:bufnr, 'bufhidden', 'hide')
-    call nvim_win_set_buf(l:winid, s:overlay_bufnr)
+    call setbufvar(l:bufnr, '&bufhidden', 'hide')
+    " Change buffer
+    keepalt keepjumps call nvim_win_set_buf(l:winid, s:overlay_bufnr)
+    keepjumps call nvim_win_set_cursor(l:winid, [1, 0])
     " Set options on overlay window/buffer.
-    call nvim_win_set_cursor(l:winid, [1, 0])
-    call nvim_win_set_option(l:winid, 'number', v:false)
-    call nvim_win_set_option(l:winid, 'relativenumber', v:false)
-    call nvim_win_set_option(l:winid, 'foldcolumn', '0')
-    call nvim_win_set_option(l:winid, 'signcolumn', 'no')
+    call setwinvar(l:winid, '&number', 0)
+    call setwinvar(l:winid, '&relativenumber', 0)
+    call setwinvar(l:winid, '&foldcolumn', 0)
+    call setwinvar(l:winid, '&signcolumn', 'no')
   endfor
 
   " === Obtain input ===
@@ -472,7 +472,7 @@ function! s:GetChar() abort
   " === Remove overlay and restore state ===
   for l:winid in l:target_wins
     let l:state = l:win_states[l:winid]
-    call nvim_win_set_buf(l:winid, l:state.bufnr)
+    keepalt keepjumps call nvim_win_set_buf(l:winid, l:state.bufnr)
     for [l:key, l:value] in items(l:state.win_options)
       if getwinvar(l:winid, '&' . l:key) !=# l:value
         call setwinvar(l:winid, '&' . l:key, l:value)
@@ -484,7 +484,7 @@ function! s:GetChar() abort
       endif
     endfor
     call win_gotoid(l:winid)
-    call winrestview(l:state.view)
+    keepjumps call winrestview(l:state.view)
     call win_gotoid(l:init_winid)
   endfor
 
@@ -610,12 +610,21 @@ function! scrollview#RefreshBarsAsync() abort
   call timer_start(0, function('s:RefreshBarsAsyncCallback'))
 endfunction
 
-function! scrollview#HandleMouse() abort
+" 'button' can be 'left', 'middle', 'right', 'x1', or 'x2'.
+function! scrollview#HandleMouse(button) abort
+  if !s:Contains(['left', 'middle', 'right', 'x1', 'x2'], a:button)
+    throw 'Unsupported button: ' . a:button
+  endif
   let l:state = s:Init()
   try
-    " It's not possible to capture the starting column and line number of a
-    " <LeftMouse> event, so it's approximated after the drag event that follows
-    " (where the position will be captured since getchar() is used).
+    let l:mousedown = eval(printf('"\<%smouse>"', a:button))
+    let l:mouseup = eval(printf('"\<%srelease>"', a:button))
+    " Re-send the click, so its position can be obtained from a subsequent call
+    " to getchar().
+    " XXX: If/when Vim's getmousepos is ported to Neovim, the position of the
+    " initial click would be available without getchar(), but would require
+    " some refactoring below to accommodate.
+    call feedkeys(l:mousedown, 'ni')
     let l:count = 0
     let l:winid = 0  " The target window ID for a mouse scroll.
     let l:winnr = 0  " The target window number for a mouse scroll.
@@ -627,12 +636,12 @@ function! scrollview#HandleMouse() abort
       let l:mouse_col = l:input.mouse_col
       if l:mouse_winid ==# 0
         " There was no mouse event.
-        call feedkeys("\<LeftMouse>" . l:char, 'n')
+        call feedkeys(l:char, 'n')
         return
       endif
-      if l:char ==# "\<LeftRelease>"
+      if l:char ==# l:mouseup
         if l:count ==# 0
-          call feedkeys("\<LeftMouse>\<LeftRelease>", 'n')
+          call feedkeys(l:mouseup, 'n')
         endif
         return
       endif
@@ -646,7 +655,7 @@ function! scrollview#HandleMouse() abort
         endfor
         if !exists('l:props')
           " There was no scrollbar in the window where a click occurred.
-          call feedkeys("\<LeftMouse>" . l:char, 'n')
+          call feedkeys(l:char, 'n')
           return
         endif
         " Add 1 cell horizonal padding for grabbing the scrollbar. Don't do
@@ -658,8 +667,12 @@ function! scrollview#HandleMouse() abort
               \ || l:mouse_row >= l:props.row + l:props.height
               \ || l:mouse_col < l:props.col - l:lpad
               \ || l:mouse_col > l:props.col + l:rpad
-          call feedkeys("\<LeftMouse>" . l:char, 'n')
+          call feedkeys(l:char, 'n')
           return
+        endif
+        if s:Contains(['v', 'V', "\<c-v>"], mode())
+          " Exit visual mode.
+          execute "normal! \<esc>"
         endif
         let l:offset = l:mouse_row - l:props.row
         let l:previous_row = 0  " Always refresh for the initial movement.
@@ -677,7 +690,7 @@ function! scrollview#HandleMouse() abort
         let l:pos = max([1, l:pos])
         let l:init_winid = win_getid()  " The current window.
         call win_gotoid(l:mouse_winid)
-        execute 'normal ' . l:pos . '%zt'
+        execute 'keepjumps normal! ' . l:pos . '%zt'
         call win_gotoid(l:init_winid)
         call scrollview#RefreshBars(0)
         redraw
