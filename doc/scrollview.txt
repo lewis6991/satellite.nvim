@@ -40,11 +40,18 @@ Use |packages| or one of the various package managers.
                                            *scrollview-mappings*
 The following |<Plug>| mappings are defined for convenience.
 
-Left-hand-side              Right-hand-side
---------------              ---------------
-`<Plug>(ScrollViewDisable)`   `<cmd>ScrollViewDisable<cr>`
-`<Plug>(ScrollViewEnable)`    `<cmd>ScrollViewEnable<cr>`
-`<Plug>(ScrollViewRefresh)`   `<cmd>ScrollViewRefresh<cr>`
+* `<Plug>(ScrollViewDisable)`
+* `<Plug>(ScrollViewEnable)`
+* `<Plug>(ScrollViewRefresh)`
+
+The following (experimental) |<Plug>| mappings are defined for customizing
+mouse functionality (see |scrollview-mouse-customization|).
+
+* `<Plug>(ScrollViewLeftMouse)`
+* `<Plug>(ScrollViewMiddleMouse)`
+* `<Plug>(ScrollViewRightMouse)`
+* `<Plug>(ScrollViewX1Mouse)`
+* `<Plug>(ScrollViewX2Mouse)`
 
 ============================================================================
 4. Configuration                           *scrollview-configuration*
@@ -80,7 +87,10 @@ have the highest precedence, and global variables have the lowest).
 *scrollview_column*                       `1`
   Specifies the scrollbar column          An integer greater than or equal
   (relative to |scrollview_base|)           to 1
-
+*scrollview_auto_mouse*                   `1`
+  Specifies whether a mapping is          Considered only at global scope
+  automatically created for mouse
+  support (without clobbering)
 
 The variables can be customized in your |init.vim|, as shown in the following
 example.
@@ -136,6 +146,34 @@ following example.
 
     " Specify custom highlighting for ScrollView
     highlight ScrollView ctermbg=159 guibg=LightCyan
+
+Mouse Customization (experimental) ~
+                                           *scrollview-mouse-customization*
+When |scrollview_auto_mouse| is set, a |<LeftMouse>| mapping is automatically
+created for interactive mouse support. An existing mapping will not be
+clobbered.
+
+Mappings can be used to manually create mappings for mouse support.
+ >
+    " Add support for dragging scrollbars with the left mouse button
+    map  <leftmouse> <plug>(ScrollViewMiddleMouse)
+    imap <leftmouse> <plug>(ScrollViewMiddleMouse)
+
+    " Add support for dragging scrollbars with the middle mouse button
+    map  <middlemouse> <plug>(ScrollViewMiddleMouse)
+    imap <middlemouse> <plug>(ScrollViewMiddleMouse)
+
+    " Add support for dragging scrollbars with the right mouse button
+    map  <rightmouse> <plug>(ScrollViewRightMouse)
+    imap <rightmouse> <plug>(ScrollViewRightMouse)
+
+    " Add support for dragging scrollbars with the x1 mouse button
+    map  <x1mouse> <plug>(ScrollViewX1Mouse)
+    imap <x1mouse> <plug>(ScrollViewX1Mouse)
+
+    " Add support for dragging scrollbars with the x2 mouse button
+    map  <x2mouse> <plug>(ScrollViewX2Mouse)
+    imap <x2mouse> <plug>(ScrollViewX2Mouse)
 
 ============================================================================
 5. Issues                                  *scrollview-issues*

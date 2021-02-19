@@ -641,7 +641,11 @@ function! scrollview#HandleMouse(button) abort
       endif
       if l:char ==# l:mouseup
         if l:count ==# 0
+          " No initial mousedown was captured.
           call feedkeys(l:mouseup, 'n')
+        else
+          " 'feedkeys' is not called, since the full mouse interaction has
+          " already been processed.
         endif
         return
       endif
@@ -667,6 +671,7 @@ function! scrollview#HandleMouse(button) abort
               \ || l:mouse_row >= l:props.row + l:props.height
               \ || l:mouse_col < l:props.col - l:lpad
               \ || l:mouse_col > l:props.col + l:rpad
+          " The click was not on a scrollbar.
           call feedkeys(l:char, 'n')
           return
         endif
