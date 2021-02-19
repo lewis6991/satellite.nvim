@@ -627,7 +627,8 @@ function! scrollview#HandleMouse(button) abort
     call feedkeys(l:mousedown, 'ni')
     let l:count = 0
     let l:winid = 0  " The target window ID for a mouse scroll.
-    let l:winnr = 0  " The target window number for a mouse scroll.
+    let l:winnr = 0  " The target window number.
+    let l:bufnr = 0  " The target buffer number.
     while 1
       let l:input = s:GetChar()
       let l:char = l:input.char
@@ -653,6 +654,9 @@ function! scrollview#HandleMouse(button) abort
         for l:scrollview_winid in s:GetScrollViewWindows()
           let l:props = getwinvar(l:scrollview_winid, s:props_var)
           if l:props.parent_winid ==# l:mouse_winid
+            let l:winid = l:mouse_winid
+            let l:winnr = win_id2win(l:winid)
+            let l:bufnr = winbufnr(l:winnr)
             break
           endif
           unlet l:props
@@ -666,7 +670,7 @@ function! scrollview#HandleMouse(button) abort
         " this when the padding would extend past the window, as it will
         " interfere with dragging the vertical separator to resize the window.
         let l:lpad = l:props.col > 1 ? 1 : 0
-        let l:rpad = l:props.col < winwidth(l:props.parent_winid) ? 1 : 0
+        let l:rpad = l:props.col < winwidth(l:winid) ? 1 : 0
         if l:mouse_row < l:props.row
               \ || l:mouse_row >= l:props.row + l:props.height
               \ || l:mouse_col < l:props.col - l:lpad
@@ -681,27 +685,24 @@ function! scrollview#HandleMouse(button) abort
         endif
         let l:offset = l:mouse_row - l:props.row
         let l:previous_row = l:props.row
-        let l:winid = l:mouse_winid
-        let l:winnr = win_id2win(l:winid)
       endif
       if l:winid !=# l:mouse_winid
-        " The current window does not match that of the initial movement.
+        " The current window does not match that the initial click.
         continue
       endif
       let l:row = l:mouse_row - l:offset
       " Only update scrollbar if the row changed.
       if l:previous_row !=# l:row
         " TODO: ADD SUPPORT FOR scrollview_mode
-        let l:pos = (100 * l:row) / winheight(l:props.parent_winid)
-        let l:pos = max([1, l:pos])
-        let l:init_winid = win_getid()  " The current window.
-        call win_gotoid(l:mouse_winid)
-        execute 'keepjumps normal! ' . l:pos . '%zt'
-        call win_gotoid(l:init_winid)
+        let l:line_count = nvim_buf_line_count(l:bufnr)
+        let l:top = s:NumberToFloat(l:row - 1) / (winheight(l:winid) - 1)
+        let l:top = float2nr(round(l:top * (l:line_count - 1))) + 1
+        let l:top = max([1, l:top])
+        call s:SetTopLine(l:winid, l:top)
         call scrollview#RefreshBars(0)
         redraw
       endif
-      let l:previous_row = l:mouse_row
+      let l:previous_row = l:row
       let l:count += 1
     endwhile
   catch
@@ -713,3 +714,17 @@ function! scrollview#HandleMouse(button) abort
     call s:Restore(l:state)
   endtry
 endfun
+
+" TODO: MOVE THIS
+function! s:SetTopLine(winid, linenr) abort
+  let l:winid = a:winid
+  let l:linenr = a:linenr
+  let l:init_winid = win_getid()
+  call win_gotoid(l:winid)
+  execute 'keepjumps normal! ' . l:linenr . 'G'
+  let l:winline = winline()
+  if l:winline ># 1
+    execute 'keepjumps normal! ' . (l:winline - 1) . "\<c-e>"
+  endif
+  call win_gotoid(l:init_winid)
+endfunction
