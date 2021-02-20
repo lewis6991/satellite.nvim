@@ -160,7 +160,6 @@ endfunction
 " may be a way to speed this up further, but would presumably require a more
 " complicated implementation.
 function! s:VisibleLineCount(winid, start, end) abort
-  let l:result = -1
   let l:current_winid = win_getid(winnr())
   call win_gotoid(a:winid)
   let l:end = a:end
@@ -169,6 +168,23 @@ function! s:VisibleLineCount(winid, start, end) abort
   endif
   let l:module = luaeval('require("scrollview")')
   let l:result = l:module.visible_line_count(a:start, l:end)
+  call win_gotoid(l:current_winid)
+  return l:result
+endfunction
+
+" Returns the line at the approximate visible proportion between the specified
+" start and end lines, in the specified window. If the result is in a closed
+" fold, it is converted to the first line in that fold.
+function! s:VisibleProportionLine(winid, start, end, proportion) abort
+  let l:current_winid = win_getid(winnr())
+  call win_gotoid(a:winid)
+  let l:end = a:end
+  if type(l:end) ==# v:t_string && l:end ==# '$'
+    let l:end = line('$')
+  endif
+  let l:module = luaeval('require("scrollview")')
+  let l:result = l:module.visible_proportion_line(
+        \ a:start, l:end, a:proportion)
   call win_gotoid(l:current_winid)
   return l:result
 endfunction
@@ -700,6 +716,7 @@ function! scrollview#HandleMouse(button) abort
             let l:winid = l:mouse_winid
             let l:winnr = win_id2win(l:winid)
             let l:bufnr = winbufnr(l:winnr)
+            let l:mode = s:GetVariable('scrollview_mode', l:winnr)
             break
           endif
           unlet l:props
@@ -735,10 +752,15 @@ function! scrollview#HandleMouse(button) abort
       let l:row = l:mouse_row + l:window_offset + l:scrollbar_offset
       " Only update scrollbar if the row changed.
       if l:previous_row !=# l:row
-        " TODO: ADD SUPPORT FOR scrollview_mode
-        let l:line_count = nvim_buf_line_count(l:bufnr)
-        let l:top = s:NumberToFloat(l:row - 1) / (winheight(l:winid) - 1)
-        let l:top = float2nr(round(l:top * (l:line_count - 1))) + 1
+        let l:winheight = winheight(l:winid)
+        let l:proportion = s:NumberToFloat(l:row - 1) / (l:winheight - 1)
+        if l:mode ==# 'virtual'
+          let l:top = s:VisibleProportionLine(l:winid, 1, '$', l:proportion)
+        else
+          " The handling is the same for 'simple' and 'flexible' modes.
+          let l:line_count = nvim_buf_line_count(l:bufnr)
+          let l:top = float2nr(round(l:proportion * (l:line_count - 1))) + 1
+        endif
         let l:top = max([1, l:top])
         call s:SetTopLine(l:winid, l:top)
         call scrollview#RefreshBars(0)
