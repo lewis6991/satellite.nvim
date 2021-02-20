@@ -716,14 +716,13 @@ function! scrollview#HandleMouse(button) abort
           " Exit visual mode.
           execute "normal! \<esc>"
         endif
-        let l:offset = l:mouse_row - l:props.row
+        let l:scrollbar_offset = l:props.row - l:mouse_row
         let l:previous_row = l:props.row
       endif
-      if l:winid !=# l:mouse_winid
-        " The current window does not match that the initial click.
-        continue
-      endif
-      let l:row = l:mouse_row - l:offset
+      let l:mouse_winrow = getwininfo(l:mouse_winid)[0].winrow
+      let l:winrow = getwininfo(l:winid)[0].winrow
+      let l:window_offset = l:mouse_winrow - l:winrow
+      let l:row = l:mouse_row + l:window_offset + l:scrollbar_offset
       " Only update scrollbar if the row changed.
       if l:previous_row !=# l:row
         " TODO: ADD SUPPORT FOR scrollview_mode
@@ -740,7 +739,7 @@ function! scrollview#HandleMouse(button) abort
     endwhile
   catch
   finally
-    if get(l:, 'winid', 0) !=# 0
+    if exists('l:winid')
       " Set the scrolled window as the current window.
       call win_gotoid(l:winid)
     endif
