@@ -510,6 +510,12 @@ function! s:SetTopLine(winid, linenr) abort
   if l:winline ># 1
     execute 'keepjumps normal! ' . (l:winline - 1) . "\<c-e>"
   endif
+  if line('w$') ==# line('$')
+    " If the last buffer line is on-screen, position that line at the bottom
+    " of the window.
+    keepjumps normal! G
+    keepjumps normal! zb
+  endif
   " Position the cursor as if all scrolling was conducted with <ctrl-e> and/or
   " <ctrl-y>. H and L are used to get topline and botline instead of
   " getwininfo, to prevent jumping to a line that could result in a scroll if
