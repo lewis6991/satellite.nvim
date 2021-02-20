@@ -498,6 +498,39 @@ function! s:GetChar() abort
   return l:result
 endfunction
 
+" Scrolls the window so that the specified line number is at the top.
+function! s:SetTopLine(winid, linenr) abort
+  let l:winid = a:winid
+  let l:linenr = a:linenr
+  let l:init_winid = win_getid()
+  call win_gotoid(l:winid)
+  let l:init_line = line('.')
+  execute 'keepjumps normal! ' . l:linenr . 'G'
+  let l:winline = winline()
+  if l:winline ># 1
+    execute 'keepjumps normal! ' . (l:winline - 1) . "\<c-e>"
+  endif
+  " Position the cursor as if all scrolling was conducted with <ctrl-e> and/or
+  " <ctrl-y>. H and L are used to get topline and botline instead of
+  " getwininfo, to prevent jumping to a line that could result in a scroll if
+  " scrolloff>0.
+  keepjumps normal! H
+  let l:effective_top = line('.')
+  keepjumps normal! L
+  let l:effective_bottom = line('.')
+  if l:init_line <# l:effective_top
+    " User scrolled down.
+    keepjumps normal! H
+  elseif l:init_line ># l:effective_bottom
+    " User scrolled up.
+    keepjumps normal! L
+  else
+    " The initial line is still on-screen.
+    execute 'keepjumps normal! ' . l:init_line . 'G'
+  endif
+  call win_gotoid(l:init_winid)
+endfunction
+
 " *************************************************
 " * Main (entry points)
 " *************************************************
@@ -714,17 +747,3 @@ function! scrollview#HandleMouse(button) abort
     call s:Restore(l:state)
   endtry
 endfun
-
-" TODO: MOVE THIS
-function! s:SetTopLine(winid, linenr) abort
-  let l:winid = a:winid
-  let l:linenr = a:linenr
-  let l:init_winid = win_getid()
-  call win_gotoid(l:winid)
-  execute 'keepjumps normal! ' . l:linenr . 'G'
-  let l:winline = winline()
-  if l:winline ># 1
-    execute 'keepjumps normal! ' . (l:winline - 1) . "\<c-e>"
-  endif
-  call win_gotoid(l:init_winid)
-endfunction
