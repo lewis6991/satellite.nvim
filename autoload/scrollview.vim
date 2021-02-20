@@ -677,6 +677,10 @@ function! scrollview#HandleMouse(button) abort
         if l:count ==# 0
           " No initial mousedown was captured.
           call feedkeys(l:mouseup, 'n')
+        elseif l:count ==# 1
+          " There was no corresponding drag. Allow the interaction to be
+          " processed as it would be with no scrollbar.
+          call feedkeys(l:mousedown . l:mouseup, 'n')
         else
           " 'feedkeys' is not called, since the full mouse interaction has
           " already been processed.
