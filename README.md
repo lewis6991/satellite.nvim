@@ -1,6 +1,6 @@
 # nvim-scrollview
 
-`nvim-scrollview` is a Neovim plugin that displays (non-interactive) scrollbars.
+`nvim-scrollview` is a Neovim plugin that displays interactive scrollbars.
 The plugin is customizable (see `:help scrollview-configuration`).
 
 <img src="screencast.gif?raw=true" width="640"/>
@@ -35,8 +35,7 @@ A package manager can be used to install `nvim-scrollview`.
 
 ## Usage
 
-* `nvim-scrollview` works automatically, displaying (non-interactive)
-  scrollbars.
+* `nvim-scrollview` works automatically, displaying interactive scrollbars.
 * The `:ScrollViewDisable` command disables scrollbars.
 * The `:ScrollViewEnable` command enables scrollbars. This is only necessary
   if scrollbars have previously been disabled.
@@ -64,6 +63,8 @@ There are various settings that can be configured.
 * Scrollbar anchor column and offset
   - `scrollview_base`
   - `scrollview_column`
+* Whether a mapping is automatically created for mouse support
+  - `scrollview_auto_mouse`
 
 Please see the documentation for details.
 

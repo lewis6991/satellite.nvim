@@ -5,11 +5,15 @@
 " * Globals
 " *************************************************
 
-" s:bar_bufnr has the bufnr of the first buffer created for a position bar.
-" Since there is no text displayed in the buffer, the same buffer can be used
-" for multiple floating windows. This also prevents the buffer list from
-" getting high from usage of the plugin.
+" Since there is no text displayed in the buffers, the same buffers are used
+" for multiple windows. This also prevents the buffer list from getting high
+" from usage of the plugin.
+
+" s:bar_bufnr has the bufnr of the buffer created for a position bar.
 let s:bar_bufnr = get(s:, 'bar_bufnr', -1)
+
+" s:overlay_bufnr has the bufnr of the buffer created for the click overlay.
+let s:overlay_bufnr = get(s:, 'overlay_bufnr', -1)
 
 " Keep count of pending async refreshes.
 let s:pending_async_refresh_count = 0
@@ -21,6 +25,9 @@ let s:pending_async_refresh_count = 0
 let s:win_var = 'scrollview_key'
 let s:win_val = 'scrollview_val'
 
+" A key for saving scrollbar properties using a window variable.
+let s:props_var = 'scrollview_props'
+
 " *************************************************
 " * Utils
 " *************************************************
@@ -31,8 +38,6 @@ endfunction
 
 " Executes a list of commands in the context of the specified window.
 " If a local result variable is set, it will be returned.
-" WARN: This differ's from Vim's win_execute, as that triggers autocommands
-" when executing a command.
 " WARN: Loops within the specified commands cannot be executed, due to their
 " interaction with the for loop in this function. To resolve, instead of
 " putting loops into the commands, extract the loops to separate functions,
@@ -69,9 +74,8 @@ function! s:IsOrdinaryWindow(winid) abort
 endfunction
 
 function! s:InCommandLineWindow() abort
-  if mode() ==# 'c'
-    return 1
-  endif
+  if win_gettype() ==# 'command' | return 1 | endif
+  if mode() ==# 'c' | return 1 | endif
   let l:winnr = winnr()
   let l:bufnr = winbufnr(l:winnr)
   let l:buftype = nvim_buf_get_option(l:bufnr, 'buftype')
@@ -156,7 +160,6 @@ endfunction
 " may be a way to speed this up further, but would presumably require a more
 " complicated implementation.
 function! s:VisibleLineCount(winid, start, end) abort
-  let l:result = -1
   let l:current_winid = win_getid(winnr())
   call win_gotoid(a:winid)
   let l:end = a:end
@@ -165,6 +168,23 @@ function! s:VisibleLineCount(winid, start, end) abort
   endif
   let l:module = luaeval('require("scrollview")')
   let l:result = l:module.visible_line_count(a:start, l:end)
+  call win_gotoid(l:current_winid)
+  return l:result
+endfunction
+
+" Returns the line at the approximate visible proportion between the specified
+" start and end lines, in the specified window. If the result is in a closed
+" fold, it is converted to the first line in that fold.
+function! s:VisibleProportionLine(winid, start, end, proportion) abort
+  let l:current_winid = win_getid(winnr())
+  call win_gotoid(a:winid)
+  let l:end = a:end
+  if type(l:end) ==# v:t_string && l:end ==# '$'
+    let l:end = line('$')
+  endif
+  let l:module = luaeval('require("scrollview")')
+  let l:result = l:module.visible_proportion_line(
+        \ a:start, l:end, a:proportion)
   call win_gotoid(l:current_winid)
   return l:result
 endfunction
@@ -183,7 +203,6 @@ function! s:CalculatePosition(winnr) abort
   " This is handled by having WinScrolled trigger an asychronous refresh.
   let l:botline = l:wininfo.botline
   let l:line_count = nvim_buf_line_count(l:bufnr)
-  let [l:row, l:col] = win_screenpos(l:winnr)
   let l:winheight = winheight(l:winnr)
   let l:winwidth = winwidth(l:winnr)
   let l:mode = s:GetVariable('scrollview_mode', l:winnr)
@@ -225,25 +244,26 @@ function! s:CalculatePosition(winnr) abort
   if l:top + l:height ># l:winheight
     let l:top = l:winheight - l:height
   endif
-  " At this point, l:col corresponds the window's leftmost column.
+  " l:left is the position for the left of the scrollbar, relative to the
+  " window, and 0-indexed.
+  let l:left = 0
   let l:column = s:GetVariable('scrollview_column', l:winnr)
   let l:base = s:GetVariable('scrollview_base', l:winnr)
   if l:base ==# 'left'
-    let l:col += l:column - 1
+    let l:left += l:column - 1
   elseif l:base ==# 'right'
-    let l:col += l:winwidth - l:column
+    let l:left += l:winwidth - l:column
   elseif l:base ==# 'buffer'
-    let l:col += l:column - 1
+    let l:left += l:column - 1
           \ + s:BufferTextBeginsColumn(l:winid) - 1
   else
     " For an unknown base, use the default position (right edge of window).
-    let l:col += l:winwidth - 1
+    let l:left += l:winwidth - 1
   endif
-  let l:line = l:row + l:top
   let l:result = {
         \   'height': l:height,
-        \   'row': l:line,
-        \   'col': l:col
+        \   'row': l:top + 1,
+        \   'col': l:left + 1
         \ }
   return l:result
 endfunction
@@ -290,21 +310,21 @@ function! s:ShowScrollbar(winid) abort
   if l:base ==# 'buffer'
     let l:min_valid_col = s:BufferViewBeginsColumn(l:winid)
   endif
-  let l:col = l:bar_position.col - win_screenpos(l:winnr)[1] + 1
-  if l:col <# l:min_valid_col
+  if l:bar_position.col < l:min_valid_col
     return
   endif
-  if l:col ># l:winwidth
+  if l:bar_position.col ># l:winwidth
     return
   endif
-  if s:bar_bufnr ==# -1
+  if s:bar_bufnr ==# -1 || !bufexists(s:bar_bufnr)
     let s:bar_bufnr = nvim_create_buf(0, 1)
     call setbufvar(s:bar_bufnr, '&modifiable', 0)
     call setbufvar(s:bar_bufnr, '&filetype', 'scrollview')
     call setbufvar(s:bar_bufnr, '&buftype', 'nofile')
   endif
   let l:options = {
-        \   'relative': 'editor',
+        \   'win': l:winid,
+        \   'relative': 'win',
         \   'focusable': 0,
         \   'style': 'minimal',
         \   'height': l:bar_position.height,
@@ -317,12 +337,19 @@ function! s:ShowScrollbar(winid) abort
   " color scheme's specification of EndOfBuffer would be used to color the
   " bottom of the scrollbar.
   let l:bar_winnr = win_id2win(l:bar_winid)
-  let l:winheighlight = 'Normal:ScrollView,EndOfBuffer:ScrollView'
-  call setwinvar(l:bar_winnr, '&winhighlight', l:winheighlight)
+  let l:winhighlight = 'Normal:ScrollView,EndOfBuffer:ScrollView'
+  call setwinvar(l:bar_winnr, '&winhighlight', l:winhighlight)
   let l:winblend = s:GetVariable('scrollview_winblend', l:winnr)
   call setwinvar(l:bar_winnr, '&winblend', l:winblend)
   call setwinvar(l:bar_winnr, '&foldcolumn', 0)
   call setwinvar(l:bar_winnr, s:win_var, s:win_val)
+  let l:props = {
+        \   'parent_winid': l:winid,
+        \   'height': l:bar_position.height,
+        \   'row': l:bar_position.row,
+        \   'col': l:bar_position.col
+        \ }
+  call setwinvar(l:bar_winnr, s:props_var, l:props)
 endfunction
 
 function! s:IsScrollViewWindow(winid) abort
@@ -381,6 +408,151 @@ function! s:Restore(state)
   let &eventignore = a:state.eventignore
 endfunction
 
+" Get the next character press, including mouse clicks and drags. Returns a
+" dictionary that includes the following fields:
+"   1) char
+"   2) mouse_winid
+"   3) mouse_row
+"   4) mouse_col
+" The mouse values are 0 when there was no mouse event.
+function! s:GetChar() abort
+  " An overlay is displayed in each window so that mouse position can be
+  " properly determined. Otherwise, lnum may not correspond to the actual
+  " position of the click (e.g., when there is a sign/number/relativenumber/fold
+  " column, when lines span multiple screen rows from wrapping, or when the last
+  " line of the buffer is not at the last line of the window due to a short
+  " document or scrolling past the end).
+  " XXX: If/when Vim's getmousepos is ported to Neovim, an overlay would not
+  " be necessary. That function would return the necessary information, making
+  " most of the steps in this function unnecessary.
+
+  " === Configure overlay ===
+  if s:overlay_bufnr ==# -1 || !bufexists(s:overlay_bufnr)
+    let s:overlay_bufnr = nvim_create_buf(0, 1)
+    call setbufvar(s:overlay_bufnr, '&modifiable', 0)
+    call setbufvar(s:overlay_bufnr, '&buftype', 'nofile')
+  endif
+  let l:init_winid = win_getid()
+  let l:target_wins = []
+  for l:winnr in range(1, winnr('$'))
+    let l:winid = win_getid(l:winnr)
+    if s:IsOrdinaryWindow(l:winid)
+      call add(l:target_wins, l:winid)
+    endif
+  endfor
+
+  " Make sure that the buffer size is at least as big as the largest window.
+  " Use 'lines' option for this, since a window height can't exceed this.
+  let l:overlay_height = getbufinfo(s:overlay_bufnr)[0].linecount
+  if &g:lines > l:overlay_height
+    call setbufvar(s:overlay_bufnr, '&modifiable', 1)
+    let l:delta = &g:lines - l:overlay_height
+    call nvim_buf_set_lines(s:overlay_bufnr, 0, 0, 0, repeat([''], l:delta))
+    call setbufvar(s:overlay_bufnr, '&modifiable', 0)
+    let l:overlay_height = &g:lines
+  endif
+
+  " === Save state and load overlay ===
+  let l:win_states = {}
+  for l:winid in l:target_wins
+    let l:bufnr = winbufnr(l:winid)
+    call win_gotoid(l:winid)
+    let l:view = winsaveview()
+    call win_gotoid(l:init_winid)
+    " All buffer and window variables are restored; not just those that were
+    " manually modified. This is because some are automatically modified, like
+    " 'conceallevel', which was noticed when testing the functionality on help
+    " pages, and confirmed further for 'concealcursor' and 'foldenable'.
+    let l:state = {
+          \   'bufnr': l:bufnr,
+          \   'win_options': getwinvar(l:winid, '&'),
+          \   'buf_options': getbufvar(l:bufnr, '&'),
+          \   'view': l:view
+          \ }
+    let l:win_states[l:winid] = l:state
+    " Set options on initial buffer.
+    call setbufvar(l:bufnr, '&bufhidden', 'hide')
+    " Change buffer
+    keepalt keepjumps call nvim_win_set_buf(l:winid, s:overlay_bufnr)
+    keepjumps call nvim_win_set_cursor(l:winid, [1, 0])
+    " Set options on overlay window/buffer.
+    call setwinvar(l:winid, '&number', 0)
+    call setwinvar(l:winid, '&relativenumber', 0)
+    call setwinvar(l:winid, '&foldcolumn', 0)
+    call setwinvar(l:winid, '&signcolumn', 'no')
+  endfor
+
+  " === Obtain input ===
+  let l:char = getchar()
+
+  " === Remove overlay and restore state ===
+  for l:winid in l:target_wins
+    let l:state = l:win_states[l:winid]
+    keepalt keepjumps call nvim_win_set_buf(l:winid, l:state.bufnr)
+    for [l:key, l:value] in items(l:state.win_options)
+      if getwinvar(l:winid, '&' . l:key) !=# l:value
+        call setwinvar(l:winid, '&' . l:key, l:value)
+      endif
+    endfor
+    for [l:key, l:value] in items(l:state.buf_options)
+      if getbufvar(l:bufnr, '&' . l:key) !=# l:value
+        call setbufvar(l:bufnr, '&' . l:key, l:value)
+      endif
+    endfor
+    call win_gotoid(l:winid)
+    keepjumps call winrestview(l:state.view)
+    call win_gotoid(l:init_winid)
+  endfor
+
+  " === Return result ===
+  let l:result = {
+        \   'char': l:char,
+        \   'mouse_winid': v:mouse_winid,
+        \   'mouse_row': v:mouse_lnum,
+        \   'mouse_col': v:mouse_col
+        \ }
+  return l:result
+endfunction
+
+" Scrolls the window so that the specified line number is at the top.
+function! s:SetTopLine(winid, linenr) abort
+  let l:winid = a:winid
+  let l:linenr = a:linenr
+  let l:init_winid = win_getid()
+  call win_gotoid(l:winid)
+  let l:init_line = line('.')
+  execute 'keepjumps normal! ' . l:linenr . 'G'
+  let l:winline = winline()
+  if l:winline ># 1
+    execute 'keepjumps normal! ' . (l:winline - 1) . "\<c-e>"
+  endif
+  if line('w$') ==# line('$')
+    " If the last buffer line is on-screen, position that line at the bottom
+    " of the window.
+    keepjumps normal! G
+    keepjumps normal! zb
+  endif
+  " Position the cursor as if all scrolling was conducted with <ctrl-e> and/or
+  " <ctrl-y>. H and L are used to get topline and botline instead of
+  " getwininfo, to prevent jumping to a line that could result in a scroll if
+  " scrolloff>0.
+  keepjumps normal! H
+  let l:effective_top = line('.')
+  keepjumps normal! L
+  let l:effective_bottom = line('.')
+  if l:init_line <# l:effective_top
+    " User scrolled down.
+    keepjumps normal! H
+  elseif l:init_line ># l:effective_bottom
+    " User scrolled up.
+    keepjumps normal! L
+  else
+    " The initial line is still on-screen.
+    execute 'keepjumps normal! ' . l:init_line . 'G'
+  endif
+  call win_gotoid(l:init_winid)
+endfunction
+
 " *************************************************
 " * Main (entry points)
 " *************************************************
@@ -399,7 +571,13 @@ function! scrollview#RemoveBars() abort
   endtry
 endfunction
 
-function! scrollview#RefreshBars() abort
+" Refreshes scrollbars. There is an optional argument that specifies whether
+" removing existing scrollbars is asynchronous (defaults to true).
+function! scrollview#RefreshBars(...) abort
+  let l:async_removal = 1
+  if a:0 ># 0
+    let l:async_removal = a:1
+  endif
   let l:state = s:Init()
   try
     " Some functionality, like nvim_win_close, cannot be used from the command
@@ -436,7 +614,7 @@ function! scrollview#RefreshBars() abort
     for l:winid in l:target_wins
       call s:ShowScrollbar(l:winid)
     endfor
-    for l:winid in l:existing_wins
+    if l:async_removal
       " Remove bars asynchronously to prevent flickering. Even when
       " nvim_win_close is called synchronously after the code that adds the
       " other windows, the window removal still happens earlier in time, as
@@ -447,10 +625,16 @@ function! scrollview#RefreshBars() abort
       " the variable used in the lambda will have its value change by the time
       " the code executes. By putting this in a string, the window ID becomes
       " fixed at string-creation time.
-      let l:cmd = 'silent! call s:CloseScrollViewWindow(' . l:winid . ')'
-      let l:expr = 'call timer_start(0, {-> execute("' . l:cmd . '")})'
-      execute l:expr
-    endfor
+      for l:winid in l:existing_wins
+        let l:cmd = 'silent! call s:CloseScrollViewWindow(' . l:winid . ')'
+        let l:expr = 'call timer_start(0, {-> execute("' . l:cmd . '")})'
+        execute l:expr
+      endfor
+    else
+      for l:winid in l:existing_wins
+        call s:CloseScrollViewWindow(l:winid)
+      endfor
+    endif
   catch
     " Use a catch block, so that unanticipated errors don't interfere. The
     " worst case scenario is that bars won't be shown properly, which was
@@ -479,4 +663,118 @@ endfunction
 function! scrollview#RefreshBarsAsync() abort
   let s:pending_async_refresh_count += 1
   call timer_start(0, function('s:RefreshBarsAsyncCallback'))
+endfunction
+
+" 'button' can be 'left', 'middle', 'right', 'x1', or 'x2'.
+function! scrollview#HandleMouse(button) abort
+  if !s:Contains(['left', 'middle', 'right', 'x1', 'x2'], a:button)
+    throw 'Unsupported button: ' . a:button
+  endif
+  let l:state = s:Init()
+  try
+    let l:mousedown = eval(printf('"\<%smouse>"', a:button))
+    let l:mouseup = eval(printf('"\<%srelease>"', a:button))
+    " Re-send the click, so its position can be obtained from a subsequent call
+    " to getchar().
+    " XXX: If/when Vim's getmousepos is ported to Neovim, the position of the
+    " initial click would be available without getchar(), but would require
+    " some refactoring below to accommodate.
+    call feedkeys(l:mousedown, 'ni')
+    let l:count = 0
+    let l:winid = 0  " The target window ID for a mouse scroll.
+    let l:winnr = 0  " The target window number.
+    let l:bufnr = 0  " The target buffer number.
+    while 1
+      let l:input = s:GetChar()
+      let l:char = l:input.char
+      let l:mouse_winid = l:input.mouse_winid
+      let l:mouse_row = l:input.mouse_row
+      let l:mouse_col = l:input.mouse_col
+      if l:mouse_winid ==# 0
+        " There was no mouse event.
+        call feedkeys(l:char, 'n')
+        return
+      endif
+      if l:char ==# l:mouseup
+        if l:count ==# 0
+          " No initial mousedown was captured.
+          call feedkeys(l:mouseup, 'n')
+        elseif l:count ==# 1
+          " There was no corresponding drag. Allow the interaction to be
+          " processed as it would be with no scrollbar.
+          call feedkeys(l:mousedown . l:mouseup, 'n')
+        else
+          " 'feedkeys' is not called, since the full mouse interaction has
+          " already been processed.
+        endif
+        return
+      endif
+      if l:count ==# 0
+        for l:scrollview_winid in s:GetScrollViewWindows()
+          let l:props = getwinvar(l:scrollview_winid, s:props_var)
+          if l:props.parent_winid ==# l:mouse_winid
+            let l:winid = l:mouse_winid
+            let l:winnr = win_id2win(l:winid)
+            let l:bufnr = winbufnr(l:winnr)
+            let l:mode = s:GetVariable('scrollview_mode', l:winnr)
+            break
+          endif
+          unlet l:props
+        endfor
+        if !exists('l:props')
+          " There was no scrollbar in the window where a click occurred.
+          call feedkeys(l:char, 'n')
+          return
+        endif
+        " Add 1 cell horizonal padding for grabbing the scrollbar. Don't do
+        " this when the padding would extend past the window, as it will
+        " interfere with dragging the vertical separator to resize the window.
+        let l:lpad = l:props.col > 1 ? 1 : 0
+        let l:rpad = l:props.col < winwidth(l:winid) ? 1 : 0
+        if l:mouse_row < l:props.row
+              \ || l:mouse_row >= l:props.row + l:props.height
+              \ || l:mouse_col < l:props.col - l:lpad
+              \ || l:mouse_col > l:props.col + l:rpad
+          " The click was not on a scrollbar.
+          call feedkeys(l:char, 'n')
+          return
+        endif
+        if s:Contains(['v', 'V', "\<c-v>"], mode())
+          " Exit visual mode.
+          execute "normal! \<esc>"
+        endif
+        let l:scrollbar_offset = l:props.row - l:mouse_row
+        let l:previous_row = l:props.row
+      endif
+      let l:mouse_winrow = getwininfo(l:mouse_winid)[0].winrow
+      let l:winrow = getwininfo(l:winid)[0].winrow
+      let l:window_offset = l:mouse_winrow - l:winrow
+      let l:row = l:mouse_row + l:window_offset + l:scrollbar_offset
+      " Only update scrollbar if the row changed.
+      if l:previous_row !=# l:row
+        let l:winheight = winheight(l:winid)
+        let l:proportion = s:NumberToFloat(l:row - 1) / (l:winheight - 1)
+        if l:mode ==# 'virtual'
+          let l:top = s:VisibleProportionLine(l:winid, 1, '$', l:proportion)
+        else
+          " The handling is the same for 'simple' and 'flexible' modes.
+          let l:line_count = nvim_buf_line_count(l:bufnr)
+          let l:top = float2nr(round(l:proportion * (l:line_count - 1))) + 1
+        endif
+        let l:top = max([1, l:top])
+        call s:SetTopLine(l:winid, l:top)
+        call scrollview#RefreshBars(0)
+        redraw
+      endif
+      let l:previous_row = l:row
+      let l:count += 1
+    endwhile
+  catch
+  finally
+    if exists('l:winid')
+      " Set the scrolled window as the current window.
+      call win_gotoid(l:winid)
+    endif
+    call s:Restore(l:state)
+  endtry
 endfunction

@@ -38,6 +38,7 @@ highlight default link ScrollView Visual
 let g:scrollview_winblend = get(g:, 'scrollview_winblend', 50)
 let g:scrollview_column = get(g:, 'scrollview_column', 1)
 let g:scrollview_base = get(g:, 'scrollview_base', 'right')
+let g:scrollview_auto_mouse = get(g:, 'scrollview_auto_mouse', 1)
 
 " *************************************************
 " * Commands
@@ -59,13 +60,40 @@ endif
 " * Mappings
 " *************************************************
 
-" <plug> mappings are defined for convenience of creating user-defined
-" mappings that call nvim-scrollview functionality. However, since the usage
-" of <plug> mappings requires recursive map commands, this prevents mappings
-" that both call <plug> functions and have the left-hand-side key sequences
-" repeated not at the beginning of the right-hand-side (see :help
-" recursive_mapping for details). Experimentation suggests <silent> is not
-" necessary for <cmd> mappings, but it's added to make it explicit.
+" <plug> mappings for mouse functionality.
+" E.g., <plug>(ScrollViewLeftMouse)
+let s:mouse_plug_pairs = [
+      \   ['ScrollViewLeftMouse',   'left'  ],
+      \   ['ScrollViewMiddleMouse', 'middle'],
+      \   ['ScrollViewRightMouse',  'right' ],
+      \   ['ScrollViewX1Mouse',     'x1'    ],
+      \   ['ScrollViewX2Mouse',     'x2'    ],
+      \ ]
+for [s:plug_name, s:button] in s:mouse_plug_pairs
+  let s:lhs = printf('<silent> <plug>(%s)', s:plug_name)
+  let s:rhs = printf('<cmd>call scrollview#HandleMouse("%s")<cr>', s:button)
+  execute 'noremap ' . s:lhs . ' ' . s:rhs
+  execute 'inoremap ' . s:lhs . ' ' . s:rhs
+endfor
+
+if g:scrollview_auto_mouse
+  " Create a <leftmouse> mapping only if one does not already exist.
+  " For example, a mapping may already exist if the user uses swapped buttons
+  " from $VIMRUNTIME/pack/dist/opt/swapmouse/plugin/swapmouse.vim. Handling
+  " for that scenario would require modifications (e.g., possibly by updating
+  " the non-initial feedkeys calls in scrollview#HandleMouse to remap keys).
+  silent! map <silent> <leftmouse> <plug>(ScrollViewLeftMouse)
+  silent! imap <silent> <leftmouse> <plug>(ScrollViewLeftMouse)
+endif
+
+" Additional <plug> mappings are defined for convenience of creating
+" user-defined mappings that call nvim-scrollview functionality. However,
+" since the usage of <plug> mappings requires recursive map commands, this
+" prevents mappings that both call <plug> functions and have the
+" left-hand-side key sequences repeated not at the beginning of the
+" right-hand-side (see :help recursive_mapping for details). Experimentation
+" suggests <silent> is not necessary for <cmd> mappings, but it's added to
+" make it explicit.
 noremap <silent> <plug>(ScrollViewDisable) <cmd>ScrollViewDisable<cr>
 noremap <silent> <plug>(ScrollViewEnable) <cmd>ScrollViewEnable<cr>
 noremap <silent> <plug>(ScrollViewRefresh) <cmd>ScrollViewRefresh<cr>
