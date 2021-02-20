@@ -755,4 +755,4 @@ function! scrollview#HandleMouse(button) abort
     endif
     call s:Restore(l:state)
   endtry
-endfun
+endfunction
