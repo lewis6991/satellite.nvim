@@ -30,6 +30,9 @@ A package manager can be used to install `nvim-scrollview`.
 * [NeoBundle][neobundle]:
   - Add `NeoBundle 'dstein64/nvim-scrollview'` to `~/.config/nvim/init.vim`
   - Re-open Neovim or execute `:source ~/.config/nvim/init.vim`
+* [packer.nvim][packer.nvim]:
+  - Add `use 'dstein64/nvim-scrollview'` to your packer startup function
+  - Re-open Neovim or reload your configuration and execute `:PackerInstall`
 
 </details>
 
@@ -90,3 +93,4 @@ See [LICENSE](LICENSE).
 [vim8pack]: http://vimhelp.appspot.com/repeat.txt.html#packages
 [vimplug]: https://github.com/junegunn/vim-plug
 [vundle]: https://github.com/gmarik/vundle
+[packer.nvim]: https://github.com/wbthomason/packer.nvim
