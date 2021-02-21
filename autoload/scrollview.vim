@@ -36,26 +36,6 @@ function! s:Contains(list, element) abort
   return index(a:list, a:element) !=# -1
 endfunction
 
-" Executes a list of commands in the context of the specified window.
-" If a local result variable is set, it will be returned.
-" WARN: Loops within the specified commands cannot be executed, due to their
-" interaction with the for loop in this function. To resolve, instead of
-" putting loops into the commands, extract the loops to separate functions,
-" and have the specified commands call those functions.
-function! s:WinExecute(winid, commands) abort
-  let l:current_winid = win_getid(winnr())
-  call win_gotoid(a:winid)
-  for l:command in a:commands
-    execute l:command
-  endfor
-  call win_gotoid(l:current_winid)
-  if exists('l:result')
-    return l:result
-  else
-    return
-  endif
-endfunction
-
 function! s:NumberToFloat(number) abort
   return a:number + 0.0
 endfunction
@@ -87,29 +67,28 @@ endfunction
 " negative due to horizontal scrolling. This may be greater than one due to
 " the sign column and 'number' column.
 function! s:BufferTextBeginsColumn(winid) abort
+  let l:current_winid = win_getid(winnr())
+  call win_gotoid(a:winid)
   " The calculation assumes lines don't wrap, so 'nowrap' is temporarily set.
-  let l:commands = [
-        \   'let l:wrap = &l:wrap',
-        \   'setlocal nowrap',
-        \   'let l:result = wincol() - virtcol(".") + 1',
-        \   'let &l:wrap = l:wrap'
-        \ ]
-  let l:result = s:WinExecute(a:winid, l:commands)
+  let l:wrap = &l:wrap
+  setlocal nowrap
+  let l:result = wincol() - virtcol('.') + 1
+  let &l:wrap = l:wrap
+  call win_gotoid(l:current_winid)
   return l:result
 endfunction
 
 " Returns the window column where the view of the buffer begins. This can be
 " greater than one due to the sign column and 'number' column.
 function! s:BufferViewBeginsColumn(winid) abort
+  let l:current_winid = win_getid(winnr())
+  call win_gotoid(a:winid)
   " The calculation assumes lines don't wrap, so 'nowrap' is temporarily set.
-  let l:commands = [
-        \   'let l:wrap = &l:wrap',
-        \   'setlocal nowrap',
-        \   'let l:result = wincol() - virtcol(".")'
-        \       . ' + winsaveview().leftcol + 1',
-        \   'let &l:wrap = l:wrap'
-        \ ]
-  let l:result = s:WinExecute(a:winid, l:commands)
+  let l:wrap = &l:wrap
+  setlocal nowrap
+  let l:result = wincol() - virtcol('.') + winsaveview().leftcol + 1
+  let &l:wrap = l:wrap
+  call win_gotoid(l:current_winid)
   return l:result
 endfunction
 
