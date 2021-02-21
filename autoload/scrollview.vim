@@ -679,12 +679,16 @@ function! scrollview#HandleMouse(button) abort
           " No initial mousedown was captured.
           call feedkeys(l:mouseup, 'n')
         elseif l:count ==# 1
-          " There was no corresponding drag. Allow the interaction to be
-          " processed as it would be with no scrollbar.
+          " A scrollbar was clicked, but there was no corresponding drag.
+          " Allow the interaction to be processed as it would be with no
+          " scrollbar.
           call feedkeys(l:mousedown . l:mouseup, 'n')
         else
+          " A scrollbar was clicked and there was a corresponding drag.
           " 'feedkeys' is not called, since the full mouse interaction has
-          " already been processed.
+          " already been processed. Set the scrolled window as the current
+          " window.
+          call win_gotoid(l:winid)
         endif
         return
       endif
@@ -750,10 +754,6 @@ function! scrollview#HandleMouse(button) abort
     endwhile
   catch
   finally
-    if exists('l:winid')
-      " Set the scrolled window as the current window.
-      call win_gotoid(l:winid)
-    endif
     call s:Restore(l:state)
   endtry
 endfunction
