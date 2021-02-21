@@ -686,9 +686,7 @@ function! scrollview#HandleMouse(button) abort
         else
           " A scrollbar was clicked and there was a corresponding drag.
           " 'feedkeys' is not called, since the full mouse interaction has
-          " already been processed. Set the scrolled window as the current
-          " window.
-          call win_gotoid(l:winid)
+          " already been processed.
         endif
         return
       endif
