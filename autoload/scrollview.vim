@@ -289,7 +289,7 @@ function! s:ShowScrollbar(winid) abort
   if l:base ==# 'buffer'
     let l:min_valid_col = s:BufferViewBeginsColumn(l:winid)
   endif
-  if l:bar_position.col < l:min_valid_col
+  if l:bar_position.col <# l:min_valid_col
     return
   endif
   if l:bar_position.col ># l:winwidth
@@ -423,7 +423,7 @@ function! s:GetChar() abort
   " Make sure that the buffer size is at least as big as the largest window.
   " Use 'lines' option for this, since a window height can't exceed this.
   let l:overlay_height = getbufinfo(s:overlay_bufnr)[0].linecount
-  if &g:lines > l:overlay_height
+  if &g:lines ># l:overlay_height
     call setbufvar(s:overlay_bufnr, '&modifiable', 1)
     let l:delta = &g:lines - l:overlay_height
     call nvim_buf_set_lines(s:overlay_bufnr, 0, 0, 0, repeat([''], l:delta))
@@ -711,12 +711,12 @@ function! scrollview#HandleMouse(button) abort
         " Add 1 cell horizonal padding for grabbing the scrollbar. Don't do
         " this when the padding would extend past the window, as it will
         " interfere with dragging the vertical separator to resize the window.
-        let l:lpad = l:props.col > 1 ? 1 : 0
-        let l:rpad = l:props.col < winwidth(l:winid) ? 1 : 0
-        if l:mouse_row < l:props.row
-              \ || l:mouse_row >= l:props.row + l:props.height
-              \ || l:mouse_col < l:props.col - l:lpad
-              \ || l:mouse_col > l:props.col + l:rpad
+        let l:lpad = l:props.col ># 1 ? 1 : 0
+        let l:rpad = l:props.col <# winwidth(l:winid) ? 1 : 0
+        if l:mouse_row <# l:props.row
+              \ || l:mouse_row >=# l:props.row + l:props.height
+              \ || l:mouse_col <# l:props.col - l:lpad
+              \ || l:mouse_col ># l:props.col + l:rpad
           " The click was not on a scrollbar.
           call feedkeys(l:char, 'n')
           return
