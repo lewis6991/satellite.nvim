@@ -686,7 +686,8 @@ function! scrollview#HandleMouse(button) abort
         else
           " A scrollbar was clicked and there was a corresponding drag.
           " 'feedkeys' is not called, since the full mouse interaction has
-          " already been processed.
+          " already been processed. The current window (from prior to
+          " scrolling) is not changed.
         endif
         return
       endif
