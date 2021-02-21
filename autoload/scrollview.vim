@@ -184,8 +184,8 @@ function! s:CalculatePosition(winnr) abort
   let l:line_count = nvim_buf_line_count(l:bufnr)
   let l:winheight = winheight(l:winnr)
   let l:winwidth = winwidth(l:winnr)
-  let l:mode = s:GetVariable('scrollview_mode', l:winnr)
-  if l:mode ==# 'virtual'
+  let l:scrollview_mode = s:GetVariable('scrollview_mode', l:winnr)
+  if l:scrollview_mode ==# 'virtual'
     " Update topline, botline, and line_count to correspond to virtual lines,
     " which account for closed folds.
     let l:virtual_counts = {
@@ -209,7 +209,7 @@ function! s:CalculatePosition(winnr) abort
   let l:height = l:winheight
   if l:line_count ># l:height
     let l:numerator = l:winheight
-    if l:mode ==# 'flexible'
+    if l:scrollview_mode ==# 'flexible'
       let l:numerator = l:botline - l:topline + 1
     endif
     let l:height = s:NumberToFloat(l:numerator) / l:line_count
@@ -698,7 +698,7 @@ function! scrollview#HandleMouse(button) abort
             let l:winid = l:mouse_winid
             let l:winnr = win_id2win(l:winid)
             let l:bufnr = winbufnr(l:winnr)
-            let l:mode = s:GetVariable('scrollview_mode', l:winnr)
+            let l:scrollview_mode = s:GetVariable('scrollview_mode', l:winnr)
             break
           endif
           unlet l:props
@@ -736,7 +736,7 @@ function! scrollview#HandleMouse(button) abort
       if l:previous_row !=# l:row
         let l:winheight = winheight(l:winid)
         let l:proportion = s:NumberToFloat(l:row - 1) / (l:winheight - 1)
-        if l:mode ==# 'virtual'
+        if l:scrollview_mode ==# 'virtual'
           let l:top = s:VisibleProportionLine(l:winid, 1, '$', l:proportion)
         else
           " The handling is the same for 'simple' and 'flexible' modes.
