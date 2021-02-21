@@ -8,6 +8,7 @@ The plugin is customizable (see `:help scrollview-configuration`).
 ## Requirements
 
 * `nvim>=0.5`
+* Scrollbar mouse dragging requires mouse support (see `:help 'mouse'`)
 
 ## Installation
 
@@ -45,6 +46,9 @@ A package manager can be used to install `nvim-scrollview`.
 * The `:ScrollViewRefresh` command refreshes the scrollbars. This is relevant
   when the scrollbars are out-of-sync, which can occur as a result of some
   window arrangement actions.
+* The scrollbars can be dragged. This requires a corresponding mapping, which
+  is automatically configured when `scrollview_auto_mouse` is set (see
+  `:help scrollview-mouse-customization`).
 
 ## Configuration
 
