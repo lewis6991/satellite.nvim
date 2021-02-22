@@ -141,6 +141,12 @@ if g:scrollview_auto_workarounds
   for s:seq in s:fold_seqs
     call s:CreateRefreshMapping('nv', s:seq)
   endfor
+  " === <c-w>c for the tab last window workaround ===
+  " A workaround is intentionally not currently applied. It would need careful
+  " handling to 1) ensure that if scrollview had been disabled, it doesn't get
+  " re-enabled, and 2) avoid flickering (possibly by only disabling/enabling
+  " when there is a single orindary window in the tab, as the workaround would
+  " not be needed otherwise).
 endif
 
 " *************************************************
