@@ -730,7 +730,7 @@ function! scrollview#HandleMouse(button) abort
         " It's possible that the clicked scrollbar is out-of-sync. Refresh the
         " scrollbars and check if the mouse is still over a scrollbar. If not,
         " ignore all mouse events until a mouseup. This approach was deemed
-        " preferable to refreshing scroll bars initially, as that could result
+        " preferable to refreshing scrollbars initially, as that could result
         " in unintended clicking/dragging where there is no scrollbar.
         call scrollview#RefreshBars(0)
         redraw
