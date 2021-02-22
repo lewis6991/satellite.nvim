@@ -324,6 +324,7 @@ function! s:ShowScrollbar(winid) abort
   call setwinvar(l:bar_winnr, s:win_var, s:win_val)
   let l:props = {
         \   'parent_winid': l:winid,
+        \   'scrollview_winid': l:bar_winid,
         \   'height': l:bar_position.height,
         \   'row': l:bar_position.row,
         \   'col': l:bar_position.col
@@ -644,6 +645,19 @@ function! scrollview#RefreshBarsAsync() abort
   call timer_start(0, function('s:RefreshBarsAsyncCallback'))
 endfunction
 
+" Returns scrollview properties for the specified window. An empty dictionary
+" is returned if there is no corresponding scrollbar.
+function! s:ScrollviewProps(winid) abort
+  let l:winid = a:winid
+  for l:scrollview_winid in s:GetScrollViewWindows()
+    let l:props = getwinvar(l:scrollview_winid, s:props_var)
+    if l:props.parent_winid ==# l:winid
+      return l:props
+    endif
+  endfor
+  return {}
+endfunction
+
 " 'button' can be 'left', 'middle', 'right', 'x1', or 'x2'.
 function! scrollview#HandleMouse(button) abort
   if !s:Contains(['left', 'middle', 'right', 'x1', 'x2'], a:button)
@@ -692,27 +706,18 @@ function! scrollview#HandleMouse(button) abort
         return
       endif
       if l:count ==# 0
-        for l:scrollview_winid in s:GetScrollViewWindows()
-          let l:props = getwinvar(l:scrollview_winid, s:props_var)
-          if l:props.parent_winid ==# l:mouse_winid
-            let l:winid = l:mouse_winid
-            let l:winnr = win_id2win(l:winid)
-            let l:bufnr = winbufnr(l:winnr)
-            let l:scrollview_mode = s:GetVariable('scrollview_mode', l:winnr)
-            break
-          endif
-          unlet l:props
-        endfor
-        if !exists('l:props')
+        let l:props = s:ScrollviewProps(l:mouse_winid)
+        if l:props ==# {}
           " There was no scrollbar in the window where a click occurred.
           call feedkeys(l:char, 'n')
           return
         endif
+        let l:scrollview_mode = s:GetVariable('scrollview_mode', l:winnr)
         " Add 1 cell horizonal padding for grabbing the scrollbar. Don't do
         " this when the padding would extend past the window, as it will
         " interfere with dragging the vertical separator to resize the window.
         let l:lpad = l:props.col ># 1 ? 1 : 0
-        let l:rpad = l:props.col <# winwidth(l:winid) ? 1 : 0
+        let l:rpad = l:props.col <# winwidth(l:mouse_winid) ? 1 : 0
         if l:mouse_row <# l:props.row
               \ || l:mouse_row >=# l:props.row + l:props.height
               \ || l:mouse_col <# l:props.col - l:lpad
@@ -721,10 +726,27 @@ function! scrollview#HandleMouse(button) abort
           call feedkeys(l:char, 'n')
           return
         endif
+        " The click was on a scrollbar.
+        " It's possible that the clicked scrollbar is out-of-sync. Refresh the
+        " scrollbars and check if the mouse is still over a scrollbar. If not,
+        " ignore all mouse events until a mouseup. This approach was deemed
+        " preferable to refreshing scroll bars initially, as that could result
+        " in unintended clicking/dragging where there is no scrollbar.
+        call scrollview#RefreshBars(0)
+        redraw
+        let l:props = s:ScrollviewProps(l:mouse_winid)
+        if l:props ==# {} || l:mouse_row <# l:props.row
+              \ || l:mouse_row >=# l:props.row + l:props.height
+          while getchar() !=# l:mouseup | endwhile | return
+        endif
+        " By this point, the click on a scrollbar was successful.
         if s:Contains(['v', 'V', "\<c-v>"], mode())
           " Exit visual mode.
           execute "normal! \<esc>"
         endif
+        let l:winid = l:mouse_winid
+        let l:winnr = win_id2win(l:winid)
+        let l:bufnr = winbufnr(l:winnr)
         let l:scrollbar_offset = l:props.row - l:mouse_row
         let l:previous_row = l:props.row
       endif
