@@ -533,6 +533,19 @@ function! s:SetTopLine(winid, linenr) abort
   call win_gotoid(l:init_winid)
 endfunction
 
+" Returns scrollview properties for the specified window. An empty dictionary
+" is returned if there is no corresponding scrollbar.
+function! s:GetScrollviewProps(winid) abort
+  let l:winid = a:winid
+  for l:scrollview_winid in s:GetScrollViewWindows()
+    let l:props = getwinvar(l:scrollview_winid, s:props_var)
+    if l:props.parent_winid ==# l:winid
+      return l:props
+    endif
+  endfor
+  return {}
+endfunction
+
 " *************************************************
 " * Main (entry points)
 " *************************************************
@@ -645,19 +658,6 @@ function! scrollview#RefreshBarsAsync() abort
   call timer_start(0, function('s:RefreshBarsAsyncCallback'))
 endfunction
 
-" Returns scrollview properties for the specified window. An empty dictionary
-" is returned if there is no corresponding scrollbar.
-function! s:ScrollviewProps(winid) abort
-  let l:winid = a:winid
-  for l:scrollview_winid in s:GetScrollViewWindows()
-    let l:props = getwinvar(l:scrollview_winid, s:props_var)
-    if l:props.parent_winid ==# l:winid
-      return l:props
-    endif
-  endfor
-  return {}
-endfunction
-
 " 'button' can be 'left', 'middle', 'right', 'x1', or 'x2'.
 function! scrollview#HandleMouse(button) abort
   if !s:Contains(['left', 'middle', 'right', 'x1', 'x2'], a:button)
@@ -706,7 +706,7 @@ function! scrollview#HandleMouse(button) abort
         return
       endif
       if l:count ==# 0
-        let l:props = s:ScrollviewProps(l:mouse_winid)
+        let l:props = s:GetScrollviewProps(l:mouse_winid)
         if l:props ==# {}
           " There was no scrollbar in the window where a click occurred.
           call feedkeys(l:char, 'n')
@@ -734,7 +734,7 @@ function! scrollview#HandleMouse(button) abort
         " in unintended clicking/dragging where there is no scrollbar.
         call scrollview#RefreshBars(0)
         redraw
-        let l:props = s:ScrollviewProps(l:mouse_winid)
+        let l:props = s:GetScrollviewProps(l:mouse_winid)
         if l:props ==# {} || l:mouse_row <# l:props.row
               \ || l:mouse_row >=# l:props.row + l:props.height
           while getchar() !=# l:mouseup | endwhile | return
