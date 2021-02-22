@@ -39,6 +39,7 @@ let g:scrollview_winblend = get(g:, 'scrollview_winblend', 50)
 let g:scrollview_column = get(g:, 'scrollview_column', 1)
 let g:scrollview_base = get(g:, 'scrollview_base', 'right')
 let g:scrollview_auto_mouse = get(g:, 'scrollview_auto_mouse', 1)
+let g:scrollview_auto_workarounds = get(g:, 'scrollview_auto_workarounds', 1)
 
 " *************************************************
 " * Commands
@@ -101,6 +102,46 @@ noremap  <silent> <plug>(ScrollViewEnable)  <cmd>ScrollViewEnable<cr>
 inoremap <silent> <plug>(ScrollViewEnable)  <cmd>ScrollViewEnable<cr>
 noremap  <silent> <plug>(ScrollViewRefresh) <cmd>ScrollViewRefresh<cr>
 inoremap <silent> <plug>(ScrollViewRefresh) <cmd>ScrollViewRefresh<cr>
+
+" Creates a mapping where the left-hand-side key sequence is repeated on the
+" right-hand-side, followed by a scrollview refresh. 'modes' is a string with
+" each character specifying a mode (e.g., 'nvi' for normal, visual, and insert
+" modes). 'seq' is the key sequence that will be remapped. Existing mappings
+" are not clobbered.
+function s:CreateRefreshMapping(modes, seq) abort
+  for l:idx in range(strchars(a:modes))
+    let l:mode = strcharpart(a:modes, l:idx, 1)
+    execute printf(
+          \ 'silent! %smap <unique> %s %s<plug>(ScrollViewRefresh)',
+          \ l:mode, a:seq, a:seq)
+  endfor
+endfunction
+
+if g:scrollview_auto_workarounds
+  " === Window arrangement synchronization workarounds ===
+  let s:win_seqs = [
+        \   '<c-w>H', '<c-w>J', '<c-w>K', '<c-w>L',
+        \   '<c-w>r', '<c-w><c-r>', '<c-w>R'
+        \ ]
+  for s:seq in s:win_seqs
+    call s:CreateRefreshMapping('nv', s:seq)
+  endfor
+  " === Mouse wheel scrolling syncronization workarounds ===
+  let s:wheel_seqs = ['<scrollwheelup>', '<scrollwheeldown>']
+  for s:seq in s:wheel_seqs
+    call s:CreateRefreshMapping('nvi', s:seq)
+  endfor
+  " === Fold command synchronization workarounds ===
+  " zf takes a motion in normal mode, so a normal mode mapping doesn't work.
+  call s:CreateRefreshMapping('v', 'zf')
+  let s:fold_seqs = [
+        \   'zF', 'zd', 'zD', 'zE', 'zo', 'zO', 'zc', 'zC', 'za', 'zA', 'zv',
+        \   'zx', 'zX', 'zm', 'zM', 'zr', 'zR', 'zn', 'zN', 'zi'
+        \ ]
+  for s:seq in s:fold_seqs
+    call s:CreateRefreshMapping('nv', s:seq)
+  endfor
+endif
 
 " *************************************************
 " * Core

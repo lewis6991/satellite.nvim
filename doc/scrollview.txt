@@ -89,9 +89,14 @@ have the highest precedence, and global variables have the lowest).
   Specifies the scrollbar column          An integer greater than or equal
   (relative to |scrollview_base|)           to 1
 *scrollview_auto_mouse*                   `1`
-  Specifies whether a mapping is          Considered only at global scope
-  automatically created for mouse
+  Specifies whether a mapping is          Considered only at global scope,
+  automatically created for mouse         when the plugin is loaded
   support (without clobbering)
+*scrollview_auto_workarounds*             `1`
+  Specifies whether select workarounds    Considered only at global scope,
+  are automatically applied for known     when the plugin is loaded
+  |scrollview-issues| (without
+  clobbering existing customizations)
 
 The variables can be customized in your |init.vim|, as shown in the following
 example.
@@ -230,9 +235,9 @@ Error Message Issues ~
   - Workaround 3: Use |:tabclose|.
   - Workaround 4: Remap the problematic key sequence accordingly. >
     nnoremap <silent> <c-w>c
-          \ :silent! ScrollViewDisable<cr>
-          \ <c-w>c
-          \ :silent! ScrollViewEnable<cr>
+          \ <cmd>silent! ScrollViewDisable<cr>
+          \<cmd>execute "normal! \<c-w>c"<cr>
+          \<cmd>silent! ScrollViewEnable<cr>
 <    This won't resolve the issue in all cases (e.g., when using |:close| or
     |:wincmd|). |<Plug>| mappings cannot be used, as they require recursive maps,
     and <c-w>c would infinitely recurse, as its usage on the right-hand-side
