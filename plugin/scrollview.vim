@@ -82,8 +82,9 @@ if g:scrollview_auto_mouse
   " from $VIMRUNTIME/pack/dist/opt/swapmouse/plugin/swapmouse.vim. Handling
   " for that scenario would require modifications (e.g., possibly by updating
   " the non-initial feedkeys calls in scrollview#HandleMouse to remap keys).
-  silent! map <silent> <leftmouse> <plug>(ScrollViewLeftMouse)
-  silent! imap <silent> <leftmouse> <plug>(ScrollViewLeftMouse)
+  silent! nmap <unique> <silent> <leftmouse> <plug>(ScrollViewLeftMouse)
+  silent! vmap <unique> <silent> <leftmouse> <plug>(ScrollViewLeftMouse)
+  silent! imap <unique> <silent> <leftmouse> <plug>(ScrollViewLeftMouse)
 endif
 
 " Additional <plug> mappings are defined for convenience of creating
@@ -94,9 +95,12 @@ endif
 " right-hand-side (see :help recursive_mapping for details). Experimentation
 " suggests <silent> is not necessary for <cmd> mappings, but it's added to
 " make it explicit.
-noremap <silent> <plug>(ScrollViewDisable) <cmd>ScrollViewDisable<cr>
-noremap <silent> <plug>(ScrollViewEnable) <cmd>ScrollViewEnable<cr>
-noremap <silent> <plug>(ScrollViewRefresh) <cmd>ScrollViewRefresh<cr>
+noremap  <silent> <plug>(ScrollViewDisable) <cmd>ScrollViewDisable<cr>
+inoremap <silent> <plug>(ScrollViewDisable) <cmd>ScrollViewDisable<cr>
+noremap  <silent> <plug>(ScrollViewEnable)  <cmd>ScrollViewEnable<cr>
+inoremap <silent> <plug>(ScrollViewEnable)  <cmd>ScrollViewEnable<cr>
+noremap  <silent> <plug>(ScrollViewRefresh) <cmd>ScrollViewRefresh<cr>
+inoremap <silent> <plug>(ScrollViewRefresh) <cmd>ScrollViewRefresh<cr>
 
 " *************************************************
 " * Core

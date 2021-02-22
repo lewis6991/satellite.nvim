@@ -157,23 +157,28 @@ clobbered.
 Mappings can be used to manually create mappings for mouse support.
  >
     " Add support for dragging scrollbars with the left mouse button
-    map  <leftmouse> <plug>(ScrollViewMiddleMouse)
+    nmap <leftmouse> <plug>(ScrollViewMiddleMouse)
+    vmap <leftmouse> <plug>(ScrollViewMiddleMouse)
     imap <leftmouse> <plug>(ScrollViewMiddleMouse)
 
     " Add support for dragging scrollbars with the middle mouse button
-    map  <middlemouse> <plug>(ScrollViewMiddleMouse)
+    nmap <middlemouse> <plug>(ScrollViewMiddleMouse)
+    vmap <middlemouse> <plug>(ScrollViewMiddleMouse)
     imap <middlemouse> <plug>(ScrollViewMiddleMouse)
 
     " Add support for dragging scrollbars with the right mouse button
-    map  <rightmouse> <plug>(ScrollViewRightMouse)
+    nmap <rightmouse> <plug>(ScrollViewRightMouse)
+    vmap <rightmouse> <plug>(ScrollViewRightMouse)
     imap <rightmouse> <plug>(ScrollViewRightMouse)
 
     " Add support for dragging scrollbars with the x1 mouse button
-    map  <x1mouse> <plug>(ScrollViewX1Mouse)
+    nmap <x1mouse> <plug>(ScrollViewX1Mouse)
+    vmap <x1mouse> <plug>(ScrollViewX1Mouse)
     imap <x1mouse> <plug>(ScrollViewX1Mouse)
 
     " Add support for dragging scrollbars with the x2 mouse button
-    map  <x2mouse> <plug>(ScrollViewX2Mouse)
+    nmap <x2mouse> <plug>(ScrollViewX2Mouse)
+    vmap <x2mouse> <plug>(ScrollViewX2Mouse)
     imap <x2mouse> <plug>(ScrollViewX2Mouse)
 
 ============================================================================
