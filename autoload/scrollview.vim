@@ -629,9 +629,10 @@ function! scrollview#RefreshBars(...) abort
       silent! call scrollview#RemoveBars()
       return
     endif
-    " Remove any windows that are pending asynchronous removal. This prevents
-    " the appearance of motion blur that results from the accumulation of
-    " windows for asynchronous removal (e.g., when CPU utilization is high).
+    " Remove any scrollbars that are pending asynchronous removal. This
+    " prevents the appearance of motion blur that results from the
+    " accumulation of windows for asynchronous removal (e.g., when CPU
+    " utilization is high).
     for l:winid in s:GetScrollViewWindows()
       if getwinvar(l:winid, s:pending_async_removal_var)
         call s:CloseScrollViewWindow(l:winid)
