@@ -63,6 +63,26 @@ function! s:InCommandLineWindow() abort
   return l:buftype ==# 'nofile' && l:bufname ==# '[Command Line]'
 endfunction
 
+" Returns true if the window has at least one fold (either closed or open).
+function! s:WindowHasFold(winid) abort
+  " A window has at least one fold if 1) the first line is within a fold or 2)
+  " it's possible to move from the first line to some other line with a fold.
+  let l:winid = a:winid
+  let l:init_winid = win_getid()
+  let l:result = 0
+  call win_gotoid(l:winid)
+  if foldlevel(1) !=# 0
+    let l:result = 1
+  else
+    let l:view = winsaveview()
+    keepjumps normal! ggzj
+    let l:result = line('.') !=# 1
+    call winrestview(l:view)
+  endif
+  call win_gotoid(l:init_winid)
+  return l:result
+endfunction
+
 " Returns the window column where the buffer's text begins. This may be
 " negative due to horizontal scrolling. This may be greater than one due to
 " the sign column and 'number' column.
@@ -452,6 +472,21 @@ function! s:GetChar() abort
     let l:win_states[l:winid] = l:state
     " Set options on initial buffer.
     call setbufvar(l:bufnr, '&bufhidden', 'hide')
+    " Temporarily change buftype=help to buftype=<empty> so that mouse
+    " interactions don't result in manual folds being deleted from help pages.
+    " WARN: 'buftype' is set to 'help' when the state is restored later in
+    " this function, which ignores Vim's and Neovim's warnings on setting
+    " buftype=help.
+    "   Vim: "you are not supposed to set this manually"
+    "        - commit 071d427 added this text on Jun 13, 2004
+    "   Neovim: "do not set this manually"
+    "        - commit 2e1217d changed Vim's text on Nov 10, 2016
+    " No observed consequential side-effects were encountered when setting
+    " buftype=help in this scenario. The change in warning text for Neovim may
+    " have been intended to reduce the text to a single line.
+    if getbufvar(l:bufnr, '&buftype') ==# 'help' && s:WindowHasFold(l:winid)
+      call setbufvar(l:bufnr, '&buftype', '')
+    endif
     " Change buffer
     keepalt keepjumps call nvim_win_set_buf(l:winid, s:overlay_bufnr)
     keepjumps call nvim_win_set_cursor(l:winid, [1, 0])
@@ -496,6 +531,8 @@ endfunction
 
 " Scrolls the window so that the specified line number is at the top.
 function! s:SetTopLine(winid, linenr) abort
+  " TODO: It may be possible to implement this using winrestview(), setting
+  " topline and other values accordingly.
   let l:winid = a:winid
   let l:linenr = a:linenr
   let l:init_winid = win_getid()
