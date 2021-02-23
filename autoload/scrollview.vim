@@ -475,8 +475,8 @@ function! s:GetChar() abort
       endif
     endfor
     for [l:key, l:value] in items(l:state.buf_options)
-      if getbufvar(l:bufnr, '&' . l:key) !=# l:value
-        call setbufvar(l:bufnr, '&' . l:key, l:value)
+      if getbufvar(l:state.bufnr, '&' . l:key) !=# l:value
+        call setbufvar(l:state.bufnr, '&' . l:key, l:value)
       endif
     endfor
     call win_gotoid(l:winid)
