@@ -546,8 +546,7 @@ function! s:SetTopLine(winid, linenr) abort
   if line('w$') ==# line('$')
     " If the last buffer line is on-screen, position that line at the bottom
     " of the window.
-    keepjumps normal! G
-    keepjumps normal! zb
+    keepjumps normal! Gzb
   endif
   " Position the cursor as if all scrolling was conducted with <ctrl-e> and/or
   " <ctrl-y>. H and L are used to get topline and botline instead of
