@@ -28,6 +28,9 @@ let s:win_val = 'scrollview_val'
 " A key for saving scrollbar properties using a window variable.
 let s:props_var = 'scrollview_props'
 
+" A key for flagging windows that are pending async removal.
+let s:pending_async_removal_var = 'scrollview_pending_async_removal'
+
 " *************************************************
 " * Utils
 " *************************************************
@@ -342,6 +345,7 @@ function! s:ShowScrollbar(winid) abort
   call setwinvar(l:bar_winnr, '&winblend', l:winblend)
   call setwinvar(l:bar_winnr, '&foldcolumn', 0)
   call setwinvar(l:bar_winnr, s:win_var, s:win_val)
+  call setwinvar(l:bar_winnr, s:pending_async_removal_var, 0)
   let l:props = {
         \   'parent_winid': l:winid,
         \   'scrollview_winid': l:bar_winid,
@@ -376,7 +380,9 @@ endfunction
 
 function! s:CloseScrollViewWindow(winid) abort
   let l:winid = a:winid
-  " The floating window may have been closed (e.g., :only/<ctrl-w>o).
+  " The floating window may have been closed (e.g., :only/<ctrl-w>o, or
+  " intentionally deleted prior to the removal callback in order to prevent
+  " motion blur).
   if getwininfo(l:winid) ==# []
     return
   endif
@@ -623,6 +629,14 @@ function! scrollview#RefreshBars(...) abort
       silent! call scrollview#RemoveBars()
       return
     endif
+    " Remove any windows that are pending asynchronous removal. This prevents
+    " the appearance of motion blur that results from the accumulation of
+    " windows for asynchronous removal (e.g., when CPU utilization is high).
+    for l:winid in s:GetScrollViewWindows()
+      if getwinvar(l:winid, s:pending_async_removal_var)
+        call s:CloseScrollViewWindow(l:winid)
+      endif
+    endfor
     " Existing windows are determined before adding new windows, but removed
     " later (they have to be removed after adding to prevent flickering from
     " the delay between removal and adding).
@@ -644,17 +658,18 @@ function! scrollview#RefreshBars(...) abort
       call s:ShowScrollbar(l:winid)
     endfor
     if l:async_removal
-      " Remove bars asynchronously to prevent flickering. Even when
-      " nvim_win_close is called synchronously after the code that adds the
-      " other windows, the window removal still happens earlier in time, as
-      " confirmed by using 'writedelay'. Even with asyncronous execution, the
-      " call to timer_start must still occur after the code for the window
-      " additions.
+      " Remove bars asynchronously to prevent flickering (e.g., when there are
+      " folds and mode='virtual'). Even when nvim_win_close is called
+      " synchronously after the code that adds the other windows, the window
+      " removal still happens earlier in time, as confirmed by using
+      " 'writedelay'. Even with asyncronous execution, the call to timer_start
+      " must still occur after the code for the window additions.
       " WARN: The statement is put in a string to prevent a closure whereby
       " the variable used in the lambda will have its value change by the time
       " the code executes. By putting this in a string, the window ID becomes
       " fixed at string-creation time.
       for l:winid in l:existing_wins
+        call setwinvar(win_id2win(l:winid), s:pending_async_removal_var, 1)
         let l:cmd = 'silent! call s:CloseScrollViewWindow(' . l:winid . ')'
         let l:expr = 'call timer_start(0, {-> execute("' . l:cmd . '")})'
         execute l:expr
