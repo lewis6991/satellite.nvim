@@ -381,7 +381,7 @@ endfunction
 function! s:CloseScrollViewWindow(winid) abort
   let l:winid = a:winid
   " The floating window may have been closed (e.g., :only/<ctrl-w>o, or
-  " intentionally deleted prior to the removal callback in order to prevent
+  " intentionally deleted prior to the removal callback in order to reduce
   " motion blur).
   if getwininfo(l:winid) ==# []
     return
@@ -630,9 +630,9 @@ function! scrollview#RefreshBars(...) abort
       return
     endif
     " Remove any scrollbars that are pending asynchronous removal. This
-    " prevents the appearance of motion blur that results from the
-    " accumulation of windows for asynchronous removal (e.g., when CPU
-    " utilization is high).
+    " reduces the appearance of motion blur that results from the accumulation
+    " of windows for asynchronous removal (e.g., when CPU utilization is
+    " high).
     for l:winid in s:GetScrollViewWindows()
       if getwinvar(l:winid, s:pending_async_removal_var)
         call s:CloseScrollViewWindow(l:winid)
