@@ -155,21 +155,51 @@ endfunction
 
 " Returns the count of visible lines between the specified start and end lines
 " (both inclusive), in the specified window. A closed fold counts as one
-" visible line. '$' can be used as the end line, to represent the last line.
-" The function currently depends on a Lua function for faster execution, as
-" there is a loop over all lines in the specified window's buffer.
-" TODO: Using Vim fold movements (zj, zk), instead of looping over every line,
-" may be a way to speed this up further, but would presumably require a more
-" complicated implementation.
+" visible line.
 function! s:VisibleLineCount(winid, start, end) abort
   let l:current_winid = win_getid(winnr())
   call win_gotoid(a:winid)
+  let l:view = winsaveview()
+  let l:start = a:start
   let l:end = a:end
   if type(l:end) ==# v:t_string && l:end ==# '$'
     let l:end = line('$')
   endif
-  let l:module = luaeval('require("scrollview")')
-  let l:result = l:module.visible_line_count(a:start, l:end)
+  let l:start = max([1, l:start])
+  let l:end = min([line('$'), l:end])
+  if foldclosed(l:start) !=# -1
+    let l:start = foldclosed(l:start)
+  endif
+  if foldclosed(l:end) !=# -1
+    let l:end = foldclosed(l:end)
+  endif
+  let l:result = 0
+  if l:start ># l:end | return l:result | endif
+  execute 'keepjumps normal! ' . l:start . 'G'
+  while 1
+    " While on a fold line and not on the end line, increment result and move
+    " down one line.
+    " WARN: Using "<=#" for the comparison instead of "<#" could cause an
+    " infinite loop (e.g., when there are consecutive folds at the end of the
+    " buffer).
+    while foldclosed(line('.')) !=# -1 && line('.') <# l:end
+      let l:result += 1
+      keepjumps normal! j
+    endwhile
+    let l:line = line('.')
+    keepjumps normal! zj
+    " Complete counting if 1) the cursor is at or past the end or 2) there are
+    " no more folds. The same formula is used in either case.
+    if line('.') >=# l:end || line('.') ==# l:line
+      let l:result += l:end - l:line + 1
+      break
+    else
+      " Count lines upto the current line (excluding the current line since it
+      " will be counted on the next loop).
+      let l:result += line('.') - l:line
+    endif
+  endwhile
+  call winrestview(l:view)
   call win_gotoid(l:current_winid)
   return l:result
 endfunction
