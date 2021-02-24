@@ -221,51 +221,59 @@ function! s:VisibleProportionLine(winid, start, end, proportion) abort
   return l:result
 endfunction
 
+" Return top line and bottom line in window. For folds, the top line
+" represents the start of the fold and the bottom line represents the end of
+" the fold.
+function! s:LineRange(winid) abort
+  " WARN: getwininfo(winid)[0].botline is not properly updated for some
+  " movements (Neovim Issue #13510), so this is implemeneted as a workaround.
+  " This was originally handled by using an asyncronous context, but this was
+  " not possible for refreshing bars during mouse drags.
+  let l:current_winid = win_getid(winnr())
+  call win_gotoid(a:winid)
+  let l:view = winsaveview()
+  let l:scrolloff = getwinvar(a:winid, '&scrolloff')
+  setlocal scrolloff=0
+  keepjumps normal! H
+  let l:topline = line('.')
+  keepjumps normal! L
+  let l:botline = line('.')
+  call setwinvar(a:winid, '&scrolloff', l:scrolloff)
+  call winrestview(l:view)
+  call win_gotoid(l:current_winid)
+  return [l:topline, l:botline]
+endfunction
+
 " Calculates the bar position for the specified window. Returns a dictionary
 " with a height, row, and col.
 function! s:CalculatePosition(winnr) abort
   let l:winnr = a:winnr
   let l:winid = win_getid(l:winnr)
   let l:bufnr = winbufnr(l:winnr)
-  let l:wininfo = getwininfo(l:winid)[0]
-  let l:topline = l:wininfo.topline
-  " WARN: l:wininfo.botline is not properly updated for some movements (Neovim
-  " Issue #13510). Correct behavior depends on this function being executed in
-  " an asynchronous context for the corresponding movements (e.g., gg, G).
-  " This is handled by having WinScrolled trigger an asychronous refresh.
-  let l:botline = l:wininfo.botline
+  let [l:topline, l:botline] = s:LineRange(l:winid)
   let l:line_count = nvim_buf_line_count(l:bufnr)
+  let l:virtual_topline = l:topline
+  let l:virtual_line_count = l:line_count
   let l:winheight = winheight(l:winnr)
   let l:winwidth = winwidth(l:winnr)
   let l:scrollview_mode = s:GetVariable('scrollview_mode', l:winnr)
   if l:scrollview_mode ==# 'virtual'
-    " Update topline, botline, and line_count to correspond to virtual lines,
+    " Update topline and line_count to correspond to virtual lines,
     " which account for closed folds.
-    let l:virtual_counts = {
-          \   'before': s:VisibleLineCount(l:winid, 1, l:topline - 1),
-          \   'here': s:VisibleLineCount(l:winid, l:topline, l:botline),
-          \   'after': s:VisibleLineCount(l:winid, l:botline + 1, '$')
-          \ }
-    let l:topline = l:virtual_counts.before + 1
-    let l:botline = l:virtual_counts.before + l:virtual_counts.here
-    let l:line_count = l:virtual_counts.before
-          \ + l:virtual_counts.here
-          \ + l:virtual_counts.after
+    let l:virtual_topline = s:VisibleLineCount(l:winid, 1, l:topline - 1) + 1
+    let l:virtual_line_count = s:VisibleLineCount(l:winid, 1, '$')
   endif
   " l:top is the position for the top of the scrollbar, relative to the
   " window, and 0-indexed.
   let l:top = 0
-  if l:line_count ># 1
-    let l:top = (l:topline - 1.0) / (l:line_count - 1)
+  if l:virtual_line_count ># 1
+    let l:top = (l:virtual_topline - 1.0) / (l:virtual_line_count - 1)
     let l:top = float2nr(round((l:winheight - 1) * l:top))
   endif
   let l:height = l:winheight
-  if l:line_count ># l:height
+  if l:virtual_line_count ># l:height
     let l:numerator = l:winheight
-    if l:scrollview_mode ==# 'flexible'
-      let l:numerator = l:botline - l:topline + 1
-    endif
-    let l:height = s:NumberToFloat(l:numerator) / l:line_count
+    let l:height = s:NumberToFloat(l:numerator) / l:virtual_line_count
     let l:height = float2nr(ceil(l:height * l:winheight))
   endif
   " Make sure bar properly reflects bottom of document.
@@ -313,10 +321,9 @@ function! s:ShowScrollbar(winid) abort
   if s:Contains(l:excluded_filetypes, l:buf_filetype)
     return
   endif
-  let l:wininfo = getwininfo(l:winid)[0]
   " Don't show in terminal mode, since the bar won't be properly updated for
   " insertions.
-  if l:wininfo.terminal
+  if getwininfo(l:winid)[0].terminal
     return
   endif
   if l:winheight ==# 0 || l:winwidth ==# 0
@@ -324,8 +331,8 @@ function! s:ShowScrollbar(winid) abort
   endif
   let l:line_count = nvim_buf_line_count(l:bufnr)
   " Don't show the position bar when all lines are on screen.
-  " WARN: See the botline usage warning in CalculatePosition.
-  if l:wininfo.botline - l:wininfo.topline + 1 ==# l:line_count
+  let [l:topline, l:botline] = s:LineRange(l:winid)
+  if l:botline - l:topline + 1 ==# l:line_count
     return
   endif
   let l:bar_position = s:CalculatePosition(l:winnr)
@@ -848,6 +855,15 @@ function! scrollview#HandleMouse(button) abort
           let l:top = float2nr(round(l:proportion * (l:line_count - 1))) + 1
         endif
         let l:top = max([1, l:top])
+        if l:row ==# 1
+          " If the scrollbar was dragged to the top of the window, always show
+          " the first line.
+          let l:top = 1
+        elseif l:row + l:props.height - 1 >=# l:winheight
+          " If the scrollbar was dragged to the bottom of the window, always
+          " show the bottom line.
+          let l:top = nvim_buf_line_count(l:bufnr)
+        endif
         call s:SetTopLine(l:winid, l:top)
         call scrollview#RefreshBars(0)
         redraw
