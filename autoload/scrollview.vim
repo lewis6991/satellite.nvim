@@ -153,10 +153,10 @@ function! s:GetVariable(name, winnr, ...) abort
   return l:default
 endfunction
 
-" Returns the count of visible lines between the specified start and end lines
+" Returns the count of virtual lines between the specified start and end lines
 " (both inclusive), in the specified window. A closed fold counts as one
-" visible line.
-function! s:VisibleLineCount(winid, start, end) abort
+" virtual line.
+function! s:VirtualLineCount(winid, start, end) abort
   let l:current_winid = win_getid(winnr())
   call win_gotoid(a:winid)
   let l:view = winsaveview()
@@ -207,7 +207,7 @@ endfunction
 " Returns the line at the approximate visible proportion between the specified
 " start and end lines, in the specified window. If the result is in a closed
 " fold, it is converted to the first line in that fold.
-function! s:VisibleProportionLine(winid, start, end, proportion) abort
+function! s:VirtualProportionLine(winid, start, end, proportion) abort
   let l:current_winid = win_getid(winnr())
   call win_gotoid(a:winid)
   let l:end = a:end
@@ -260,8 +260,8 @@ function! s:CalculatePosition(winnr) abort
   if l:scrollview_mode ==# 'virtual'
     " Update topline and line_count to correspond to virtual lines,
     " which account for closed folds.
-    let l:virtual_topline = s:VisibleLineCount(l:winid, 1, l:topline - 1) + 1
-    let l:virtual_line_count = s:VisibleLineCount(l:winid, 1, '$')
+    let l:virtual_topline = s:VirtualLineCount(l:winid, 1, l:topline - 1) + 1
+    let l:virtual_line_count = s:VirtualLineCount(l:winid, 1, '$')
   endif
   " l:top is the position for the top of the scrollbar, relative to the
   " window, and 0-indexed.
@@ -582,11 +582,16 @@ function! s:SetTopLine(winid, linenr) abort
   call win_gotoid(l:winid)
   let l:init_line = line('.')
   execute 'keepjumps normal! ' . l:linenr . 'G'
-  let l:winline = winline()
-  if l:winline ># 1
-    execute 'keepjumps normal! ' . (l:winline - 1) . "\<c-e>"
+  let l:topline = s:LineRange(l:winid)[0]
+  " Use virtual lines to figure out how much to scroll up. winline() doesn't
+  " accommodate wrapped lines.
+  let l:virtual_line = s:VirtualLineCount(l:winid, l:topline, line('.'))
+  if l:virtual_line ># 1
+    execute 'keepjumps normal! ' . (l:virtual_line - 1) . "\<c-e>"
   endif
-  if line('w$') ==# line('$')
+  unlet l:topline  " topline may no longer be correct
+  let l:botline = s:LineRange(l:winid)[1]
+  if l:botline ==# line('$')
     " If the last buffer line is on-screen, position that line at the bottom
     " of the window.
     keepjumps normal! Gzb
@@ -848,7 +853,7 @@ function! scrollview#HandleMouse(button) abort
         let l:winheight = winheight(l:winid)
         let l:proportion = s:NumberToFloat(l:row - 1) / (l:winheight - 1)
         if l:scrollview_mode ==# 'virtual'
-          let l:top = s:VisibleProportionLine(l:winid, 1, '$', l:proportion)
+          let l:top = s:VirtualProportionLine(l:winid, 1, '$', l:proportion)
         else
           " The handling is the same for 'simple' and 'flexible' modes.
           let l:line_count = nvim_buf_line_count(l:bufnr)
