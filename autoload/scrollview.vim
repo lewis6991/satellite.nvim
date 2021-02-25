@@ -227,19 +227,17 @@ endfunction
 function! s:LineRange(winid) abort
   " WARN: getwininfo(winid)[0].botline is not properly updated for some
   " movements (Neovim Issue #13510), so this is implemeneted as a workaround.
-  " This was originally handled by using an asyncronous context, but this was
+  " This was originally handled by using an asynchronous context, but this was
   " not possible for refreshing bars during mouse drags.
   let l:current_winid = win_getid(winnr())
   call win_gotoid(a:winid)
-  let l:view = winsaveview()
-  let l:scrolloff = getwinvar(a:winid, '&scrolloff')
-  setlocal scrolloff=0
-  keepjumps normal! H
-  let l:topline = line('.')
-  keepjumps normal! L
-  let l:botline = line('.')
-  call setwinvar(a:winid, '&scrolloff', l:scrolloff)
-  call winrestview(l:view)
+  " Using scrolloff=0 combined with H and L breaks diff mode. Scrolling is not
+  " possible and/or the window scrolls when it shouldn't.
+  let l:topline = line('w0')
+  let l:botline = line('w$')
+  if l:botline < l:topline
+    throw 'No lines are visible'
+  endif
   call win_gotoid(l:current_winid)
   return [l:topline, l:botline]
 endfunction
