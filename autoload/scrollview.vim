@@ -188,12 +188,32 @@ function! s:AdvanceVisibleSpan() abort
   endwhile
 endfunction
 
+function! s:VirtualLineCountOld(winid, start, end) abort
+  let l:current_winid = win_getid(winnr())
+  call win_gotoid(a:winid)
+  let l:end = a:end
+  if type(l:end) ==# v:t_string && l:end ==# '$'
+    let l:end = line('$')
+  endif
+  let l:module = luaeval('require("scrollview")')
+  let l:result = l:module.visible_line_count(a:start, l:end)
+  call win_gotoid(l:current_winid)
+  return l:result
+endfunction
+
 " Returns the count of virtual lines between the specified start and end lines
 " (both inclusive), in the specified window. A closed fold counts as one
 " virtual line.
 function! s:VirtualLineCount(winid, start, end) abort
   let l:current_winid = win_getid(winnr())
   call win_gotoid(a:winid)
+  " Temporarily disable scrollbind and cursorbind so that diff mode and other
+  " functionality that utilizes binding (e.g., :Gdiff, :Gblame) can function
+  " properly.
+  let l:scrollbind = &l:scrollbind
+  let l:cursorbind = &l:scrollbind
+  setl noscrollbind
+  setl nocursorbind
   let l:view = winsaveview()
   let l:start = a:start
   let l:end = a:end
@@ -217,6 +237,8 @@ function! s:VirtualLineCount(winid, start, end) abort
     endwhile
   endif
   call winrestview(l:view)
+  let &l:scrollbind = l:scrollbind
+  let &l:cursorbind = l:scrollbind
   call win_gotoid(l:current_winid)
   return l:count
 endfunction
@@ -245,6 +267,13 @@ function! s:VirtualProportionLine(winid, proportion) abort
   let l:winid = a:winid
   let l:current_winid = win_getid(winnr())
   call win_gotoid(l:winid)
+  " Temporarily disable scrollbind and cursorbind so that diff mode and other
+  " functionality that utilizes binding (e.g., :Gdiff, :Gblame) can function
+  " properly.
+  let l:scrollbind = &l:scrollbind
+  let l:cursorbind = &l:scrollbind
+  setl noscrollbind
+  setl nocursorbind
   let l:view = winsaveview()
   " Lines are 0-indexed for calculations.
   let l:line = 0
@@ -288,6 +317,8 @@ function! s:VirtualProportionLine(winid, proportion) abort
     let l:line = l:foldclosed
   endif
   call winrestview(l:view)
+  let &l:scrollbind = l:scrollbind
+  let &l:cursorbind = l:scrollbind
   call win_gotoid(l:current_winid)
   return l:line
 endfunction
@@ -501,6 +532,8 @@ endfunction
 " Sets global state that is assumed by the core functionality and returns a
 " state that can be used for restoration.
 function! s:Init()
+  " WARN: scrollbind and cursorbind should not be disabled here, as it should
+  " not be disabled for some functionality.
   let l:state = {
         \   'eventignore': &eventignore,
         \   'winwidth': &winwidth,
@@ -645,6 +678,9 @@ endfunction
 function! s:SetTopLine(winid, linenr) abort
   " TODO: It may be possible to implement this using winrestview(), setting
   " topline and other values accordingly.
+  " WARN: Unlike other functions that move the cursor (e.g., VirtualLineCount,
+  " VirtualProportionLine), cursorbind and scrollbind should not be disabled
+  " for SetTopLine, since the windows would not stay in sync otherwise.
   let l:winid = a:winid
   let l:linenr = a:linenr
   let l:init_winid = win_getid()
