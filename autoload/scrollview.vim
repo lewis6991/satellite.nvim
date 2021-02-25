@@ -153,6 +153,41 @@ function! s:GetVariable(name, winnr, ...) abort
   return l:default
 endfunction
 
+" Advance the current window cursor to the start of the next visible span,
+" returning 1) the range of lines jumped over, and a boolean indicating
+" whether that range was in a closed fold. If there is no next visible span,
+" the cursor is returned to the first line.
+function! s:AdvanceVisibleSpan() abort
+  let l:start = line('.')
+  let l:foldclosedend = foldclosedend(l:start)
+  if l:foldclosedend !=# -1
+    " The cursor started on a closed fold.
+    if l:foldclosedend ==# line('$')
+      keepjumps normal! gg
+    else
+      keepjumps normal! j
+    endif
+    return [l:start, l:foldclosedend, 1]
+  endif
+  let l:lnum = l:start
+  while 1
+    keepjumps normal! zj
+    if l:lnum ==# line('.')
+      " There are no more folds after the cursor. This is the last span.
+      keepjumps normal! gg
+      return [l:start, line('$'), 0]
+    endif
+    let l:lnum = line('.')
+    let l:foldclosed = foldclosed(l:lnum)
+    if l:foldclosed !=# -1
+      " The cursor moved to a closed fold. The preceding line ends the prior
+      " visible span.
+      return [l:start, l:lnum - 1, 0]
+    endif
+    " The cursor moved to an open fold. Continue...
+  endwhile
+endfunction
+
 " Returns the count of virtual lines between the specified start and end lines
 " (both inclusive), in the specified window. A closed fold counts as one
 " virtual line.
@@ -167,47 +202,29 @@ function! s:VirtualLineCount(winid, start, end) abort
   endif
   let l:start = max([1, l:start])
   let l:end = min([line('$'), l:end])
-  if foldclosed(l:start) !=# -1
-    let l:start = foldclosed(l:start)
-  endif
-  if foldclosed(l:end) !=# -1
-    let l:end = foldclosed(l:end)
-  endif
-  let l:result = 0
-  if l:start ># l:end | return l:result | endif
-  execute 'keepjumps normal! ' . l:start . 'G'
-  while 1
-    " While on a fold line and not on the end line, increment result and move
-    " down one line.
-    " WARN: Using "<=#" for the comparison instead of "<#" could cause an
-    " infinite loop (e.g., when there are consecutive folds at the end of the
-    " buffer).
-    while foldclosed(line('.')) !=# -1 && line('.') <# l:end
-      let l:result += 1
-      keepjumps normal! j
+  let l:count = 0
+  if l:end >=# l:start
+    execute 'keepjumps normal! ' . l:start . 'G'
+    while 1
+      let [l:range_start, l:range_end, l:fold] = s:AdvanceVisibleSpan()
+      if l:range_end ># l:end
+        let l:range_end = l:end
+      endif
+      let l:count += l:fold ? 1 : l:range_end - l:range_start + 1
+      if l:range_end ==# l:end || line('.') ==# 1
+        break
+      endif
     endwhile
-    let l:line = line('.')
-    keepjumps normal! zj
-    " Complete counting if 1) the cursor is at or past the end or 2) there are
-    " no more folds. The same formula is used in either case.
-    if line('.') >=# l:end || line('.') ==# l:line
-      let l:result += l:end - l:line + 1
-      break
-    else
-      " Count lines upto the current line (excluding the current line since it
-      " will be counted on the next loop).
-      let l:result += line('.') - l:line
-    endif
-  endwhile
+  endif
   call winrestview(l:view)
   call win_gotoid(l:current_winid)
-  return l:result
+  return l:count
 endfunction
 
-" Returns the line at the approximate visible proportion between the specified
+" Returns the line at the approximate virtual proportion between the specified
 " start and end lines, in the specified window. If the result is in a closed
 " fold, it is converted to the first line in that fold.
-function! s:VirtualProportionLine(winid, start, end, proportion) abort
+function! s:VirtualProportionLineOld(winid, start, end, proportion) abort
   let l:current_winid = win_getid(winnr())
   call win_gotoid(a:winid)
   let l:end = a:end
@@ -219,6 +236,60 @@ function! s:VirtualProportionLine(winid, start, end, proportion) abort
         \ a:start, l:end, a:proportion)
   call win_gotoid(l:current_winid)
   return l:result
+endfunction
+
+" Return the line at the approximate virtual proportion in the specified
+" window. If the result is in a closed fold, it is converted to the first line
+" in that fold.
+function! s:VirtualProportionLine(winid, proportion) abort
+  let l:winid = a:winid
+  let l:current_winid = win_getid(winnr())
+  call win_gotoid(l:winid)
+  let l:view = winsaveview()
+  " Lines are 0-indexed for calculations.
+  let l:line = 0
+  let l:virtual_line = 0
+  let l:prop = 0.0
+  let l:virtual_line_count = s:VirtualLineCount(l:winid, 1, '$')
+  if l:virtual_line_count ># 1
+    keepjumps normal! gg
+    let l:count = 1
+    while 1
+      let [l:range_start, l:range_end, l:fold] = s:AdvanceVisibleSpan()
+      "echom  a:proportion
+      let l:line_delta = l:range_end - l:range_start + 1
+      let l:virtual_line_delta = l:fold ? 1 : l:line_delta
+      let l:prop_delta = s:NumberToFloat(l:virtual_line_delta - 1) / (l:virtual_line_count - 1)
+
+      if l:prop + l:prop_delta >=# a:proportion
+        let l:ratio = (a:proportion - l:prop) / l:prop_delta
+        let l:prop += l:ratio * l:prop_delta
+        let l:line += float2nr(round(l:ratio * (l:line_delta - l:count)))
+        break
+      endif
+      let l:count += 1
+
+      let l:line += l:line_delta
+      let l:virtual_line += l:virtual_line_delta
+      let l:prop = s:NumberToFloat(l:virtual_line - 1) / (l:virtual_line_count - 1)
+
+      if line('.') ==# 1
+        " TODO: set line to end of document.
+        break
+      endif
+    endwhile
+  endif
+  " Convert back to 1-indexing.
+  let l:line += 1
+  let l:line = max([1, l:line])
+  let l:line = min([line('$'), l:line])
+  let l:foldclosed = foldclosed(l:line)
+  if l:foldclosed !=# -1
+    let l:line = l:foldclosed
+  endif
+  call winrestview(l:view)
+  call win_gotoid(l:current_winid)
+  return l:line
 endfunction
 
 " Return top line and bottom line in window. For folds, the top line
@@ -270,9 +341,9 @@ function! s:CalculatePosition(winnr) abort
   endif
   let l:height = l:winheight
   if l:virtual_line_count ># l:height
-    let l:numerator = l:winheight
-    let l:height = s:NumberToFloat(l:numerator) / l:virtual_line_count
+    let l:height = s:NumberToFloat(l:winheight) / l:virtual_line_count
     let l:height = float2nr(ceil(l:height * l:winheight))
+    let l:height = max([1, l:height])
   endif
   " Make sure bar properly reflects bottom of document.
   if l:botline ==# l:line_count
@@ -851,7 +922,15 @@ function! scrollview#HandleMouse(button) abort
         let l:winheight = winheight(l:winid)
         let l:proportion = s:NumberToFloat(l:row - 1) / (l:winheight - 1)
         if l:scrollview_mode ==# 'virtual'
-          let l:top = s:VirtualProportionLine(l:winid, 1, '$', l:proportion)
+          let a = s:VirtualProportionLine(l:winid, l:proportion)
+          let b = s:VirtualProportionLineOld(l:winid, 1, '$', l:proportion)
+          "echom a . ' ' . b
+          let denominator = s:VirtualLineCount(l:winid, 1, '$') - 1
+          let diff_a = l:proportion - ((s:NumberToFloat(a) - 1) / denominator)
+          let diff_b = l:proportion - ((s:NumberToFloat(b) - 1) / denominator)
+          echom string(l:proportion) . ' ' . string((s:NumberToFloat(a) - 1)) . ' ' . denominator . ' ' . a . ':' . string(diff_a) . ' ' . b . ':' . string(diff_b) . ' ' . (abs(diff_a) <= abs(diff_b)) . ' ' . (a == b)
+
+          let l:top = s:VirtualProportionLine(l:winid, l:proportion)
         else
           " The handling is the same for 'simple' and 'flexible' modes.
           let l:line_count = nvim_buf_line_count(l:bufnr)
