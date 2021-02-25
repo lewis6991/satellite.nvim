@@ -680,7 +680,7 @@ function! s:SetTopLine(winid, linenr) abort
   " topline and other values accordingly.
   " WARN: Unlike other functions that move the cursor (e.g., VirtualLineCount,
   " VirtualProportionLine), cursorbind and scrollbind should not be disabled
-  " for SetTopLine, since the windows would not stay in sync otherwise.
+  " for SetTopLine, since bound windows would not stay in sync otherwise.
   let l:winid = a:winid
   let l:linenr = a:linenr
   let l:init_winid = win_getid()
