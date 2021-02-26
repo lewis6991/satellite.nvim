@@ -77,10 +77,19 @@ function! s:WindowHasFold(winid) abort
   if foldlevel(1) !=# 0
     let l:result = 1
   else
+    " Temporarily disable scrollbind and cursorbind so that diff mode and
+    " other functionality that utilizes binding (e.g., :Gdiff, :Gblame) can
+    " function properly.
+    let l:scrollbind = &l:scrollbind
+    let l:cursorbind = &l:cursorbind
+    setlocal noscrollbind
+    setlocal nocursorbind
     let l:view = winsaveview()
     keepjumps normal! ggzj
     let l:result = line('.') !=# 1
     call winrestview(l:view)
+    let &l:scrollbind = l:scrollbind
+    let &l:cursorbind = l:cursorbind
   endif
   call win_gotoid(l:init_winid)
   return l:result
@@ -154,41 +163,46 @@ function! s:GetVariable(name, winnr, ...) abort
 endfunction
 
 " Returns the count of visible lines between the specified start and end lines
-" (both inclusive), in the specified window. A closed fold counts as one
+" (both inclusive), in the specified window. A closed fold counts as on
 " visible line. '$' can be used as the end line, to represent the last line.
-" The function currently depends on a Lua function for faster execution, as
-" there is a loop over all lines in the specified window's buffer.
-" TODO: Using Vim fold movements (zj, zk), instead of looping over every line,
-" may be a way to speed this up further, but would presumably require a more
-" complicated implementation.
-function! s:VisibleLineCount(winid, start, end) abort
-  let l:current_winid = win_getid(winnr())
-  call win_gotoid(a:winid)
-  let l:end = a:end
-  if type(l:end) ==# v:t_string && l:end ==# '$'
-    let l:end = line('$')
-  endif
-  let l:module = luaeval('require("scrollview")')
-  let l:result = l:module.visible_line_count(a:start, l:end)
-  call win_gotoid(l:current_winid)
-  return l:result
+" The functionality is implemented in Lua for faster execution.
+function! s:VirtualLineCount(winid, start, end) abort
+  let l:lua_module = luaeval('require("scrollview")')
+  let l:result = l:lua_module.virtual_line_count(a:winid, a:start, a:end)
+  " Lua only has floats. Convert to integer as a precaution.
+  return float2nr(l:result)
 endfunction
 
-" Returns the line at the approximate visible proportion between the specified
-" start and end lines, in the specified window. If the result is in a closed
-" fold, it is converted to the first line in that fold.
-function! s:VisibleProportionLine(winid, start, end, proportion) abort
+" Return the line at the approximate virtual proportion in the specified
+" window. If the result is in a closed fold, it is converted to the first line
+" in that fold. The functionality is implemented in Lua for faster execution.
+function! s:VirtualProportionLine(winid, proportion) abort
+  let l:lua_module = luaeval('require("scrollview")')
+  let l:result = l:lua_module.virtual_proportion_line(a:winid, a:proportion)
+  " Lua only has floats. Convert to integer as a precaution.
+  return float2nr(l:result)
+endfunction
+
+" Return top line and bottom line in window. For folds, the top line
+" represents the start of the fold and the bottom line represents the end of
+" the fold.
+function! s:LineRange(winid) abort
+  " WARN: getwininfo(winid)[0].botline is not properly updated for some
+  " movements (Neovim Issue #13510), so this is implemeneted as a workaround.
+  " This was originally handled by using an asynchronous context, but this was
+  " not possible for refreshing bars during mouse drags.
   let l:current_winid = win_getid(winnr())
   call win_gotoid(a:winid)
-  let l:end = a:end
-  if type(l:end) ==# v:t_string && l:end ==# '$'
-    let l:end = line('$')
-  endif
-  let l:module = luaeval('require("scrollview")')
-  let l:result = l:module.visible_proportion_line(
-        \ a:start, l:end, a:proportion)
+  " Using scrolloff=0 combined with H and L breaks diff mode. Scrolling is not
+  " possible and/or the window scrolls when it shouldn't. Temporarily turning
+  " off scrollbind and cursorbind accommodates, but the following is simpler.
+  let l:topline = line('w0')
+  let l:botline = line('w$')
+  " line('w$') returns 0 in silent Ex mode, but line('w0') is always greater
+  " than or equal to 1.
+  let l:botline = max([l:botline, l:topline])
   call win_gotoid(l:current_winid)
-  return l:result
+  return [l:topline, l:botline]
 endfunction
 
 " Calculates the bar position for the specified window. Returns a dictionary
@@ -197,46 +211,33 @@ function! s:CalculatePosition(winnr) abort
   let l:winnr = a:winnr
   let l:winid = win_getid(l:winnr)
   let l:bufnr = winbufnr(l:winnr)
-  let l:wininfo = getwininfo(l:winid)[0]
-  let l:topline = l:wininfo.topline
-  " WARN: l:wininfo.botline is not properly updated for some movements (Neovim
-  " Issue #13510). Correct behavior depends on this function being executed in
-  " an asynchronous context for the corresponding movements (e.g., gg, G).
-  " This is handled by having WinScrolled trigger an asychronous refresh.
-  let l:botline = l:wininfo.botline
+  let [l:topline, l:botline] = s:LineRange(l:winid)
   let l:line_count = nvim_buf_line_count(l:bufnr)
+  let l:effective_topline = l:topline
+  let l:effective_line_count = l:line_count
+  let l:scrollview_mode = s:GetVariable('scrollview_mode', l:winnr)
+  if l:scrollview_mode !=# 'simple'
+    " For virtual mode or an unknown mode, update effective_topline and
+    " effective_line_count to correspond to virtual lines, which account for
+    " closed folds.
+    let l:effective_topline =
+          \ s:VirtualLineCount(l:winid, 1, l:topline - 1) + 1
+    let l:effective_line_count = s:VirtualLineCount(l:winid, 1, '$')
+  endif
   let l:winheight = winheight(l:winnr)
   let l:winwidth = winwidth(l:winnr)
-  let l:scrollview_mode = s:GetVariable('scrollview_mode', l:winnr)
-  if l:scrollview_mode ==# 'virtual'
-    " Update topline, botline, and line_count to correspond to virtual lines,
-    " which account for closed folds.
-    let l:virtual_counts = {
-          \   'before': s:VisibleLineCount(l:winid, 1, l:topline - 1),
-          \   'here': s:VisibleLineCount(l:winid, l:topline, l:botline),
-          \   'after': s:VisibleLineCount(l:winid, l:botline + 1, '$')
-          \ }
-    let l:topline = l:virtual_counts.before + 1
-    let l:botline = l:virtual_counts.before + l:virtual_counts.here
-    let l:line_count = l:virtual_counts.before
-          \ + l:virtual_counts.here
-          \ + l:virtual_counts.after
-  endif
   " l:top is the position for the top of the scrollbar, relative to the
   " window, and 0-indexed.
   let l:top = 0
-  if l:line_count ># 1
-    let l:top = (l:topline - 1.0) / (l:line_count - 1)
+  if l:effective_line_count ># 1
+    let l:top = (l:effective_topline - 1.0) / (l:effective_line_count - 1)
     let l:top = float2nr(round((l:winheight - 1) * l:top))
   endif
   let l:height = l:winheight
-  if l:line_count ># l:height
-    let l:numerator = l:winheight
-    if l:scrollview_mode ==# 'flexible'
-      let l:numerator = l:botline - l:topline + 1
-    endif
-    let l:height = s:NumberToFloat(l:numerator) / l:line_count
+  if l:effective_line_count ># l:height
+    let l:height = s:NumberToFloat(l:winheight) / l:effective_line_count
     let l:height = float2nr(ceil(l:height * l:winheight))
+    let l:height = max([1, l:height])
   endif
   " Make sure bar properly reflects bottom of document.
   if l:botline ==# l:line_count
@@ -283,10 +284,9 @@ function! s:ShowScrollbar(winid) abort
   if s:Contains(l:excluded_filetypes, l:buf_filetype)
     return
   endif
-  let l:wininfo = getwininfo(l:winid)[0]
   " Don't show in terminal mode, since the bar won't be properly updated for
   " insertions.
-  if l:wininfo.terminal
+  if getwininfo(l:winid)[0].terminal
     return
   endif
   if l:winheight ==# 0 || l:winwidth ==# 0
@@ -294,8 +294,8 @@ function! s:ShowScrollbar(winid) abort
   endif
   let l:line_count = nvim_buf_line_count(l:bufnr)
   " Don't show the position bar when all lines are on screen.
-  " WARN: See the botline usage warning in CalculatePosition.
-  if l:wininfo.botline - l:wininfo.topline + 1 ==# l:line_count
+  let [l:topline, l:botline] = s:LineRange(l:winid)
+  if l:botline - l:topline + 1 ==# l:line_count
     return
   endif
   let l:bar_position = s:CalculatePosition(l:winnr)
@@ -397,7 +397,9 @@ endfunction
 
 " Sets global state that is assumed by the core functionality and returns a
 " state that can be used for restoration.
-function! s:Init()
+function! s:Init() abort
+  " WARN: scrollbind and cursorbind should not be disabled here, as it should
+  " not be disabled for some functionality (e.g., s:SetTopLine).
   let l:state = {
         \   'belloff': &belloff,
         \   'eventignore': &eventignore,
@@ -415,7 +417,7 @@ function! s:Init()
   return l:state
 endfunction
 
-function! s:Restore(state)
+function! s:Restore(state) abort
   let &belloff = a:state.belloff
   let &eventignore = a:state.eventignore
   let &winwidth = a:state.winwidth
@@ -550,17 +552,26 @@ endfunction
 function! s:SetTopLine(winid, linenr) abort
   " TODO: It may be possible to implement this using winrestview(), setting
   " topline and other values accordingly.
+  " WARN: Unlike other functions that move the cursor (e.g.,
+  " virtual_line_count, VirtualProportionLine), cursorbind and scrollbind
+  " should not be disabled for SetTopLine, since bound windows would not stay
+  " in sync otherwise.
   let l:winid = a:winid
   let l:linenr = a:linenr
   let l:init_winid = win_getid()
   call win_gotoid(l:winid)
   let l:init_line = line('.')
   execute 'keepjumps normal! ' . l:linenr . 'G'
-  let l:winline = winline()
-  if l:winline ># 1
-    execute 'keepjumps normal! ' . (l:winline - 1) . "\<c-e>"
+  let l:topline = s:LineRange(l:winid)[0]
+  " Use virtual lines to figure out how much to scroll up. winline() doesn't
+  " accommodate wrapped lines.
+  let l:virtual_line = s:VirtualLineCount(l:winid, l:topline, line('.'))
+  if l:virtual_line ># 1
+    execute 'keepjumps normal! ' . (l:virtual_line - 1) . "\<c-e>"
   endif
-  if line('w$') ==# line('$')
+  unlet l:topline  " topline may no longer be correct
+  let l:botline = s:LineRange(l:winid)[1]
+  if l:botline ==# line('$')
     " If the last buffer line is on-screen, position that line at the bottom
     " of the window.
     keepjumps normal! Gzb
@@ -700,7 +711,7 @@ function! scrollview#RefreshBars(...) abort
   endtry
 endfunction
 
-function! s:RefreshBarsAsyncCallback(timer_id)
+function! s:RefreshBarsAsyncCallback(timer_id) abort
   let s:pending_async_refresh_count -= 1
   if s:pending_async_refresh_count ># 0
     " If there are asynchronous refreshes that will occur subsequently, don't
@@ -821,14 +832,23 @@ function! scrollview#HandleMouse(button) abort
       if l:previous_row !=# l:row
         let l:winheight = winheight(l:winid)
         let l:proportion = s:NumberToFloat(l:row - 1) / (l:winheight - 1)
-        if l:scrollview_mode ==# 'virtual'
-          let l:top = s:VisibleProportionLine(l:winid, 1, '$', l:proportion)
+        if l:scrollview_mode !=# 'simple'
+          " Handling for virtual mode or an unknown mode.
+          let l:top = s:VirtualProportionLine(l:winid, l:proportion)
         else
-          " The handling is the same for 'simple' and 'flexible' modes.
           let l:line_count = nvim_buf_line_count(l:bufnr)
           let l:top = float2nr(round(l:proportion * (l:line_count - 1))) + 1
         endif
         let l:top = max([1, l:top])
+        if l:row ==# 1
+          " If the scrollbar was dragged to the top of the window, always show
+          " the first line.
+          let l:top = 1
+        elseif l:row + l:props.height - 1 >=# l:winheight
+          " If the scrollbar was dragged to the bottom of the window, always
+          " show the bottom line.
+          let l:top = nvim_buf_line_count(l:bufnr)
+        endif
         call s:SetTopLine(l:winid, l:top)
         call scrollview#RefreshBars(0)
         redraw

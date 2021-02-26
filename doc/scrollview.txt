@@ -69,7 +69,7 @@ have the highest precedence, and global variables have the lowest).
 *scrollview_on_startup*                   `1`
   Specifies whether scrollbars are        Considered only at global scope
   enabled on startup
-*scrollview_mode*                         `'simple'`
+*scrollview_mode*                         `'virtual'`
   Specifies what the scrollbar            See |scrollview-modes| for details on
   position and size correspond to         the available modes
 *scrollview_excluded_filetypes*           `[]`
@@ -116,24 +116,20 @@ same way.
 
 Mode       Description
 ----       -----------
-*simple*     The scrollbar top position reflects the window's top line number
-           relative to the document's line count. The scrollbar height reflects
-           the size of the window relative to the document's line count.
-
-*flexible*   The scrollbar height adapts to reflect the number of lines in the
-           window, counting lines in closed folds, relative to the document's
-           line count. The scrollbar top position reflects the window's top
+*simple*     (`deprecated`) The scrollbar top position reflects the window's top
            line number relative to the document's line count. The scrollbar
-           bottom position reflects the window's bottom line number relative
-           to the document's line count.
+           height reflects the size of the window relative to the document's
+           line count. Dragging the scrollbars with the mouse may result in
+           unresponsive scrolling and/or erratic scrollbar behavior when there
+           are closed folds.
 
-*virtual*    The scrollbar position and height are calculated similarly to
-           the |simple| mode, but line numbers and the document line count
-           are implicitly updated to virtual counterparts that account for
-           closed folds. The scrollbar top position reflects the window's top
-           virtual line number relative to the document's virtual line count.
-           The scrollbar height reflects the size of the window relative to
-           the document's virtual line count.
+*virtual*    The scrollbar position and height are calculated similarly to the
+           |simple| mode, but line numbers and the document line count are
+           implicitly updated to virtual counterparts that account for closed
+           folds. The scrollbar top position reflects the window's top virtual
+           line number relative to the document's virtual line count. The
+           scrollbar height reflects the size of the window relative to the
+           document's virtual line count.
 
 Color Customization ~
                                            *scrollview-color-customization*
