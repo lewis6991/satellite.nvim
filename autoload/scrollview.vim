@@ -275,32 +275,29 @@ function! s:VirtualProportionLine(winid, proportion) abort
   setl noscrollbind
   setl nocursorbind
   let l:view = winsaveview()
-  " Lines are 0-indexed for calculations.
   let l:line = 0
   let l:virtual_line = 0
   let l:prop = 0.0
   let l:virtual_line_count = s:VirtualLineCount(l:winid, 1, '$')
   if l:virtual_line_count ># 1
     keepjumps normal! gg
-    let l:count = 1
     while 1
       let [l:range_start, l:range_end, l:fold] = s:AdvanceVisibleSpan()
       "echom  a:proportion
       let l:line_delta = l:range_end - l:range_start + 1
       let l:virtual_line_delta = l:fold ? 1 : l:line_delta
-      let l:prop_delta = s:NumberToFloat(l:virtual_line_delta - 1) / (l:virtual_line_count - 1)
+      let l:prop_delta = s:NumberToFloat(l:virtual_line_delta) / (l:virtual_line_count - 1)
 
       if l:prop + l:prop_delta >=# a:proportion
         let l:ratio = (a:proportion - l:prop) / l:prop_delta
         let l:prop += l:ratio * l:prop_delta
-        let l:line += float2nr(round(l:ratio * (l:line_delta - l:count)))
+        let l:line += float2nr(round(l:ratio * l:line_delta)) + 1
         break
       endif
-      let l:count += 1
 
       let l:line += l:line_delta
       let l:virtual_line += l:virtual_line_delta
-      let l:prop = s:NumberToFloat(l:virtual_line - 1) / (l:virtual_line_count - 1)
+      let l:prop = s:NumberToFloat(l:virtual_line) / (l:virtual_line_count - 1)
 
       if line('.') ==# 1
         " TODO: set line to end of document.
@@ -308,8 +305,6 @@ function! s:VirtualProportionLine(winid, proportion) abort
       endif
     endwhile
   endif
-  " Convert back to 1-indexing.
-  let l:line += 1
   let l:line = max([1, l:line])
   let l:line = min([line('$'), l:line])
   let l:foldclosed = foldclosed(l:line)
