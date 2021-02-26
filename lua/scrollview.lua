@@ -6,11 +6,12 @@ local function round(x)
   return math.floor(x + 0.5)
 end
 
--- Advance the current window cursor to the start of the next visible span,
+-- Advance the current window cursor to the start of the next virtual span,
 -- returning the range of lines jumped over, and a boolean indicating whether
--- that range was in a closed fold. If there is no next visible span, the
--- cursor is returned to the first line.
-local function advance_visible_span()
+-- that range was in a closed fold. A virtual span is a continguous range of
+-- lines that are either 1) not in a closed fold or 2) in a closed fold. If
+-- there is no next virtual span, the cursor is returned to the first line.
+local function advance_virtual_span()
   local start = vim.fn.line('.')
   local foldclosedend = vim.fn.foldclosedend(start)
   if foldclosedend ~= -1 then
@@ -34,15 +35,15 @@ local function advance_visible_span()
     local foldclosed = vim.fn.foldclosed(lnum)
     if foldclosed ~= -1 then
       -- The cursor moved to a closed fold. The preceding line ends the prior
-      -- visible span.
+      -- virtual span.
       return {start, lnum - 1, false}
     end
   end
 end
 
--- Returns the count of visible lines between the specified start and end lines
+-- Returns the count of virtual lines between the specified start and end lines
 -- (both inclusive), in the specified window. A closed fold counts as on
--- visible line. '$' can be used as the end line, to represent the last line.
+-- virtual line. '$' can be used as the end line, to represent the last line.
 local function virtual_line_count(winid, start, _end)
   local current_winid = vim.fn.win_getid(vim.fn.winnr())
   vim.fn.win_gotoid(winid)
@@ -63,7 +64,7 @@ local function virtual_line_count(winid, start, _end)
   if _end >= start then
     vim.cmd('keepjumps normal! ' .. start .. 'G')
     while true do
-      local range_start, range_end, fold = unpack(advance_visible_span())
+      local range_start, range_end, fold = unpack(advance_virtual_span())
       range_end = math.min(range_end, _end)
       local delta = 1
       if not fold then
@@ -103,7 +104,7 @@ local function virtual_proportion_line(winid, proportion)
   if virtual_line_count > 1 then
     vim.cmd('keepjumps normal! gg')
     while true do
-      local range_start, range_end, fold = unpack(advance_visible_span())
+      local range_start, range_end, fold = unpack(advance_virtual_span())
       local line_delta = range_end - range_start + 1
       local virtual_line_delta = 1
       if not fold then
@@ -120,7 +121,7 @@ local function virtual_proportion_line(winid, proportion)
       virtual_line = virtual_line + virtual_line_delta
       prop = virtual_line / (virtual_line_count - 1)
       if vim.fn.line('.') == 1 then
-        -- advance_visible_span looped back to the beginning of the document.
+        -- advance_virtual_span looped back to the beginning of the document.
         line = vim.fn.line('$')
         break
       end
