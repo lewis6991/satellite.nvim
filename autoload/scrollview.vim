@@ -396,22 +396,27 @@ endfunction
 " state that can be used for restoration.
 function! s:Init()
   let l:state = {
+        \   'belloff': &belloff,
         \   'eventignore': &eventignore,
         \   'winwidth': &winwidth,
         \   'winheight': &winheight
         \ }
+  " Disable the bell (e.g., for invalid cursor movements, trying to navigate
+  " to a next fold, when no fold exists).
+  set belloff=all
+  set eventignore=all
   " Minimize winwidth and winheight so that changing the current window
   " doesn't unexpectedly cause window resizing.
-  set eventignore=all
   let &winwidth = max([1, &winminwidth])
   let &winheight = max([1, &winminheight])
   return l:state
 endfunction
 
 function! s:Restore(state)
+  let &belloff = a:state.belloff
+  let &eventignore = a:state.eventignore
   let &winwidth = a:state.winwidth
   let &winheight = a:state.winheight
-  let &eventignore = a:state.eventignore
 endfunction
 
 " Get the next character press, including mouse clicks and drags. Returns a
