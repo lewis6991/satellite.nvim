@@ -64,8 +64,8 @@ There are various settings that can be configured.
 * Whether scrollbars should be displayed in all windows, or just the current
   window
   - `scrollview_current_only`
-* What the scrollbar position and size correspond to (corresponds to how folds
-  are accounted for)
+* What the scrollbar position and size correspond to (i.e., how folds are
+  accounted for)
   - `scrollview_mode`
 * Scrollbar anchor column and offset
   - `scrollview_base`

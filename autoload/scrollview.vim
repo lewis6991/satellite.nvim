@@ -213,27 +213,29 @@ function! s:CalculatePosition(winnr) abort
   let l:bufnr = winbufnr(l:winnr)
   let [l:topline, l:botline] = s:LineRange(l:winid)
   let l:line_count = nvim_buf_line_count(l:bufnr)
-  let l:virtual_topline = l:topline
-  let l:virtual_line_count = l:line_count
+  let l:effective_topline = l:topline
+  let l:effective_line_count = l:line_count
+  let l:scrollview_mode = s:GetVariable('scrollview_mode', l:winnr)
+  if l:scrollview_mode !=# 'simple'
+    " For virtual mode or an unknown mode, update effective_topline and
+    " effective_line_count to correspond to virtual lines, which account for
+    " closed folds.
+    let l:effective_topline =
+          \ s:VirtualLineCount(l:winid, 1, l:topline - 1) + 1
+    let l:effective_line_count = s:VirtualLineCount(l:winid, 1, '$')
+  endif
   let l:winheight = winheight(l:winnr)
   let l:winwidth = winwidth(l:winnr)
-  let l:scrollview_mode = s:GetVariable('scrollview_mode', l:winnr)
-  if l:scrollview_mode ==# 'virtual'
-    " Update topline and line_count to correspond to virtual lines,
-    " which account for closed folds.
-    let l:virtual_topline = s:VirtualLineCount(l:winid, 1, l:topline - 1) + 1
-    let l:virtual_line_count = s:VirtualLineCount(l:winid, 1, '$')
-  endif
   " l:top is the position for the top of the scrollbar, relative to the
   " window, and 0-indexed.
   let l:top = 0
-  if l:virtual_line_count ># 1
-    let l:top = (l:virtual_topline - 1.0) / (l:virtual_line_count - 1)
+  if l:effective_line_count ># 1
+    let l:top = (l:effective_topline - 1.0) / (l:effective_line_count - 1)
     let l:top = float2nr(round((l:winheight - 1) * l:top))
   endif
   let l:height = l:winheight
-  if l:virtual_line_count ># l:height
-    let l:height = s:NumberToFloat(l:winheight) / l:virtual_line_count
+  if l:effective_line_count ># l:height
+    let l:height = s:NumberToFloat(l:winheight) / l:effective_line_count
     let l:height = float2nr(ceil(l:height * l:winheight))
     let l:height = max([1, l:height])
   endif
@@ -830,10 +832,10 @@ function! scrollview#HandleMouse(button) abort
       if l:previous_row !=# l:row
         let l:winheight = winheight(l:winid)
         let l:proportion = s:NumberToFloat(l:row - 1) / (l:winheight - 1)
-        if l:scrollview_mode ==# 'virtual'
+        if l:scrollview_mode !=# 'simple'
+          " Handling for virtual mode or an unknown mode.
           let l:top = s:VirtualProportionLine(l:winid, l:proportion)
         else
-          " The handling is the same for 'simple' and 'flexible' modes.
           let l:line_count = nvim_buf_line_count(l:bufnr)
           let l:top = float2nr(round(l:proportion * (l:line_count - 1))) + 1
         endif
