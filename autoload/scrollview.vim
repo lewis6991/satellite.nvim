@@ -283,24 +283,23 @@ function! s:VirtualProportionLine(winid, proportion) abort
     keepjumps normal! gg
     while 1
       let [l:range_start, l:range_end, l:fold] = s:AdvanceVisibleSpan()
-      "echom  a:proportion
       let l:line_delta = l:range_end - l:range_start + 1
       let l:virtual_line_delta = l:fold ? 1 : l:line_delta
-      let l:prop_delta = s:NumberToFloat(l:virtual_line_delta) / (l:virtual_line_count - 1)
-
+      let l:prop_delta = s:NumberToFloat(l:virtual_line_delta)
+      let l:prop_delta /= (l:virtual_line_count - 1)
       if l:prop + l:prop_delta >=# a:proportion
         let l:ratio = (a:proportion - l:prop) / l:prop_delta
         let l:prop += l:ratio * l:prop_delta
         let l:line += float2nr(round(l:ratio * l:line_delta)) + 1
         break
       endif
-
       let l:line += l:line_delta
       let l:virtual_line += l:virtual_line_delta
-      let l:prop = s:NumberToFloat(l:virtual_line) / (l:virtual_line_count - 1)
-
+      let l:prop =
+            \ s:NumberToFloat(l:virtual_line) / (l:virtual_line_count - 1)
       if line('.') ==# 1
-        " TODO: set line to end of document.
+        " AdvanceVisibleSpan looped back to the beginning of the document.
+        let l:line = line('$')
         break
       endif
     endwhile
