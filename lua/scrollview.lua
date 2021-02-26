@@ -1,6 +1,10 @@
+local function test(x, y)
+  vim.cmd('echo "hello world"')
+end
+
 -- Returns the count of visible lines between the specified start and end
 -- lines, in the current window's buffer.
-local function scrollview_visible_line_count(start, _end)
+local function scrollview_visible_line_count_old(start, _end)
   if start < 1 then
     start = 1
   end
@@ -23,14 +27,14 @@ end
 -- Returns the line at the approximate visible proportion between the specified
 -- start and end lines, in the current window's buffer. If the result is in a
 -- closed fold, it is converted to the first line in that fold.
-local function scrollview_visible_proportion_line(start, _end, proportion)
+local function scrollview_visible_proportion_line_old(start, _end, proportion)
   if start < 1 then
     start = 1
   end
   if _end > vim.fn.line('$') then
     _end = vim.fn.line('$')
   end
-  local total = scrollview_visible_line_count(start, _end)
+  local total = scrollview_visible_line_count_old(start, _end)
   local best = start
   local best_distance = math.huge
   if total > 1 then
@@ -59,6 +63,6 @@ local function scrollview_visible_proportion_line(start, _end, proportion)
 end
 
 return {
-  visible_line_count = scrollview_visible_line_count,
-  visible_proportion_line = scrollview_visible_proportion_line
+  visible_line_count_old = scrollview_visible_line_count_old,
+  visible_proportion_line_old = scrollview_visible_proportion_line_old
 }

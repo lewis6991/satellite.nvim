@@ -196,7 +196,7 @@ function! s:VirtualLineCountOld(winid, start, end) abort
     let l:end = line('$')
   endif
   let l:module = luaeval('require("scrollview")')
-  let l:result = l:module.visible_line_count(a:start, l:end)
+  let l:result = l:module.visible_line_count_old(a:start, l:end)
   call win_gotoid(l:current_winid)
   return l:result
 endfunction
@@ -254,7 +254,7 @@ function! s:VirtualProportionLineOld(winid, start, end, proportion) abort
     let l:end = line('$')
   endif
   let l:module = luaeval('require("scrollview")')
-  let l:result = l:module.visible_proportion_line(
+  let l:result = l:module.visible_proportion_line_old(
         \ a:start, l:end, a:proportion)
   call win_gotoid(l:current_winid)
   return l:result
