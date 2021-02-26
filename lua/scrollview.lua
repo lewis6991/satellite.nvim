@@ -32,6 +32,9 @@ local function scrollview_advance_visible_span()
   end
 end
 
+-- Returns the count of visible lines between the specified start and end lines
+-- (both inclusive), in the specified window. A closed fold counts as on
+-- visible line. '$' can be used as the end line, to represent the last line.
 local function scrollview_virtual_line_count(winid, start, _end)
   local current_winid = vim.fn.win_getid(vim.fn.winnr())
   vim.fn.win_gotoid(winid)
