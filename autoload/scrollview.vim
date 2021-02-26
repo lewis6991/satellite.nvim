@@ -332,8 +332,9 @@ function! s:LineRange(winid) abort
   " off scrollbind and cursorbind accommodates, but the following is simpler.
   let l:topline = line('w0')
   let l:botline = line('w$')
-  " line('w$') returns 0 in silent Ex mode.
-  let l:botline = max([1, l:botline])
+  " line('w$') returns 0 in silent Ex mode, but line('w0') is always greater
+  " than or equal to 1.
+  let l:botline = max([l:botline, l:topline])
   call win_gotoid(l:current_winid)
   return [l:topline, l:botline]
 endfunction
