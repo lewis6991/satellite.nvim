@@ -31,8 +31,6 @@ let s:props_var = 'scrollview_props'
 " A key for flagging windows that are pending async removal.
 let s:pending_async_removal_var = 'scrollview_pending_async_removal'
 
-let s:lua_module = luaeval('require("scrollview")')
-
 " *************************************************
 " * Utils
 " *************************************************
@@ -155,87 +153,25 @@ function! s:GetVariable(name, winnr, ...) abort
   return l:default
 endfunction
 
-" TODO: DELETE
-function! s:AdvanceVisibleSpan() abort
-  let l:module = luaeval('require("scrollview")')
-  return l:module.advance_visible_span()
+" Returns the count of visible lines between the specified start and end lines
+" (both inclusive), in the specified window. A closed fold counts as on
+" visible line. '$' can be used as the end line, to represent the last line.
+" The functionality is implemented in Lua for faster execution.
+function! s:VirtualLineCount(winid, start, end) abort
+  let l:lua_module = luaeval('require("scrollview")')
+  let l:result = l:lua_module.virtual_line_count(a:winid, a:start, a:end)
+  " Lua only has floats. Convert to integer as a precaution.
+  return float2nr(l:result)
 endfunction
 
-" TODO: DELETE
-" Returns the line at the approximate virtual proportion between the specified
-" start and end lines, in the specified window. If the result is in a closed
-" fold, it is converted to the first line in that fold.
-function! s:VirtualProportionLineOld(winid, start, end, proportion) abort
-  let l:current_winid = win_getid(winnr())
-  call win_gotoid(a:winid)
-  let l:end = a:end
-  if type(l:end) ==# v:t_string && l:end ==# '$'
-    let l:end = line('$')
-  endif
-  let l:module = luaeval('require("scrollview")')
-  let l:result = l:module.visible_proportion_line_old(
-        \ a:start, l:end, a:proportion)
-  call win_gotoid(l:current_winid)
-  return l:result
-endfunction
-
-" TODO: DELETE
 " Return the line at the approximate virtual proportion in the specified
 " window. If the result is in a closed fold, it is converted to the first line
-" in that fold.
+" in that fold. The functionality is implemented in Lua for faster execution.
 function! s:VirtualProportionLine(winid, proportion) abort
-  let l:winid = a:winid
-  let l:current_winid = win_getid(winnr())
-  call win_gotoid(l:winid)
-  " Temporarily disable scrollbind and cursorbind so that diff mode and other
-  " functionality that utilizes binding (e.g., :Gdiff, :Gblame) can function
-  " properly.
-  let l:scrollbind = &l:scrollbind
-  let l:cursorbind = &l:cursorbind
-  setlocal noscrollbind
-  setlocal nocursorbind
-  let l:view = winsaveview()
-  let l:line = 0
-  let l:virtual_line = 0
-  let l:prop = 0.0
-  let l:virtual_line_count =
-        \ s:lua_module.virtual_line_count(l:winid, 1, '$')
-  if l:virtual_line_count ># 1
-    keepjumps normal! gg
-    while 1
-      let [l:range_start, l:range_end, l:fold] = s:AdvanceVisibleSpan()
-      let l:line_delta = l:range_end - l:range_start + 1
-      let l:virtual_line_delta = l:fold ? 1 : l:line_delta
-      let l:prop_delta = s:NumberToFloat(l:virtual_line_delta)
-      let l:prop_delta /= (l:virtual_line_count - 1)
-      if l:prop + l:prop_delta >=# a:proportion
-        let l:ratio = (a:proportion - l:prop) / l:prop_delta
-        let l:prop += l:ratio * l:prop_delta
-        let l:line += float2nr(round(l:ratio * l:line_delta)) + 1
-        break
-      endif
-      let l:line += l:line_delta
-      let l:virtual_line += l:virtual_line_delta
-      let l:prop =
-            \ s:NumberToFloat(l:virtual_line) / (l:virtual_line_count - 1)
-      if line('.') ==# 1
-        " AdvanceVisibleSpan looped back to the beginning of the document.
-        let l:line = line('$')
-        break
-      endif
-    endwhile
-  endif
-  let l:line = max([1, l:line])
-  let l:line = min([line('$'), l:line])
-  let l:foldclosed = foldclosed(l:line)
-  if l:foldclosed !=# -1
-    let l:line = l:foldclosed
-  endif
-  call winrestview(l:view)
-  let &l:scrollbind = l:scrollbind
-  let &l:cursorbind = l:cursorbind
-  call win_gotoid(l:current_winid)
-  return l:line
+  let l:lua_module = luaeval('require("scrollview")')
+  let l:result = l:lua_module.virtual_proportion_line(a:winid, a:proportion)
+  " Lua only has floats. Convert to integer as a precaution.
+  return float2nr(l:result)
 endfunction
 
 " Return top line and bottom line in window. For folds, the top line
@@ -276,10 +212,8 @@ function! s:CalculatePosition(winnr) abort
   if l:scrollview_mode ==# 'virtual'
     " Update topline and line_count to correspond to virtual lines,
     " which account for closed folds.
-    let l:virtual_topline =
-        \ s:lua_module.virtual_line_count(l:winid, 1, l:topline - 1) + 1
-    let l:virtual_line_count =
-        \ s:lua_module.virtual_line_count(l:winid, 1, '$')
+    let l:virtual_topline = s:VirtualLineCount(l:winid, 1, l:topline - 1) + 1
+    let l:virtual_line_count = s:VirtualLineCount(l:winid, 1, '$')
   endif
   " l:top is the position for the top of the scrollbar, relative to the
   " window, and 0-indexed.
@@ -452,7 +386,7 @@ endfunction
 
 " Sets global state that is assumed by the core functionality and returns a
 " state that can be used for restoration.
-function! s:Init()
+function! s:Init() abort
   " WARN: scrollbind and cursorbind should not be disabled here, as it should
   " not be disabled for some functionality (e.g., s:SetTopLine).
   let l:state = {
@@ -472,7 +406,7 @@ function! s:Init()
   return l:state
 endfunction
 
-function! s:Restore(state)
+function! s:Restore(state) abort
   let &belloff = a:state.belloff
   let &eventignore = a:state.eventignore
   let &winwidth = a:state.winwidth
@@ -620,8 +554,7 @@ function! s:SetTopLine(winid, linenr) abort
   let l:topline = s:LineRange(l:winid)[0]
   " Use virtual lines to figure out how much to scroll up. winline() doesn't
   " accommodate wrapped lines.
-  let l:virtual_line =
-        \ s:lua_module.virtual_line_count(l:winid, l:topline, line('.'))
+  let l:virtual_line = s:VirtualLineCount(l:winid, l:topline, line('.'))
   if l:virtual_line ># 1
     execute 'keepjumps normal! ' . (l:virtual_line - 1) . "\<c-e>"
   endif
@@ -767,7 +700,7 @@ function! scrollview#RefreshBars(...) abort
   endtry
 endfunction
 
-function! s:RefreshBarsAsyncCallback(timer_id)
+function! s:RefreshBarsAsyncCallback(timer_id) abort
   let s:pending_async_refresh_count -= 1
   if s:pending_async_refresh_count ># 0
     " If there are asynchronous refreshes that will occur subsequently, don't
@@ -889,15 +822,6 @@ function! scrollview#HandleMouse(button) abort
         let l:winheight = winheight(l:winid)
         let l:proportion = s:NumberToFloat(l:row - 1) / (l:winheight - 1)
         if l:scrollview_mode ==# 'virtual'
-          " TODO: a lot to delete below
-          let a = s:VirtualProportionLine(l:winid, l:proportion)
-          let b = s:VirtualProportionLineOld(l:winid, 1, '$', l:proportion)
-          let l:denominator =
-                \ s:lua_module.virtual_line_count(l:winid, 1, '$') - 1
-          let diff_a = l:proportion - ((s:NumberToFloat(a) - 1) / denominator)
-          let diff_b = l:proportion - ((s:NumberToFloat(b) - 1) / denominator)
-          echom string(l:proportion) . ' ' . string((s:NumberToFloat(a) - 1)) . ' ' . denominator . ' ' . a . ':' . string(diff_a) . ' ' . b . ':' . string(diff_b) . ' ' . (abs(diff_a) <= abs(diff_b)) . ' ' . (a == b)
-
           let l:top = s:VirtualProportionLine(l:winid, l:proportion)
         else
           " The handling is the same for 'simple' and 'flexible' modes.

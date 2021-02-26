@@ -1,8 +1,16 @@
+-- Round to the nearest integer.
+-- WARN: .5 rounds to the right on the number line, including for negatives
+-- (which would not result in rounding up in magnitude).
+-- (e.g., round(3.5) == 3, round(-3.5) == -3 != -4)
+local function round(x)
+  return math.floor(x + 0.5)
+end
+
 -- Advance the current window cursor to the start of the next visible span,
 -- returning the range of lines jumped over, and a boolean indicating whether
 -- that range was in a closed fold. If there is no next visible span, the
 -- cursor is returned to the first line.
-local function scrollview_advance_visible_span()
+local function advance_visible_span()
   local start = vim.fn.line('.')
   local foldclosedend = vim.fn.foldclosedend(start)
   if foldclosedend ~= -1 then
@@ -35,7 +43,7 @@ end
 -- Returns the count of visible lines between the specified start and end lines
 -- (both inclusive), in the specified window. A closed fold counts as on
 -- visible line. '$' can be used as the end line, to represent the last line.
-local function scrollview_virtual_line_count(winid, start, _end)
+local function virtual_line_count(winid, start, _end)
   local current_winid = vim.fn.win_getid(vim.fn.winnr())
   vim.fn.win_gotoid(winid)
   -- Temporarily disable scrollbind and cursorbind so that diff mode and other
@@ -55,8 +63,7 @@ local function scrollview_virtual_line_count(winid, start, _end)
   if _end >= start then
     vim.cmd('keepjumps normal! ' .. start .. 'G')
     while true do
-      local range_start, range_end, fold =
-        unpack(scrollview_advance_visible_span())
+      local range_start, range_end, fold = unpack(advance_visible_span())
       range_end = math.min(range_end, _end)
       local delta = 1
       if not fold then
@@ -75,93 +82,64 @@ local function scrollview_virtual_line_count(winid, start, _end)
   return count
 end
 
--- TODO: DELETE
--- Returns the count of visible lines between the specified start and end
--- lines, in the current window's buffer.
-local function scrollview_visible_line_count(start, _end)
-  if start < 1 then
-    start = 1
-  end
-  if _end > vim.fn.line('$') then
-    _end = vim.fn.line('$')
-  end
-  local count = 0
-  local line = start
-  while line <= _end do
-    count = count + 1
-    foldclosedend = vim.fn.foldclosedend(line)
-    if foldclosedend ~= -1 then
-      line = foldclosedend
-    end
-    line = line + 1
-  end
-  return count
-end
-
--- TODO: DELETE
--- Returns the count of visible lines between the specified start and end
--- lines, in the current window's buffer.
-local function scrollview_visible_line_count_old(start, _end)
-  if start < 1 then
-    start = 1
-  end
-  if _end > vim.fn.line('$') then
-    _end = vim.fn.line('$')
-  end
-  local count = 0
-  local line = start
-  while line <= _end do
-    count = count + 1
-    foldclosedend = vim.fn.foldclosedend(line)
-    if foldclosedend ~= -1 then
-      line = foldclosedend
-    end
-    line = line + 1
-  end
-  return count
-end
-
--- TODO: DELETE
--- Returns the line at the approximate visible proportion between the specified
--- start and end lines, in the current window's buffer. If the result is in a
--- closed fold, it is converted to the first line in that fold.
-local function scrollview_visible_proportion_line_old(start, _end, proportion)
-  if start < 1 then
-    start = 1
-  end
-  if _end > vim.fn.line('$') then
-    _end = vim.fn.line('$')
-  end
-  local total = scrollview_visible_line_count_old(start, _end)
-  local best = start
-  local best_distance = math.huge
-  if total > 1 then
-    local count = 0
-    local line = start
-    while line <= _end do
-      count = count + 1
-      local current = (count - 1) / (total - 1)
-      local distance = math.abs(current - proportion)
-      if distance < best_distance then
-        best = line
-        best_distance = distance
+-- Return the line at the approximate virtual proportion in the specified
+-- window. If the result is in a closed fold, it is converted to the first line
+-- in that fold.
+local function virtual_proportion_line(winid, proportion)
+  local current_winid = vim.fn.win_getid(vim.fn.winnr())
+  vim.fn.win_gotoid(winid)
+  -- Temporarily disable scrollbind and cursorbind so that diff mode and other
+  -- functinoality that utilizes binding (e.g., :Gdiff, :Gblame) can function
+  -- properly.
+  local scrollbind = vim.wo.scrollbind
+  local cursorbind = vim.wo.cursorbind
+  vim.wo.scrollbind = false
+  vim.wo.cursorbind = false
+  local view = vim.fn.winsaveview()
+  local line = 0
+  local virtual_line = 0
+  local prop = 0.0
+  local virtual_line_count = virtual_line_count(winid, 1, '$')
+  if virtual_line_count > 1 then
+    vim.cmd('keepjumps normal! gg')
+    while true do
+      local range_start, range_end, fold = unpack(advance_visible_span())
+      local line_delta = range_end - range_start + 1
+      local virtual_line_delta = 1
+      if not fold then
+        virtual_line_delta = line_delta
       end
-      foldclosedend = vim.fn.foldclosedend(line)
-      if foldclosedend ~= -1 then
-        line = foldclosedend
+      local prop_delta = virtual_line_delta / (virtual_line_count - 1)
+      if prop + prop_delta >= proportion then
+        local ratio = (proportion - prop) / prop_delta
+        prop = prop + (ratio * prop_delta)
+        line = line + round(ratio * line_delta) + 1
+        break
       end
-      line = line + 1
+      line = line + line_delta
+      virtual_line = virtual_line + virtual_line_delta
+      prop = virtual_line / (virtual_line_count - 1)
+      if vim.fn.line('.') == 1 then
+        -- advance_visible_span looped back to the beginning of the document.
+        line = vim.fn.line('$')
+        break
+      end
     end
   end
-  local foldclosed = vim.fn.foldclosed(best)
+  line = math.max(1, line)
+  line = math.min(vim.fn.line('$'), line)
+  local foldclosed = vim.fn.foldclosed(line)
   if foldclosed ~= -1 then
-    best = foldclosed
+    line = foldclosed
   end
-  return best
+  vim.fn.winrestview(view)
+  vim.wo.scrollbind = scrollbind
+  vim.wo.cursorbind = cursorbind
+  vim.fn.win_gotoid(current_winid)
+  return line
 end
 
 return {
-  advance_visible_span = scrollview_advance_visible_span, -- TODO: REMOVE
-  virtual_line_count = scrollview_virtual_line_count,
-  visible_proportion_line_old = scrollview_visible_proportion_line_old -- TODO: REMOVE
+  virtual_line_count = virtual_line_count,
+  virtual_proportion_line = virtual_proportion_line
 }
