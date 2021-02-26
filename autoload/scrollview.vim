@@ -77,10 +77,19 @@ function! s:WindowHasFold(winid) abort
   if foldlevel(1) !=# 0
     let l:result = 1
   else
+    " Temporarily disable scrollbind and cursorbind so that diff mode and
+    " other functionality that utilizes binding (e.g., :Gdiff, :Gblame) can
+    " function properly.
+    let l:scrollbind = &l:scrollbind
+    let l:cursorbind = &l:cursorbind
+    setlocal noscrollbind
+    setlocal nocursorbind
     let l:view = winsaveview()
     keepjumps normal! ggzj
     let l:result = line('.') !=# 1
     call winrestview(l:view)
+    let &l:scrollbind = l:scrollbind
+    let &l:cursorbind = l:cursorbind
   endif
   call win_gotoid(l:init_winid)
   return l:result
