@@ -212,8 +212,8 @@ function! s:VirtualLineCount(winid, start, end) abort
   " properly.
   let l:scrollbind = &l:scrollbind
   let l:cursorbind = &l:scrollbind
-  setl noscrollbind
-  setl nocursorbind
+  setlocal noscrollbind
+  setlocal nocursorbind
   let l:view = winsaveview()
   let l:start = a:start
   let l:end = a:end
@@ -272,8 +272,8 @@ function! s:VirtualProportionLine(winid, proportion) abort
   " properly.
   let l:scrollbind = &l:scrollbind
   let l:cursorbind = &l:scrollbind
-  setl noscrollbind
-  setl nocursorbind
+  setlocal noscrollbind
+  setlocal nocursorbind
   let l:view = winsaveview()
   let l:line = 0
   let l:virtual_line = 0
