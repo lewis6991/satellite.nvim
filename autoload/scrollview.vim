@@ -211,7 +211,7 @@ function! s:VirtualLineCount(winid, start, end) abort
   " functionality that utilizes binding (e.g., :Gdiff, :Gblame) can function
   " properly.
   let l:scrollbind = &l:scrollbind
-  let l:cursorbind = &l:scrollbind
+  let l:cursorbind = &l:cursorbind
   setlocal noscrollbind
   setlocal nocursorbind
   let l:view = winsaveview()
@@ -238,7 +238,7 @@ function! s:VirtualLineCount(winid, start, end) abort
   endif
   call winrestview(l:view)
   let &l:scrollbind = l:scrollbind
-  let &l:cursorbind = l:scrollbind
+  let &l:cursorbind = l:cursorbind
   call win_gotoid(l:current_winid)
   return l:count
 endfunction
@@ -271,7 +271,7 @@ function! s:VirtualProportionLine(winid, proportion) abort
   " functionality that utilizes binding (e.g., :Gdiff, :Gblame) can function
   " properly.
   let l:scrollbind = &l:scrollbind
-  let l:cursorbind = &l:scrollbind
+  let l:cursorbind = &l:cursorbind
   setlocal noscrollbind
   setlocal nocursorbind
   let l:view = winsaveview()
@@ -312,7 +312,7 @@ function! s:VirtualProportionLine(winid, proportion) abort
   endif
   call winrestview(l:view)
   let &l:scrollbind = l:scrollbind
-  let &l:cursorbind = l:scrollbind
+  let &l:cursorbind = l:cursorbind
   call win_gotoid(l:current_winid)
   return l:line
 endfunction
