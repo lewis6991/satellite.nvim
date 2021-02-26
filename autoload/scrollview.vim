@@ -323,6 +323,9 @@ function! s:ShowScrollbar(winid) abort
     call setbufvar(s:bar_bufnr, '&modifiable', 0)
     call setbufvar(s:bar_bufnr, '&filetype', 'scrollview')
     call setbufvar(s:bar_bufnr, '&buftype', 'nofile')
+    call setbufvar(s:bar_bufnr, '&swapfile', 0)
+    call setbufvar(s:bar_bufnr, '&bufhidden', 'hide')
+    call setbufvar(s:bar_bufnr, '&buflisted', 0)
   endif
   let l:options = {
         \   'win': l:winid,
@@ -442,6 +445,9 @@ function! s:GetChar() abort
     let s:overlay_bufnr = nvim_create_buf(0, 1)
     call setbufvar(s:overlay_bufnr, '&modifiable', 0)
     call setbufvar(s:overlay_bufnr, '&buftype', 'nofile')
+    call setbufvar(s:overlay_bufnr, '&swapfile', 0)
+    call setbufvar(s:overlay_bufnr, '&bufhidden', 'hide')
+    call setbufvar(s:overlay_bufnr, '&buflisted', 0)
   endif
   let l:init_winid = win_getid()
   let l:target_wins = []
