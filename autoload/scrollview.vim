@@ -328,12 +328,12 @@ function! s:LineRange(winid) abort
   let l:current_winid = win_getid(winnr())
   call win_gotoid(a:winid)
   " Using scrolloff=0 combined with H and L breaks diff mode. Scrolling is not
-  " possible and/or the window scrolls when it shouldn't.
+  " possible and/or the window scrolls when it shouldn't. Temporarily turning
+  " off scrollbind and cursorbind accommodates, but the following is simpler.
   let l:topline = line('w0')
   let l:botline = line('w$')
-  if l:botline < l:topline
-    throw 'No lines are visible'
-  endif
+  " line('w$') returns 0 in silent Ex mode.
+  let l:botline = max([1, l:botline])
   call win_gotoid(l:current_winid)
   return [l:topline, l:botline]
 endfunction
