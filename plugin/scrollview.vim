@@ -36,7 +36,7 @@ let g:scrollview_current_only = get(g:, 'scrollview_current_only', 0)
 highlight default link ScrollView Visual
 " Using a winblend of 100 results in the bar becoming invisible on nvim-qt.
 let g:scrollview_winblend = get(g:, 'scrollview_winblend', 50)
-let g:scrollview_column = get(g:, 'scrollview_column', 1)
+let g:scrollview_column = get(g:, 'scrollview_column', 2)
 let g:scrollview_base = get(g:, 'scrollview_base', 'right')
 let g:scrollview_auto_mouse = get(g:, 'scrollview_auto_mouse', 1)
 let g:scrollview_auto_workarounds = get(g:, 'scrollview_auto_workarounds', 1)
