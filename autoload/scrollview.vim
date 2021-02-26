@@ -530,7 +530,7 @@ endfunction
 " state that can be used for restoration.
 function! s:Init()
   " WARN: scrollbind and cursorbind should not be disabled here, as it should
-  " not be disabled for some functionality.
+  " not be disabled for some functionality (e.g., s:SetTopLine).
   let l:state = {
         \   'belloff': &belloff,
         \   'eventignore': &eventignore,
