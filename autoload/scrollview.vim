@@ -473,6 +473,7 @@ function! s:GetChar() abort
 
   " === Save state and load overlay ===
   let l:win_states = {}
+  let l:buf_states = {}
   for l:winid in l:target_wins
     let l:bufnr = winbufnr(l:winid)
     call win_gotoid(l:winid)
@@ -482,29 +483,35 @@ function! s:GetChar() abort
     " manually modified. This is because some are automatically modified, like
     " 'conceallevel', which was noticed when testing the functionality on help
     " pages, and confirmed further for 'concealcursor' and 'foldenable'.
-    let l:state = {
+    let l:win_state = {
           \   'bufnr': l:bufnr,
           \   'win_options': getwinvar(l:winid, '&'),
-          \   'buf_options': getbufvar(l:bufnr, '&'),
           \   'view': l:view
           \ }
-    let l:win_states[l:winid] = l:state
-    " Set options on initial buffer.
-    call setbufvar(l:bufnr, '&bufhidden', 'hide')
-    " Temporarily change buftype=help to buftype=<empty> so that mouse
-    " interactions don't result in manual folds being deleted from help pages.
-    " WARN: 'buftype' is set to 'help' when the state is restored later in
-    " this function, which ignores Vim's and Neovim's warnings on setting
-    " buftype=help.
-    "   Vim: "you are not supposed to set this manually"
-    "        - commit 071d427 added this text on Jun 13, 2004
-    "   Neovim: "do not set this manually"
-    "        - commit 2e1217d changed Vim's text on Nov 10, 2016
-    " No observed consequential side-effects were encountered when setting
-    " buftype=help in this scenario. The change in warning text for Neovim may
-    " have been intended to reduce the text to a single line.
-    if getbufvar(l:bufnr, '&buftype') ==# 'help' && s:WindowHasFold(l:winid)
-      call setbufvar(l:bufnr, '&buftype', '')
+    let l:win_states[l:winid] = l:win_state
+    " Only save the buffer state when it is first visited. If multiple windows
+    " have the same buffer, the options would already be modified after
+    " visiting the first window with that buffer.
+    if !has_key(l:buf_states, l:bufnr)
+      let l:buf_state = getbufvar(l:bufnr, '&')
+      let l:buf_states[l:bufnr] = l:buf_state
+      " Set options on buffer.
+      call setbufvar(l:bufnr, '&bufhidden', 'hide')
+      " Temporarily change buftype=help to buftype=<empty> so that mouse
+      " interactions don't result in manual folds being deleted from help pages.
+      " WARN: 'buftype' is set to 'help' when the state is restored later in
+      " this function, which ignores Vim's and Neovim's warnings on setting
+      " buftype=help.
+      "   Vim: "you are not supposed to set this manually"
+      "        - commit 071d427 added this text on Jun 13, 2004
+      "   Neovim: "do not set this manually"
+      "        - commit 2e1217d changed Vim's text on Nov 10, 2016
+      " No observed consequential side-effects were encountered when setting
+      " buftype=help in this scenario. The change in warning text for Neovim may
+      " have been intended to reduce the text to a single line.
+      if getbufvar(l:bufnr, '&buftype') ==# 'help' && s:WindowHasFold(l:winid)
+        call setbufvar(l:bufnr, '&buftype', '')
+      endif
     endif
     " Change buffer
     keepalt keepjumps call nvim_win_set_buf(l:winid, s:overlay_bufnr)
@@ -528,7 +535,7 @@ function! s:GetChar() abort
         call setwinvar(l:winid, '&' . l:key, l:value)
       endif
     endfor
-    for [l:key, l:value] in items(l:state.buf_options)
+    for [l:key, l:value] in items(l:buf_states[l:state.bufnr])
       if getbufvar(l:state.bufnr, '&' . l:key) !=# l:value
         call setbufvar(l:state.bufnr, '&' . l:key, l:value)
       endif
