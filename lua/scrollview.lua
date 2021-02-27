@@ -47,6 +47,7 @@ end
 local function virtual_line_count(winid, start, _end)
   local current_winid = vim.fn.win_getid(vim.fn.winnr())
   vim.fn.win_gotoid(winid)
+  local view = vim.fn.winsaveview()
   -- Temporarily disable scrollbind and cursorbind so that diff mode and other
   -- functinoality that utilizes binding (e.g., :Gdiff, :Gblame) can function
   -- properly.
@@ -54,7 +55,6 @@ local function virtual_line_count(winid, start, _end)
   local cursorbind = vim.wo.cursorbind
   vim.wo.scrollbind = false
   vim.wo.cursorbind = false
-  local view = vim.fn.winsaveview()
   if type(_end) == 'string' and _end == '$' then
     _end = vim.fn.line('$')
   end
@@ -76,9 +76,9 @@ local function virtual_line_count(winid, start, _end)
       end
     end
   end
-  vim.fn.winrestview(view)
   vim.wo.scrollbind = scrollbind
   vim.wo.cursorbind = cursorbind
+  vim.fn.winrestview(view)
   vim.fn.win_gotoid(current_winid)
   return count
 end
@@ -89,6 +89,7 @@ end
 local function virtual_proportion_line(winid, proportion)
   local current_winid = vim.fn.win_getid(vim.fn.winnr())
   vim.fn.win_gotoid(winid)
+  local view = vim.fn.winsaveview()
   -- Temporarily disable scrollbind and cursorbind so that diff mode and other
   -- functinoality that utilizes binding (e.g., :Gdiff, :Gblame) can function
   -- properly.
@@ -96,7 +97,6 @@ local function virtual_proportion_line(winid, proportion)
   local cursorbind = vim.wo.cursorbind
   vim.wo.scrollbind = false
   vim.wo.cursorbind = false
-  local view = vim.fn.winsaveview()
   local line = 0
   local virtual_line = 0
   local prop = 0.0
@@ -133,9 +133,9 @@ local function virtual_proportion_line(winid, proportion)
   if foldclosed ~= -1 then
     line = foldclosed
   end
-  vim.fn.winrestview(view)
   vim.wo.scrollbind = scrollbind
   vim.wo.cursorbind = cursorbind
+  vim.fn.winrestview(view)
   vim.fn.win_gotoid(current_winid)
   return line
 end
