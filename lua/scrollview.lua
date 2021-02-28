@@ -55,7 +55,7 @@ local function advance_virtual_span()
     else
       vim.cmd('keepjumps normal! j')
     end
-    return {start, foldclosedend, true}
+    return start, foldclosedend, true
   end
   local lnum = start
   while true do
@@ -63,14 +63,14 @@ local function advance_virtual_span()
     if lnum == vim.fn.line('.') then
       -- There are no more folds after the cursor. This is the last span.
       vim.cmd('keepjumps normal! gg')
-      return {start, vim.fn.line('$'), false}
+      return start, vim.fn.line('$'), false
     end
     lnum = vim.fn.line('.')
     local foldclosed = vim.fn.foldclosed(lnum)
     if foldclosed ~= -1 then
       -- The cursor moved to a closed fold. The preceding line ends the prior
       -- virtual span.
-      return {start, lnum - 1, false}
+      return start, lnum - 1, false
     end
   end
 end
@@ -91,7 +91,7 @@ local function virtual_line_count(winid, start, _end)
   if _end >= start then
     vim.cmd('keepjumps normal! ' .. start .. 'G')
     while true do
-      local range_start, range_end, fold = unpack(advance_virtual_span())
+      local range_start, range_end, fold = advance_virtual_span()
       range_end = math.min(range_end, _end)
       local delta = 1
       if not fold then
@@ -122,7 +122,7 @@ local function virtual_proportion_line(winid, proportion)
   if virtual_line_count > 1 then
     vim.cmd('keepjumps normal! gg')
     while true do
-      local range_start, range_end, fold = unpack(advance_virtual_span())
+      local range_start, range_end, fold = advance_virtual_span()
       local line_delta = range_end - range_start + 1
       local virtual_line_delta = 1
       if not fold then
