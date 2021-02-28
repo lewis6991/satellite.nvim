@@ -6,9 +6,43 @@ local function round(x)
   return math.floor(x + 0.5)
 end
 
+-- Creates a temporary floating window that can be used for computations
+-- ---corresponding to the specified window---that require temporary cursor
+-- movements (e.g., counting virtual lines, where all lines in a closed fold
+-- are counted as a single line). This can be used instead of working in the
+-- actual window, to prevent unintended side-effects that arise from moving the
+-- cursor in the actual window, even when the cursor is restored (e.g., Issue
+-- #18: window flickering when resizing with the mouse, Issue #19:
+-- cursorbind/scrollbind out-of-sync). It's the caller's responsibility to
+-- close the workspace window.
+local function open_win_workspace(winid)
+  local current_winid = vim.fn.win_getid(vim.fn.winnr())
+  -- Make the target window active, so that its folds are inherited by the
+  -- created floating window (this is necessary when there are multiple windows
+  -- that have the same buffer, each window having different folds).
+  vim.fn.win_gotoid(winid)
+  local config = {
+    relative = 'editor',
+    focusable = false,
+    width = math.max(1, vim.fn.winwidth(winid)),
+    height = math.max(1, vim.fn.winheight(winid)),
+    row = 0,
+    col = 0
+  }
+  local bufnr = vim.fn.winbufnr(winid)
+  local workspace_winid = vim.api.nvim_open_win(bufnr, false, config)
+  -- Disable scrollbind and cursorbind on the workspace window so that diff
+  -- mode and other functionality that utilizes binding (e.g., :Gdiff, :Gblame)
+  -- can function properly.
+  vim.api.nvim_win_set_option(workspace_winid, 'scrollbind', false)
+  vim.api.nvim_win_set_option(workspace_winid, 'cursorbind', false)
+  vim.fn.win_gotoid(current_winid)
+  return workspace_winid
+end
+
 -- Advance the current window cursor to the start of the next virtual span,
 -- returning the range of lines jumped over, and a boolean indicating whether
--- that range was in a closed fold. A virtual span is a continguous range of
+-- that range was in a closed fold. A virtual span is a contiguous range of
 -- lines that are either 1) not in a closed fold or 2) in a closed fold. If
 -- there is no next virtual span, the cursor is returned to the first line.
 local function advance_virtual_span()
@@ -42,19 +76,12 @@ local function advance_virtual_span()
 end
 
 -- Returns the count of virtual lines between the specified start and end lines
--- (both inclusive), in the specified window. A closed fold counts as on
+-- (both inclusive), in the specified window. A closed fold counts as one
 -- virtual line. '$' can be used as the end line, to represent the last line.
 local function virtual_line_count(winid, start, _end)
   local current_winid = vim.fn.win_getid(vim.fn.winnr())
-  vim.fn.win_gotoid(winid)
-  local view = vim.fn.winsaveview()
-  -- Temporarily disable scrollbind and cursorbind so that diff mode and other
-  -- functinoality that utilizes binding (e.g., :Gdiff, :Gblame) can function
-  -- properly.
-  local scrollbind = vim.wo.scrollbind
-  local cursorbind = vim.wo.cursorbind
-  vim.wo.scrollbind = false
-  vim.wo.cursorbind = false
+  local workspace_winid = open_win_workspace(winid)
+  vim.fn.win_gotoid(workspace_winid)
   if type(_end) == 'string' and _end == '$' then
     _end = vim.fn.line('$')
   end
@@ -76,10 +103,8 @@ local function virtual_line_count(winid, start, _end)
       end
     end
   end
-  vim.wo.scrollbind = scrollbind
-  vim.wo.cursorbind = cursorbind
-  vim.fn.winrestview(view)
   vim.fn.win_gotoid(current_winid)
+  vim.api.nvim_win_close(workspace_winid, true)
   return count
 end
 
@@ -88,15 +113,8 @@ end
 -- in that fold.
 local function virtual_proportion_line(winid, proportion)
   local current_winid = vim.fn.win_getid(vim.fn.winnr())
-  vim.fn.win_gotoid(winid)
-  local view = vim.fn.winsaveview()
-  -- Temporarily disable scrollbind and cursorbind so that diff mode and other
-  -- functinoality that utilizes binding (e.g., :Gdiff, :Gblame) can function
-  -- properly.
-  local scrollbind = vim.wo.scrollbind
-  local cursorbind = vim.wo.cursorbind
-  vim.wo.scrollbind = false
-  vim.wo.cursorbind = false
+  local workspace_winid = open_win_workspace(winid)
+  vim.fn.win_gotoid(workspace_winid)
   local line = 0
   local virtual_line = 0
   local prop = 0.0
@@ -133,14 +151,13 @@ local function virtual_proportion_line(winid, proportion)
   if foldclosed ~= -1 then
     line = foldclosed
   end
-  vim.wo.scrollbind = scrollbind
-  vim.wo.cursorbind = cursorbind
-  vim.fn.winrestview(view)
   vim.fn.win_gotoid(current_winid)
+  vim.api.nvim_win_close(workspace_winid, true)
   return line
 end
 
 return {
+  open_win_workspace = open_win_workspace,
   virtual_line_count = virtual_line_count,
   virtual_proportion_line = virtual_proportion_line
 }

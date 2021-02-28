@@ -1,5 +1,8 @@
 " WARN: Sometimes 1-indexing is used (primarily for mutual Vim/Neovim API
 " calls) and sometimes 0-indexing (primarily for Neovim-specific API calls).
+" WARN: Functionality that temporarily moves the cursor and restores it should
+" use a window workspace to prevent unwanted side effects. More details are in
+" the documentation for lua/scrollview.lua::open_win_workspace.
 
 " *************************************************
 " * Globals
@@ -30,6 +33,8 @@ let s:props_var = 'scrollview_props'
 
 " A key for flagging windows that are pending async removal.
 let s:pending_async_removal_var = 'scrollview_pending_async_removal'
+
+let s:lua_module = luaeval('require("scrollview")')
 
 " *************************************************
 " * Utils
@@ -66,6 +71,11 @@ function! s:InCommandLineWindow() abort
   return l:buftype ==# 'nofile' && l:bufname ==# '[Command Line]'
 endfunction
 
+" (documented in scrollview.lua)
+function! s:OpenWinWorkspace(winid) abort
+  return s:lua_module.open_win_workspace(a:winid)
+endfunction
+
 " Returns true if the window has at least one fold (either closed or open).
 function! s:WindowHasFold(winid) abort
   " A window has at least one fold if 1) the first line is within a fold or 2)
@@ -77,19 +87,14 @@ function! s:WindowHasFold(winid) abort
   if foldlevel(1) !=# 0
     let l:result = 1
   else
-    let l:view = winsaveview()
-    " Temporarily disable scrollbind and cursorbind so that diff mode and
-    " other functionality that utilizes binding (e.g., :Gdiff, :Gblame) can
-    " function properly.
-    let l:scrollbind = &l:scrollbind
-    let l:cursorbind = &l:cursorbind
-    setlocal noscrollbind
-    setlocal nocursorbind
+    let l:workspace_winid = s:OpenWinWorkspace(l:winid)
+    call win_gotoid(l:workspace_winid)
     keepjumps normal! ggzj
     let l:result = line('.') !=# 1
-    let &l:scrollbind = l:scrollbind
-    let &l:cursorbind = l:cursorbind
-    call winrestview(l:view)
+    " Leave the workspace so it can be closed. Return to the existing window,
+    " which was l:winid (from the win_gotoid call above).
+    call win_gotoid(l:winid)
+    call nvim_win_close(l:workspace_winid, 1)
   endif
   call win_gotoid(l:init_winid)
   return l:result
@@ -162,23 +167,16 @@ function! s:GetVariable(name, winnr, ...) abort
   return l:default
 endfunction
 
-" Returns the count of visible lines between the specified start and end lines
-" (both inclusive), in the specified window. A closed fold counts as on
-" visible line. '$' can be used as the end line, to represent the last line.
-" The functionality is implemented in Lua for faster execution.
+" (documented in scrollview.lua)
 function! s:VirtualLineCount(winid, start, end) abort
-  let l:lua_module = luaeval('require("scrollview")')
-  let l:result = l:lua_module.virtual_line_count(a:winid, a:start, a:end)
+  let l:result = s:lua_module.virtual_line_count(a:winid, a:start, a:end)
   " Lua only has floats. Convert to integer as a precaution.
   return float2nr(l:result)
 endfunction
 
-" Return the line at the approximate virtual proportion in the specified
-" window. If the result is in a closed fold, it is converted to the first line
-" in that fold. The functionality is implemented in Lua for faster execution.
+" (documented in scrollview.lua)
 function! s:VirtualProportionLine(winid, proportion) abort
-  let l:lua_module = luaeval('require("scrollview")')
-  let l:result = l:lua_module.virtual_proportion_line(a:winid, a:proportion)
+  let l:result = s:lua_module.virtual_proportion_line(a:winid, a:proportion)
   " Lua only has floats. Convert to integer as a precaution.
   return float2nr(l:result)
 endfunction
@@ -398,8 +396,6 @@ endfunction
 " Sets global state that is assumed by the core functionality and returns a
 " state that can be used for restoration.
 function! s:Init() abort
-  " WARN: scrollbind and cursorbind should not be disabled here, as it should
-  " not be disabled for some functionality (e.g., s:SetTopLine).
   let l:state = {
         \   'belloff': &belloff,
         \   'eventignore': &eventignore,
@@ -565,9 +561,8 @@ function! s:SetTopLine(winid, linenr) abort
   " TODO: It may be possible to implement this using winrestview(), setting
   " topline and other values accordingly.
   " WARN: Unlike other functions that move the cursor (e.g.,
-  " virtual_line_count, VirtualProportionLine), cursorbind and scrollbind
-  " should not be disabled for SetTopLine, since bound windows would not stay
-  " in sync otherwise.
+  " VirtualLineCount, VirtualProportionLine), a window workspace should not be
+  " used, as the cursor and viewport changes here are intended to persist.
   let l:winid = a:winid
   let l:linenr = a:linenr
   let l:init_winid = win_getid()
