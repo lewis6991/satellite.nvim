@@ -587,8 +587,6 @@ endfunction
 
 " Scrolls the window so that the specified line number is at the top.
 function! s:SetTopLine(winid, linenr) abort
-  " TODO: It may be possible to implement this using winrestview(), setting
-  " topline and other values accordingly.
   " WARN: Unlike other functions that move the cursor (e.g.,
   " VirtualLineCount, VirtualProportionLine), a window workspace should not be
   " used, as the cursor and viewport changes here are intended to persist.
