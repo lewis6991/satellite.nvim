@@ -11,10 +11,11 @@ end
 -- movements (e.g., counting virtual lines, where all lines in a closed fold
 -- are counted as a single line). This can be used instead of working in the
 -- actual window, to prevent unintended side-effects that arise from moving the
--- cursor in the actual window, even when the cursor is restored (e.g., Issue
--- #18: window flickering when resizing with the mouse, Issue #19:
--- cursorbind/scrollbind out-of-sync). It's the caller's responsibility to
--- close the workspace window.
+-- cursor in the actual window, even when autocmd's are disabled with
+-- eventignore=all and the cursor is restored (e.g., Issue #18: window
+-- flickering when resizing with the mouse, Issue #19: cursorbind/scrollbind
+-- out-of-sync). It's the caller's responsibility to close the workspace
+-- window.
 local function open_win_workspace(winid)
   local current_winid = vim.fn.win_getid(vim.fn.winnr())
   -- Make the target window active, so that its folds are inherited by the
