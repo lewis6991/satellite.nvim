@@ -569,10 +569,16 @@ function! s:GetChar() abort
     call win_gotoid(l:init_winid)
   endfor
   " Restore buffer state.
-  for [l:key, l:value] in items(l:buf_states[l:state.bufnr])
-    if getbufvar(l:state.bufnr, '&' . l:key) !=# l:value
-      call setbufvar(l:state.bufnr, '&' . l:key, l:value)
-    endif
+  for [l:bufnr, l:buf_state] in items(l:buf_states)
+    " Dictionary keys are saved as strings. Convert back to number, since
+    " getbufvar and setbufvar both depend on type information (i.e., a string
+    " refers to a buffer name).
+    let l:bufnr = str2nr(l:bufnr)
+    for [l:key, l:value] in items(l:buf_state)
+      if getbufvar(l:bufnr, '&' . l:key) !=# l:value
+        call setbufvar(l:bufnr, '&' . l:key, l:value)
+      endif
+    endfor
   endfor
 
   " === Return result ===
