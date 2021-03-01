@@ -460,14 +460,17 @@ function! s:RestoreWindowsOptions(wins_options) abort
   endfor
 endfunction
 
-" Get the next character press, including mouse clicks and drags. Returns a
-" dictionary that includes the following fields:
+" Get input characters---including mouse clicks and drags---from the input
+" stream. Characters are read until the input stream is empty. Returns a
+" 2-tuple with a string representation of the characters, along with a list of
+" dictionaries that include the following fields:
 "   1) char
-"   2) mouse_winid
-"   3) mouse_row
-"   4) mouse_col
+"   2) charmod
+"   3) mouse_winid
+"   4) mouse_row
+"   5) mouse_col
 " The mouse values are 0 when there was no mouse event.
-function! s:GetChar() abort
+function! s:ReadInputStream() abort
   " An overlay is displayed in each window so that mouse position can be
   " properly determined. Otherwise, lnum may not correspond to the actual
   " position of the click (e.g., when there is a sign/number/relativenumber/fold
@@ -556,8 +559,34 @@ function! s:GetChar() abort
     call setwinvar(l:winid, '&signcolumn', 'no')
   endfor
 
-  " === Obtain input ===
-  let l:char = getchar()
+  " === Obtain inputs ===
+  let l:chars = []
+  let l:chars_props = []
+  let l:str_idx = 0  " in bytes
+  while 1
+    let l:char = getchar()
+    let l:charmod = getcharmod()
+    if type(l:char) ==# v:t_number
+      let l:char = nr2char(l:char)
+    endif
+    call add(l:chars, l:char)
+    let l:char_props = {
+          \   'str_idx': l:str_idx,
+          \   'length': len(l:char),
+          \   'charmod': l:charmod,
+          \   'mouse_winid': v:mouse_winid,
+          \   'mouse_row': v:mouse_lnum,
+          \   'mouse_col': v:mouse_col
+          \ }
+    let l:str_idx += l:char_props.length
+    call add(l:chars_props, l:char_props)
+    " Break if there are no more items on the input stream.
+    if !getchar(1)
+      break
+    endif
+  endwhile
+  let l:string = join(l:chars, '')
+  let l:result = [l:string, l:chars_props]
 
   " === Remove overlay and restore state ===
   for l:winid in l:target_wins
@@ -587,12 +616,6 @@ function! s:GetChar() abort
   endfor
 
   " === Return result ===
-  let l:result = {
-        \   'char': l:char,
-        \   'mouse_winid': v:mouse_winid,
-        \   'mouse_row': v:mouse_lnum,
-        \   'mouse_col': v:mouse_col
-        \ }
   return l:result
 endfunction
 
@@ -799,26 +822,35 @@ function! scrollview#HandleMouse(button) abort
     let l:winid = 0  " The target window ID for a mouse scroll.
     let l:winnr = 0  " The target window number.
     let l:bufnr = 0  " The target buffer number.
+    let l:idx = 0
+    let [l:string, l:chars_props] = ['', []]
     while 1
-      let l:input = s:GetChar()
-      let l:char = l:input.char
-      let l:mouse_winid = l:input.mouse_winid
-      let l:mouse_row = l:input.mouse_row
-      let l:mouse_col = l:input.mouse_col
+      let l:idx += 1
+      if l:idx >=# len(l:chars_props)
+        let l:idx = 0
+        let [l:string, l:chars_props] = s:ReadInputStream()
+      endif
+      let l:char_props = l:chars_props[l:idx]
+      let l:str_idx = l:char_props.str_idx
+      let l:char_length = l:char_props.length
+      let l:char = l:string[l:str_idx:l:str_idx + l:char_length]
+      let l:mouse_winid = l:char_props.mouse_winid
+      let l:mouse_row = l:char_props.mouse_row
+      let l:mouse_col = l:char_props.mouse_col
       if l:mouse_winid ==# 0
         " There was no mouse event.
-        call feedkeys(l:char, 'n')
+        call feedkeys(l:string[l:str_idx:], 'ni')
         return
       endif
       if l:char ==# l:mouseup
         if l:count ==# 0
           " No initial mousedown was captured.
-          call feedkeys(l:mouseup, 'n')
+          call feedkeys(l:string[l:str_idx:], 'ni')
         elseif l:count ==# 1
           " A scrollbar was clicked, but there was no corresponding drag.
           " Allow the interaction to be processed as it would be with no
           " scrollbar.
-          call feedkeys(l:mousedown . l:mouseup, 'n')
+          call feedkeys(l:mousedown . l:string[l:str_idx:], 'ni')
         else
           " A scrollbar was clicked and there was a corresponding drag.
           " 'feedkeys' is not called, since the full mouse interaction has
@@ -831,7 +863,7 @@ function! scrollview#HandleMouse(button) abort
         let l:props = s:GetScrollviewProps(l:mouse_winid)
         if l:props ==# {}
           " There was no scrollbar in the window where a click occurred.
-          call feedkeys(l:char, 'n')
+          call feedkeys(l:string[l:str_idx:], 'ni')
           return
         endif
         let l:scrollview_mode = s:GetVariable('scrollview_mode', l:winnr)
@@ -845,7 +877,7 @@ function! scrollview#HandleMouse(button) abort
               \ || l:mouse_col <# l:props.col - l:lpad
               \ || l:mouse_col ># l:props.col + l:rpad
           " The click was not on a scrollbar.
-          call feedkeys(l:char, 'n')
+          call feedkeys(l:string[l:str_idx:], 'ni')
           return
         endif
         " The click was on a scrollbar.
