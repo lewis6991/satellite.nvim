@@ -61,6 +61,18 @@ function! s:IsOrdinaryWindow(winid) abort
   return l:not_external && l:not_floating
 endfunction
 
+" Returns a list of window IDs for the ordinary windows.
+function! s:GetOrdinaryWindows() abort
+  let l:winids = []
+  for l:winnr in range(1, winnr('$'))
+    let l:winid = win_getid(l:winnr)
+    if s:IsOrdinaryWindow(l:winid)
+      call add(l:winids, l:winid)
+    endif
+  endfor
+  return l:winids
+endfunction
+
 function! s:InCommandLineWindow() abort
   if win_gettype() ==# 'command' | return 1 | endif
   if mode() ==# 'c' | return 1 | endif
@@ -420,6 +432,29 @@ function! s:Restore(state) abort
   let &winheight = a:state.winheight
 endfunction
 
+" Returns a dictionary that maps window ID to a dictionary of corresponding
+" window options.
+function! s:GetWindowsOptions() abort
+  let l:wins_options = {}
+  for l:winid in s:GetOrdinaryWindows()
+    let l:wins_options[l:winid] = getwinvar(l:winid, '&')
+  endfor
+  return l:wins_options
+endfunction
+
+" Restores windows options from a dictionary that maps window ID to a
+" dictionary of corresponding window options.
+function! s:RestoreWindowsOptions(wins_options) abort
+  for [l:winid, l:options] in items(a:wins_options)
+    if getwininfo(l:winid) ==# [] | continue | endif
+    for [l:key, l:value] in items(l:options)
+      if getwinvar(l:winid, '&' . l:key) !=# l:value
+        silent! call setwinvar(l:winid, '&' . l:key, l:value)
+      endif
+    endfor
+  endfor
+endfunction
+
 " Get the next character press, including mouse clicks and drags. Returns a
 " dictionary that includes the following fields:
 "   1) char
@@ -448,13 +483,7 @@ function! s:GetChar() abort
     call setbufvar(s:overlay_bufnr, '&buflisted', 0)
   endif
   let l:init_winid = win_getid()
-  let l:target_wins = []
-  for l:winnr in range(1, winnr('$'))
-    let l:winid = win_getid(l:winnr)
-    if s:IsOrdinaryWindow(l:winid)
-      call add(l:target_wins, l:winid)
-    endif
-  endfor
+  let l:target_wins = s:GetOrdinaryWindows()
 
   " Make sure that the buffer size is at least as big as the largest window.
   " Use 'lines' option for this, since a window height can't exceed this.
@@ -674,16 +703,8 @@ function! scrollview#RefreshBars(...) abort
     let l:target_wins = []
     let l:current_only =
           \ s:GetVariable('scrollview_current_only', winnr(), 'tg')
-    if l:current_only
-      call add(l:target_wins, win_getid(winnr()))
-    else
-      for l:winnr in range(1, winnr('$'))
-        let l:winid = win_getid(l:winnr)
-        if s:IsOrdinaryWindow(l:winid)
-          call add(l:target_wins, l:winid)
-        endif
-      endfor
-    endif
+    let l:target_wins =
+          \ l:current_only ? [win_getid(winnr())] : s:GetOrdinaryWindows()
     for l:winid in l:target_wins
       call s:ShowScrollbar(l:winid)
     endfor
@@ -745,7 +766,18 @@ function! scrollview#HandleMouse(button) abort
     throw 'Unsupported button: ' . a:button
   endif
   let l:state = s:Init()
+  let l:wins_options = s:GetWindowsOptions()
   try
+    " Temporarily change foldmethod=syntax to foldmethod=manual to prevent
+    " lagging (Issue #20). This could result in a brief change to the text
+    " displayed for closed folds, due to the 'foldtext' function using
+    " specific text for syntax folds. This side-effect was deemed a preferable
+    " tradeoff to lagging.
+    for l:winid in keys(l:wins_options)
+      if getwinvar(l:winid, '&foldmethod') ==# 'syntax'
+        call setwinvar(l:winid, '&foldmethod', 'manual')
+      endif
+    endfor
     let l:mousedown = eval(printf('"\<%smouse>"', a:button))
     let l:mouseup = eval(printf('"\<%srelease>"', a:button))
     " Re-send the click, so its position can be obtained from a subsequent call
@@ -865,6 +897,7 @@ function! scrollview#HandleMouse(button) abort
     endwhile
   catch
   finally
+    call s:RestoreWindowsOptions(l:wins_options)
     call s:Restore(l:state)
   endtry
 endfunction
