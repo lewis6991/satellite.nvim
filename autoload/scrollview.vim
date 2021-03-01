@@ -420,14 +420,17 @@ function! s:Restore(state) abort
   let &winheight = a:state.winheight
 endfunction
 
-" Get the next character press, including mouse clicks and drags. Returns a
-" dictionary that includes the following fields:
+" Get input characters---including mouse clicks and drags---from the input
+" stream. Characters are read until the input stream is empty or the
+" optionally specified last character is read. Returns a list of dictionaries
+" that include the following fields:
 "   1) char
-"   2) mouse_winid
-"   3) mouse_row
-"   4) mouse_col
+"   2) charmod
+"   3) mouse_winid
+"   4) mouse_row
+"   5) mouse_col
 " The mouse values are 0 when there was no mouse event.
-function! s:GetChar() abort
+function! s:GetInputs(...) abort
   " An overlay is displayed in each window so that mouse position can be
   " properly determined. Otherwise, lnum may not correspond to the actual
   " position of the click (e.g., when there is a sign/number/relativenumber/fold
@@ -437,6 +440,12 @@ function! s:GetChar() abort
   " XXX: If/when Vim's getmousepos is ported to Neovim, an overlay would not
   " be necessary. That function would return the necessary information, making
   " most of the steps in this function unnecessary.
+
+  " === Configure options ===
+  let l:last_char = ''
+  if a:0 ># 0
+    let l:last_char = a:1
+  endif
 
   " === Configure overlay ===
   if s:overlay_bufnr ==# -1 || !bufexists(s:overlay_bufnr)
@@ -522,8 +531,28 @@ function! s:GetChar() abort
     call setwinvar(l:winid, '&signcolumn', 'no')
   endfor
 
-  " === Obtain input ===
-  let l:char = getchar()
+  " === Obtain inputs ===
+  let l:items = []
+  while 1
+    let l:char = getchar()
+    if type(l:char) ==# v:t_number
+      let l:char = nr2char(l:char)
+    endif
+    let l:charmod = getcharmod()
+    let l:item = {
+          \   'char': l:char,
+          \   'charmod': l:charmod,
+          \   'mouse_winid': v:mouse_winid,
+          \   'mouse_row': v:mouse_lnum,
+          \   'mouse_col': v:mouse_col
+          \ }
+    call add(l:items, l:item)
+    " Break if there are no more items on the input stream, or the last
+    " character was entered.
+    if !getchar(1) || l:char ==# l:last_char
+      break
+    endif
+  endwhile
 
   " === Remove overlay and restore state ===
   for l:winid in l:target_wins
@@ -547,13 +576,7 @@ function! s:GetChar() abort
   endfor
 
   " === Return result ===
-  let l:result = {
-        \   'char': l:char,
-        \   'mouse_winid': v:mouse_winid,
-        \   'mouse_row': v:mouse_lnum,
-        \   'mouse_col': v:mouse_col
-        \ }
-  return l:result
+  return l:items
 endfunction
 
 " Scrolls the window so that the specified line number is at the top.
@@ -758,8 +781,14 @@ function! scrollview#HandleMouse(button) abort
     let l:winid = 0  " The target window ID for a mouse scroll.
     let l:winnr = 0  " The target window number.
     let l:bufnr = 0  " The target buffer number.
+    let l:inputs = []
     while 1
-      let l:input = s:GetChar()
+      if len(l:inputs) ==# 0
+        let l:inputs = s:GetInputs(l:mouseup)
+        " Reverse for more efficient FIFO retrieval/removal.
+        call reverse(l:inputs)
+      endif
+      let l:input = remove(l:inputs, -1)
       let l:char = l:input.char
       let l:mouse_winid = l:input.mouse_winid
       let l:mouse_row = l:input.mouse_row
