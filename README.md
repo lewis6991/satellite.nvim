@@ -72,6 +72,8 @@ There are various settings that can be configured.
   - `scrollview_column`
 * Whether a mapping is automatically created for mouse support
   - `scrollview_auto_mouse`
+* Whether select workarounds are automatically applied for known issues
+  - `scrollview_auto_workarounds`
 
 Please see the documentation for details.
 
