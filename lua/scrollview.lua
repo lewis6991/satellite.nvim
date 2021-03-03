@@ -6,6 +6,30 @@ local function round(x)
   return math.floor(x + 0.5)
 end
 
+-- Closes the window, with special handling for floating windows to first
+-- delete all folds in all buffers. Folds are local to the window, so this
+-- doesn't have any side effects on folds in other windows. This is a
+-- workaround for Neovim Issue #14040, which results in a memory leak
+-- otherwise.
+local function close_window(winid)
+  local config = vim.api.nvim_win_get_config(winid)
+  if config.relative ~= '' then
+    local current_winid = vim.fn.win_getid(vim.fn.winnr())
+    vim.api.nvim_set_current_win(winid)
+    for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+      if vim.api.nvim_buf_is_loaded(bufnr) then
+        vim.api.nvim_win_set_buf(winid, bufnr)
+        -- zE only works when 'foldmethod' is "manual" or "marker".
+        vim.api.nvim_win_set_option(winid, 'foldmethod', 'manual')
+        vim.cmd('silent! normal! zE')
+      end
+    end
+    vim.fn.win_gotoid(current_winid)
+  end
+  vim.api.nvim_win_close(winid, true)
+end
+
+
 -- Creates a temporary floating window that can be used for computations
 -- ---corresponding to the specified window---that require temporary cursor
 -- movements (e.g., counting virtual lines, where all lines in a closed fold
@@ -105,7 +129,7 @@ local function virtual_line_count(winid, start, _end)
     end
   end
   vim.fn.win_gotoid(current_winid)
-  vim.api.nvim_win_close(workspace_winid, true)
+  close_window(workspace_winid)
   return count
 end
 
@@ -153,11 +177,12 @@ local function virtual_proportion_line(winid, proportion)
     line = foldclosed
   end
   vim.fn.win_gotoid(current_winid)
-  vim.api.nvim_win_close(workspace_winid, true)
+  close_window(workspace_winid)
   return line
 end
 
 return {
+  close_window = close_window,
   open_win_workspace = open_win_workspace,
   virtual_line_count = virtual_line_count,
   virtual_proportion_line = virtual_proportion_line

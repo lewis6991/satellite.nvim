@@ -52,6 +52,11 @@ endfunction
 " * Core
 " *************************************************
 
+" (documented in scrollview.lua)
+function! s:CloseWindow(winid) abort
+  call s:lua_module.close_window(a:winid)
+endfunction
+
 " Returns true for ordinary windows (not floating and not external), and
 " false otherwise.
 function! s:IsOrdinaryWindow(winid) abort
@@ -106,7 +111,7 @@ function! s:WindowHasFold(winid) abort
     " Leave the workspace so it can be closed. Return to the existing window,
     " which was l:winid (from the win_gotoid call above).
     call win_gotoid(l:winid)
-    call nvim_win_close(l:workspace_winid, 1)
+    call s:CloseWindow(l:workspace_winid)
   endif
   call win_gotoid(l:init_winid)
   return l:result
@@ -402,7 +407,7 @@ function! s:CloseScrollViewWindow(winid) abort
   if !s:IsScrollViewWindow(l:winid)
     return
   endif
-  silent! noautocmd call nvim_win_close(l:winid, 1)
+  silent! noautocmd call s:CloseWindow(l:winid)
 endfunction
 
 " Sets global state that is assumed by the core functionality and returns a
