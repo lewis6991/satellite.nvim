@@ -29,6 +29,17 @@ local function round(x)
   return math.floor(x + 0.5)
 end
 
+-- Returns true for boolean true and any non-zero number, otherwise returns
+-- false.
+local function to_bool(x)
+  if type(x) == 'boolean' then
+    return x
+  elseif type(x) == 'number' then
+    return x ~= 0
+  end
+  return false
+end
+
 -- *************************************************
 -- * Core
 -- *************************************************
@@ -40,7 +51,9 @@ end
 -- otherwise.
 local function close_window(winid)
   local config = vim.api.nvim_win_get_config(winid)
-  if config.relative ~= '' then
+  local nvim_14040_workaround =
+    to_bool(vim.g.scrollview_nvim_14040_workaround)
+  if config.relative ~= '' and nvim_14040_workaround then
     local current_winid = vim.fn.win_getid(vim.fn.winnr())
     vim.api.nvim_set_current_win(winid)
     for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do

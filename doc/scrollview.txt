@@ -97,6 +97,10 @@ have the highest precedence, and global variables have the lowest).
   are automatically applied for known     when the plugin is loaded
   |scrollview-issues| (without
   clobbering existing customizations)
+*scrollview_nvim_14040_workaround*        `0`
+  Specifies whether a workaround is       Considered only at global scope
+  used for Neovim Issue #14040
+  (see |scrollview-memory-leak-issue|)
 
 The variables can be customized in your |init.vim|, as shown in the following
 example.
@@ -254,6 +258,11 @@ Error Message Issues ~
           \ silent! ScrollViewDisable
           \ | bdelete
           \ | silent! ScrollViewEnable
+
+Memory Leak Issue ~
+                                           *scrollview-memory-leak-issue*
+* Memory leaks when there are folds. Neovim Issue #14040 is the corresponding
+  issue, opened March 1, 2021.
 
 ============================================================================
  vim:tw=78:ts=4:ft=help:norl:
