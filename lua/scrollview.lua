@@ -144,15 +144,15 @@ end
 -- (both inclusive), in the specified window. A closed fold counts as one
 -- virtual line. '$' can be used as the end line, to represent the last line.
 local function virtual_line_count(winid, start, _end)
-  if type(_end) == 'string' and _end == '$' then
-    _end = vim.fn.line('$')
-  end
   local memoize_key =
     table.concat({'virtual_line_count', winid, start, _end}, ':')
   if memoize and cache[memoize_key] then return cache[memoize_key] end
   local current_winid = vim.fn.win_getid(vim.fn.winnr())
   local workspace_winid = open_win_workspace(winid)
   vim.fn.win_gotoid(workspace_winid)
+  if type(_end) == 'string' and _end == '$' then
+    _end = vim.fn.line('$')
+  end
   start = math.max(1, start)
   _end = math.min(vim.fn.line('$'), _end)
   local count = 0
