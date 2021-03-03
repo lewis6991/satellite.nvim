@@ -465,10 +465,11 @@ endfunction
 " 2-tuple with a string representation of the characters, along with a list of
 " dictionaries that include the following fields:
 "   1) char
-"   2) charmod
-"   3) mouse_winid
-"   4) mouse_row
-"   5) mouse_col
+"   2) str_idx
+"   3) charmod
+"   4) mouse_winid
+"   5) mouse_row
+"   6) mouse_col
 " The mouse values are 0 when there was no mouse event.
 function! s:ReadInputStream() abort
   " An overlay is displayed in each window so that mouse position can be
@@ -571,14 +572,14 @@ function! s:ReadInputStream() abort
     endif
     call add(l:chars, l:char)
     let l:char_props = {
+          \   'char' : l:char,
           \   'str_idx': l:str_idx,
-          \   'length': len(l:char),
           \   'charmod': l:charmod,
           \   'mouse_winid': v:mouse_winid,
           \   'mouse_row': v:mouse_lnum,
           \   'mouse_col': v:mouse_col
           \ }
-    let l:str_idx += l:char_props.length
+    let l:str_idx += len(l:char)
     call add(l:chars_props, l:char_props)
     " Break if there are no more items on the input stream.
     if !getchar(1)
@@ -825,18 +826,32 @@ function! scrollview#HandleMouse(button) abort
     let l:idx = 0
     let [l:string, l:chars_props] = ['', []]
     while 1
-      let l:idx += 1
-      if l:idx >=# len(l:chars_props)
-        let l:idx = 0
-        let [l:string, l:chars_props] = s:ReadInputStream()
-      endif
-      let l:char_props = l:chars_props[l:idx]
-      let l:str_idx = l:char_props.str_idx
-      let l:char_length = l:char_props.length
-      let l:char = l:string[l:str_idx:l:str_idx + l:char_length]
-      let l:mouse_winid = l:char_props.mouse_winid
-      let l:mouse_row = l:char_props.mouse_row
-      let l:mouse_col = l:char_props.mouse_col
+      while 1
+        let l:idx += 1
+        if l:idx >=# len(l:chars_props)
+          let l:idx = 0
+          let [l:string, l:chars_props] = s:ReadInputStream()
+        endif
+        let l:char_props = l:chars_props[l:idx]
+        let l:str_idx = l:char_props.str_idx
+        let l:char = l:char_props.char
+        let l:mouse_winid = l:char_props.mouse_winid
+        let l:mouse_row = l:char_props.mouse_row
+        let l:mouse_col = l:char_props.mouse_col
+        " The following code skips mouse drags that have already been followed
+        " by subsequent mouse drags.
+        if !s:Contains([l:mousedown, l:mouseup], l:char)
+              \ && l:mouse_winid !=# 0
+          if l:idx + 1 <# len(l:chars_props)
+            let l:next = l:chars_props[l:idx + 1]
+            if !s:Contains([l:mousedown, l:mouseup], l:next.char)
+                  \ && l:next.mouse_winid !=# 0
+              continue
+            endif
+          endif
+        endif
+        break
+      endwhile
       if l:mouse_winid ==# 0
         " There was no mouse event.
         call feedkeys(l:string[l:str_idx:], 'ni')
