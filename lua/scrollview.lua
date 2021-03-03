@@ -1,3 +1,26 @@
+-- *************************************************
+-- * Memoization
+-- *************************************************
+
+local cache = {}
+local memoize = false
+
+local function start_memoize()
+  memoize = true
+end
+
+local function stop_memoize()
+  memoize = false
+end
+
+local function reset_memoize()
+  cache = {}
+end
+
+-- *************************************************
+-- * Utils
+-- *************************************************
+
 -- Round to the nearest integer.
 -- WARN: .5 rounds to the right on the number line, including for negatives
 -- (which would not result in rounding up in magnitude).
@@ -5,6 +28,10 @@
 local function round(x)
   return math.floor(x + 0.5)
 end
+
+-- *************************************************
+-- * Core
+-- *************************************************
 
 -- Closes the window, with special handling for floating windows to first
 -- delete all folds in all buffers. Folds are local to the window, so this
@@ -104,6 +131,9 @@ end
 -- (both inclusive), in the specified window. A closed fold counts as one
 -- virtual line. '$' can be used as the end line, to represent the last line.
 local function virtual_line_count(winid, start, _end)
+  local memoize_key =
+    table.concat({'virtual_line_count', winid, start, _end}, ':')
+  if memoize and cache[memoize_key] then return cache[memoize_key] end
   local current_winid = vim.fn.win_getid(vim.fn.winnr())
   local workspace_winid = open_win_workspace(winid)
   vim.fn.win_gotoid(workspace_winid)
@@ -130,6 +160,7 @@ local function virtual_line_count(winid, start, _end)
   end
   vim.fn.win_gotoid(current_winid)
   close_window(workspace_winid)
+  if memoize then cache[memoize_key] = count end
   return count
 end
 
@@ -137,6 +168,9 @@ end
 -- window. If the result is in a closed fold, it is converted to the first line
 -- in that fold.
 local function virtual_proportion_line(winid, proportion)
+  local memoize_key =
+    table.concat({'virtual_proportion_line', winid, proportion}, ':')
+  if memoize and cache[memoize_key] then return cache[memoize_key] end
   local current_winid = vim.fn.win_getid(vim.fn.winnr())
   local workspace_winid = open_win_workspace(winid)
   vim.fn.win_gotoid(workspace_winid)
@@ -178,12 +212,16 @@ local function virtual_proportion_line(winid, proportion)
   end
   vim.fn.win_gotoid(current_winid)
   close_window(workspace_winid)
+  if memoize then cache[memoize_key] = line end
   return line
 end
 
 return {
   close_window = close_window,
   open_win_workspace = open_win_workspace,
+  reset_memoize = reset_memoize,
+  start_memoize = start_memoize,
+  stop_memoize = stop_memoize,
   virtual_line_count = virtual_line_count,
   virtual_proportion_line = virtual_proportion_line
 }

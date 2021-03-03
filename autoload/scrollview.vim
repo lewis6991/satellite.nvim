@@ -52,11 +52,6 @@ endfunction
 " * Core
 " *************************************************
 
-" (documented in scrollview.lua)
-function! s:CloseWindow(winid) abort
-  call s:lua_module.close_window(a:winid)
-endfunction
-
 " Returns true for ordinary windows (not floating and not external), and
 " false otherwise.
 function! s:IsOrdinaryWindow(winid) abort
@@ -111,7 +106,7 @@ function! s:WindowHasFold(winid) abort
     " Leave the workspace so it can be closed. Return to the existing window,
     " which was l:winid (from the win_gotoid call above).
     call win_gotoid(l:winid)
-    call s:CloseWindow(l:workspace_winid)
+    call s:lua_module.close_window(l:workspace_winid)
   endif
   call win_gotoid(l:init_winid)
   return l:result
@@ -407,7 +402,7 @@ function! s:CloseScrollViewWindow(winid) abort
   if !s:IsScrollViewWindow(l:winid)
     return
   endif
-  silent! noautocmd call s:CloseWindow(l:winid)
+  silent! noautocmd call s:lua_module.close_window(l:winid)
 endfunction
 
 " Sets global state that is assumed by the core functionality and returns a
@@ -800,6 +795,10 @@ function! scrollview#HandleMouse(button) abort
   endif
   let l:state = s:Init()
   let l:wins_options = s:GetWindowsOptions()
+  " virtual_line_count and virtual_proportion_line (the memoized functions)
+  " would return the same values for the same arguments, for the duration of
+  " mouse drag scrolling, so use memoization.
+  call s:lua_module.start_memoize()
   try
     " Temporarily change foldmethod=syntax to foldmethod=manual to prevent
     " lagging (Issue #20). This could result in a brief change to the text
@@ -953,6 +952,8 @@ function! scrollview#HandleMouse(button) abort
     endwhile
   catch
   finally
+    call s:lua_module.stop_memoize()
+    call s:lua_module.reset_memoize()
     call s:RestoreWindowsOptions(l:wins_options)
     call s:Restore(l:state)
   endtry
