@@ -1,3 +1,26 @@
+-- *************************************************
+-- * Memoization
+-- *************************************************
+
+local cache = {}
+local memoize = false
+
+local function start_memoize()
+  memoize = true
+end
+
+local function stop_memoize()
+  memoize = false
+end
+
+local function reset_memoize()
+  cache = {}
+end
+
+-- *************************************************
+-- * Utils
+-- *************************************************
+
 -- Round to the nearest integer.
 -- WARN: .5 rounds to the right on the number line, including for negatives
 -- (which would not result in rounding up in magnitude).
@@ -5,6 +28,47 @@
 local function round(x)
   return math.floor(x + 0.5)
 end
+
+-- Returns true for boolean true and any non-zero number, otherwise returns
+-- false.
+local function to_bool(x)
+  if type(x) == 'boolean' then
+    return x
+  elseif type(x) == 'number' then
+    return x ~= 0
+  end
+  return false
+end
+
+-- *************************************************
+-- * Core
+-- *************************************************
+
+-- Closes the window, with special handling for floating windows to first
+-- delete all folds in all buffers. Folds are local to the window, so this
+-- doesn't have any side effects on folds in other windows. This is a
+-- workaround for Neovim Issue #14040, which results in a memory leak
+-- otherwise.
+local function close_window(winid)
+  local config = vim.api.nvim_win_get_config(winid)
+  local nvim_14040_workaround =
+    to_bool(vim.g.scrollview_nvim_14040_workaround)
+  if config.relative ~= '' and nvim_14040_workaround then
+    local current_winid = vim.fn.win_getid(vim.fn.winnr())
+    vim.api.nvim_set_current_win(winid)
+    for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+      if vim.api.nvim_buf_is_loaded(bufnr) then
+        vim.api.nvim_win_set_buf(winid, bufnr)
+        -- zE only works when 'foldmethod' is "manual" or "marker".
+        vim.api.nvim_win_set_option(winid, 'foldmethod', 'manual')
+        vim.cmd('silent! normal! zE')
+      end
+    end
+    vim.fn.win_gotoid(current_winid)
+  end
+  vim.api.nvim_win_close(winid, true)
+end
+
 
 -- Creates a temporary floating window that can be used for computations
 -- ---corresponding to the specified window---that require temporary cursor
@@ -80,6 +144,9 @@ end
 -- (both inclusive), in the specified window. A closed fold counts as one
 -- virtual line. '$' can be used as the end line, to represent the last line.
 local function virtual_line_count(winid, start, _end)
+  local memoize_key =
+    table.concat({'virtual_line_count', winid, start, _end}, ':')
+  if memoize and cache[memoize_key] then return cache[memoize_key] end
   local current_winid = vim.fn.win_getid(vim.fn.winnr())
   local workspace_winid = open_win_workspace(winid)
   vim.fn.win_gotoid(workspace_winid)
@@ -105,7 +172,8 @@ local function virtual_line_count(winid, start, _end)
     end
   end
   vim.fn.win_gotoid(current_winid)
-  vim.api.nvim_win_close(workspace_winid, true)
+  close_window(workspace_winid)
+  if memoize then cache[memoize_key] = count end
   return count
 end
 
@@ -113,6 +181,9 @@ end
 -- window. If the result is in a closed fold, it is converted to the first line
 -- in that fold.
 local function virtual_proportion_line(winid, proportion)
+  local memoize_key =
+    table.concat({'virtual_proportion_line', winid, proportion}, ':')
+  if memoize and cache[memoize_key] then return cache[memoize_key] end
   local current_winid = vim.fn.win_getid(vim.fn.winnr())
   local workspace_winid = open_win_workspace(winid)
   vim.fn.win_gotoid(workspace_winid)
@@ -153,12 +224,17 @@ local function virtual_proportion_line(winid, proportion)
     line = foldclosed
   end
   vim.fn.win_gotoid(current_winid)
-  vim.api.nvim_win_close(workspace_winid, true)
+  close_window(workspace_winid)
+  if memoize then cache[memoize_key] = line end
   return line
 end
 
 return {
+  close_window = close_window,
   open_win_workspace = open_win_workspace,
+  reset_memoize = reset_memoize,
+  start_memoize = start_memoize,
+  stop_memoize = stop_memoize,
   virtual_line_count = virtual_line_count,
   virtual_proportion_line = virtual_proportion_line
 }

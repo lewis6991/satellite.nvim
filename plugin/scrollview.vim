@@ -40,6 +40,8 @@ let g:scrollview_column = get(g:, 'scrollview_column', 2)
 let g:scrollview_base = get(g:, 'scrollview_base', 'right')
 let g:scrollview_auto_mouse = get(g:, 'scrollview_auto_mouse', 1)
 let g:scrollview_auto_workarounds = get(g:, 'scrollview_auto_workarounds', 1)
+let g:scrollview_nvim_14040_workaround =
+      \ get(g:, 'scrollview_nvim_14040_workaround', 0)
 
 " *************************************************
 " * Commands
