@@ -44,11 +44,11 @@ end
 -- * Core
 -- *************************************************
 
--- Closes the window, with special handling for floating windows to first
--- delete all folds in all buffers. Folds are local to the window, so this
--- doesn't have any side effects on folds in other windows. This is a
--- workaround for Neovim Issue #14040, which results in a memory leak
--- otherwise.
+-- Closes the window, with optional (g:scrollview_nvim_14040_workaround)
+-- special handling for floating windows to first delete all folds in all
+-- buffers. Folds are local to the window, so this doesn't have any side
+-- effects on folds in other windows. This is a workaround for Neovim Issue
+-- #14040, which results in a memory leak otherwise.
 local function close_window(winid)
   local config = vim.api.nvim_win_get_config(winid)
   local nvim_14040_workaround =
