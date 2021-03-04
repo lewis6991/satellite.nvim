@@ -409,6 +409,8 @@ endfunction
 " state that can be used for restoration.
 function! s:Init() abort
   let l:state = {
+        \   'previous_winid': win_getid(winnr('#')),
+        \   'initial_winid': win_getid(winnr()),
         \   'belloff': &belloff,
         \   'eventignore': &eventignore,
         \   'winwidth': &winwidth,
@@ -426,6 +428,22 @@ function! s:Init() abort
 endfunction
 
 function! s:Restore(state) abort
+  " Restore the previous window so that <c-w>p and winnr('#') function as
+  " expected, and so that plugins that utilize previous windows (e.g., CtrlP)
+  " function properly. If the current window is the same as the initial
+  " window, set the same previous window. If the current window differs from
+  " the initial window, use the initial window for setting the previous
+  " window.
+  " WARN: Since the current window is changed, 'eventignore' should not be
+  " restored until after.
+  let l:current_winid = win_getid(winnr())
+  if l:current_winid ==# a:state.initial_winid
+    call win_gotoid(a:state.previous_winid)
+  else
+    call win_gotoid(a:state.initial_winid)
+  endif
+  call win_gotoid(l:current_winid)
+  " Restore options.
   let &belloff = a:state.belloff
   let &eventignore = a:state.eventignore
   let &winwidth = a:state.winwidth
