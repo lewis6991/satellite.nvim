@@ -486,11 +486,11 @@ endfunction
 " The mouse values are 0 when there was no mouse event.
 function! s:ReadInputStream() abort
   " An overlay is displayed in each window so that mouse position can be
-  " properly determined. Otherwise, lnum may not correspond to the actual
-  " position of the click (e.g., when there is a sign/number/relativenumber/fold
-  " column, when lines span multiple screen rows from wrapping, or when the last
-  " line of the buffer is not at the last line of the window due to a short
-  " document or scrolling past the end).
+  " properly determined. Otherwise, v:mouse_lnum and v:mouse_col may not
+  " correspond to the actual position of the click (e.g., when there is a
+  " sign/number/relativenumber/fold column, when lines span multiple screen
+  " rows from wrapping, or when the last line of the buffer is not at the last
+  " line of the window due to a short document or scrolling past the end).
   " XXX: If/when Vim's getmousepos is ported to Neovim, an overlay would not
   " be necessary. That function would return the necessary information, making
   " most of the steps in this function unnecessary.
