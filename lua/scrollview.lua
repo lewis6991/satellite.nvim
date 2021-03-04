@@ -69,7 +69,6 @@ local function close_window(winid)
   vim.api.nvim_win_close(winid, true)
 end
 
-
 -- Creates a temporary floating window that can be used for computations
 -- ---corresponding to the specified window---that require temporary cursor
 -- movements (e.g., counting virtual lines, where all lines in a closed fold
