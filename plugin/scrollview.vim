@@ -158,7 +158,7 @@ endif
 " Internal flag for tracking scrollview state.
 let s:scrollview_enabled = g:scrollview_on_startup
 
-" INFO: Asyncronous refreshing was originally used to work around issues
+" INFO: Asynchronous refreshing was originally used to work around issues
 " (e.g., getwininfo(winid)[0].botline not updated yet in a synchronous
 " context). However, it's now primarily utilized because it makes the UI more
 " responsive and it permits redundant refreshes to be dropped (e.g., for mouse
@@ -232,7 +232,13 @@ endfunction
 
 function! s:ScrollViewRefresh() abort
   if s:scrollview_enabled
-    call scrollview#RefreshBars()
+    " This refresh is asynchronous to keep interactions responsive (e.g.,
+    " mouse wheel scrolling, as redundant async refreshes are dropped). If
+    " scenarios necessitate synchronous refreshes, the interface would have to
+    " be updated to accommodate (as there is currently only a single refresh
+    " command and a single refresh <plug> mapping, both utilizing whatever is
+    " implemented here).
+    call scrollview#RefreshBarsAsync()
   else
     call scrollview#RemoveBars()
   endif
