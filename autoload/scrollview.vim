@@ -750,6 +750,16 @@ function! scrollview#RemoveBars() abort
   endtry
 endfunction
 
+" Remove scrollbars if InCommandLineWindow is true. This fails when called
+" from the CmdwinEnter event (some functionality, like nvim_win_close,
+" cannot be used from the command line window), but works during the
+" transition to the command line window (from the WinEnter event).
+function! scrollview#RemoveIfCommandLineWindow() abort
+  if s:InCommandLineWindow()
+    silent! call scrollview#RemoveBars()
+  endif
+endfunction
+
 " Refreshes scrollbars. There is an optional argument that specifies whether
 " removing existing scrollbars is asynchronous (defaults to true).
 function! scrollview#RefreshBars(...) abort
@@ -759,18 +769,7 @@ function! scrollview#RefreshBars(...) abort
   endif
   let l:state = s:Init()
   try
-    " Some functionality, like nvim_win_close, cannot be used from the command
-    " line window.
     if s:InCommandLineWindow()
-      " For the duration of command-line window usage, there will be no bars.
-      " Without this, bars can possibly overlap the command line window. This
-      " can be problematic particularly when there is a vertical split with the
-      " left window's bar on the bottom of the screen, where it would overlap
-      " with the center of the command line window. It was not possible to use
-      " CmdwinEnter, since the removal has to occur prior to that event.
-      " Rather, this is triggered by the WinEnter event, just prior to the
-      " relevant funcionality becoming unavailable.
-      silent! call scrollview#RemoveBars()
       return
     endif
     " Remove any scrollbars that are pending asynchronous removal. This

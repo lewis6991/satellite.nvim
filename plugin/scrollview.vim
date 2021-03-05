@@ -158,39 +158,48 @@ endif
 " Internal flag for tracking scrollview state.
 let s:scrollview_enabled = g:scrollview_on_startup
 
+" INFO: Asyncronous refreshing was originally used to work around issues
+" (e.g., getwininfo(winid)[0].botline not updated yet in a synchronous
+" context). However, it's now primarily utilized because it makes the UI more
+" responsive and it permits redundant refreshes to be dropped (e.g., for mouse
+" wheel scrolling).
+
 function! s:ScrollViewEnable() abort
   let s:scrollview_enabled = 1
   augroup scrollview
     autocmd!
+    " For the duration of command-line window usage, there should be no bars.
+    " Without this, bars can possibly overlap the command line window. This
+    " can be problematic particularly when there is a vertical split with the
+    " left window's bar on the bottom of the screen, where it would overlap
+    " with the center of the command line window. It was not possible to use
+    " CmdwinEnter, since the removal has to occur prior to that event. Rather,
+    " this is triggered by the WinEnter event, just prior to the relevant
+    " funcionality becoming unavailable.
+    autocmd WinEnter * :call scrollview#RemoveIfCommandLineWindow()
     " The following handles bar refreshing when changing the current window.
-    " There is code in RefreshBars() that removes the bars when entering the
-    " command line window.
-    autocmd WinEnter,TermEnter * :call scrollview#RefreshBars()
+    autocmd WinEnter,TermEnter * :call scrollview#RefreshBarsAsync()
     " The following restores bars after leaving the command-line window.
     " Refreshing must be asynchonous, since the command line window is still
     " in an intermediate state when the CmdwinLeave event is triggered.
     autocmd CmdwinLeave * :call scrollview#RefreshBarsAsync()
     " The following handles scrolling events, which could arise from various
     " actions, including resizing windows, movements (e.g., j, k), or
-    " scrolling (e.g., <ctrl-e>, zz). Refreshing is asynchronous so that
-    " 'botline' is correctly calculated where applicable, and so that mouse
-    " wheel scrolls are more responsive (since redundant refreshes are
-    " dropped).
+    " scrolling (e.g., <ctrl-e>, zz).
     autocmd WinScrolled * :call scrollview#RefreshBarsAsync()
     " The following handles the case where text is pasted. TextChangedI is not
     " necessary since WinScrolled will be triggered if there is corresponding
-    " scrolling. Refreshing is asynchronous so that 'botline' is correctly
-    " calculated where applicable (e.g., dG command, to delete from current
-    " line until the end of the document).
+    " scrolling.
     autocmd TextChanged * :call scrollview#RefreshBarsAsync()
     " The following handles when :e is used to load a file. The asynchronous
-    " version is used to handle the case where :e is used to reload an
-    " existing file, that is already scrolled. This avoids a scenario where
-    " the scrollbar is refreshed while the window is an intermediate state,
-    " resulting in the scrollbar moving to the top of the window.
+    " version handles a case where :e is used to reload an existing file, that
+    " is already scrolled. This avoids a scenario where the scrollbar is
+    " refreshed while the window is an intermediate state, resulting in the
+    " scrollbar moving to the top of the window.
     autocmd BufWinEnter * :call scrollview#RefreshBarsAsync()
     " The following is used so that bars are shown when cycling through tabs.
-    autocmd TabEnter * :call scrollview#RefreshBars()
+    autocmd TabEnter * :call scrollview#RefreshBarsAsync()
+    autocmd VimResized * :call scrollview#RefreshBarsAsync()
     " The following error can arise when the last window in a tab is going to
     " be closed, but there are still open floating windows, and at least one
     " other tab.
@@ -204,7 +213,6 @@ function! s:ScrollViewEnable() abort
     " alternatively :tabclose can be used (or one of the alternatives handled
     " with the autocmd, like ZQ).
     autocmd QuitPre * :call scrollview#RemoveBars()
-    autocmd VimResized * :call scrollview#RefreshBars()
   augroup END
   " The initial refresh is asynchronous, since :ScrollViewEnable can be used
   " in a context where Neovim is in an intermediate state. For example, for
