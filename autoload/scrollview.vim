@@ -1001,14 +1001,16 @@ function! scrollview#HandleMouse(button) abort
           let l:topline = nvim_buf_line_count(l:bufnr)
         endif
         call s:SetTopLine(l:winid, l:topline)
-        let l:props = s:MoveScrollbar(l:props, l:row)
         if getwinvar(l:winid, '&scrollbind')
               \ || getwinvar(l:winid, '&cursorbind')
-          " Refresh other window scrollbars when scrollbind or cursorbind is
-          " on.
+          " Refresh other window scrollbars when scrollbind/cursorbind is on.
+          " WARN: This should be before MoveScrollbar, so the dragged
+          " scrollbar always stays under the mouse when
+          " g:scrollview_mode=simple.
           call scrollview#RefreshBars(0)
           let l:props = s:GetScrollviewProps(l:winid)
         endif
+        let l:props = s:MoveScrollbar(l:props, l:row)
         redraw
       endif
       let l:previous_row = l:row
