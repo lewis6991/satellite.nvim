@@ -982,7 +982,7 @@ function! scrollview#HandleMouse(button) abort
       let l:winrow = getwininfo(l:winid)[0].winrow
       let l:window_offset = l:mouse_winrow - l:winrow
       let l:row = l:mouse_row + l:window_offset + l:scrollbar_offset
-      let l:row = min([l:row, l:winheight])
+      let l:row = min([l:row, l:winheight - l:props.height + 1])
       let l:row = max([1, l:row])
       " Only update scrollbar if the row changed.
       if l:previous_row !=# l:row
