@@ -124,8 +124,7 @@ Mode       Description
            line number relative to the document's line count. The scrollbar
            height reflects the size of the window relative to the document's
            line count. Dragging the scrollbars with the mouse may result in
-           unresponsive scrolling and/or erratic scrollbar behavior when there
-           are closed folds.
+           unresponsive scrolling when there are closed folds.
 
 *virtual*    The scrollbar position and height are calculated similarly to the
            |simple| mode, but line numbers and the document line count are

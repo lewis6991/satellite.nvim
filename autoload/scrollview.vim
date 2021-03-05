@@ -362,6 +362,26 @@ function! s:ShowScrollbar(winid) abort
   call setwinvar(l:bar_winnr, s:props_var, l:props)
 endfunction
 
+" Given a scrollbar properties dictionary and a target window row, the
+" corresponding scrollbar is moved to that row. The row is adjusted (up in
+" value, down in visual position) such that the full height of the scrollbar
+" remains on screen. Returns the updated scrollbar properties.
+function! s:MoveScrollbar(props, row)
+  let l:props = copy(a:props)
+  let l:max_row = winheight(l:props.parent_winid) - l:props.height + 1
+  let l:row = min([a:row, l:max_row])
+  let l:options = {
+        \   'win': l:props.parent_winid,
+        \   'relative': 'win',
+        \   'row': l:row - 1,
+        \   'col': l:props.col - 1
+        \ }
+  call nvim_win_set_config(a:props.scrollview_winid, l:options)
+  let l:props.row = l:row
+  call setwinvar(l:props.scrollview_winid, s:props_var, l:props)
+  return l:props
+endfunction
+
 function! s:IsScrollViewWindow(winid) abort
   if s:IsOrdinaryWindow(a:winid)
     return 0
@@ -981,7 +1001,7 @@ function! scrollview#HandleMouse(button) abort
           let l:topline = nvim_buf_line_count(l:bufnr)
         endif
         call s:SetTopLine(l:winid, l:topline)
-        call scrollview#RefreshBars(0)
+        let l:props = s:MoveScrollbar(l:props, l:row)
         redraw
       endif
       let l:previous_row = l:row
