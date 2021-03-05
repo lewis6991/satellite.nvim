@@ -206,8 +206,10 @@ local function virtual_topline_lookup(winid)
         row = row + 1
         proportion = (row - 1) / (winheight - 1)
       end
-      if vim.fn.line('.') == 1 or #result >= winheight then
-        -- advance_virtual_span looped back to the beginning of the document.
+      -- A line number of 1 indicates that advance_virtual_span looped back to
+      -- the beginning of the document.
+      local looped = vim.fn.line('.') == 1
+      if looped or #result >= winheight then
         break
       end
       line = line + line_delta
