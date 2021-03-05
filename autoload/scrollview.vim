@@ -1002,6 +1002,13 @@ function! scrollview#HandleMouse(button) abort
         endif
         call s:SetTopLine(l:winid, l:topline)
         let l:props = s:MoveScrollbar(l:props, l:row)
+        if getwinvar(l:winid, '&scrollbind')
+              \ || getwinvar(l:winid, '&cursorbind')
+          " Refresh other window scrollbars when scrollbind or cursorbind is
+          " on.
+          call scrollview#RefreshBars(0)
+          let l:props = s:GetScrollviewProps(l:winid)
+        endif
         redraw
       endif
       let l:previous_row = l:row
