@@ -859,7 +859,6 @@ function! scrollview#HandleMouse(button) abort
     let l:winid = 0  " The target window ID for a mouse scroll.
     let l:winnr = 0  " The target window number.
     let l:bufnr = 0  " The target buffer number.
-    let l:winheight = winheight(l:winid)
     let l:idx = 0
     let [l:string, l:chars_props] = ['', []]
     " Computing this prior to the first mouse event could distort the location
@@ -958,6 +957,7 @@ function! scrollview#HandleMouse(button) abort
         let l:scrollbar_offset = l:props.row - l:mouse_row
         let l:previous_row = l:props.row
       endif
+      let l:winheight = winheight(l:winid)
       let l:mouse_winrow = getwininfo(l:mouse_winid)[0].winrow
       let l:winrow = getwininfo(l:winid)[0].winrow
       let l:window_offset = l:mouse_winrow - l:winrow
