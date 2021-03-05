@@ -176,23 +176,23 @@ local function virtual_line_count(winid, start, _end)
   return count
 end
 
--- Return the line at the approximate virtual proportion in the specified
--- window. If the result is in a closed fold, it is converted to the first line
--- in that fold.
-local function virtual_proportion_line(winid, proportion)
-  local memoize_key =
-    table.concat({'virtual_proportion_line', winid, proportion}, ':')
-  if memoize and cache[memoize_key] then return cache[memoize_key] end
+-- Returns an array that maps window rows to the topline that corresponds to a
+-- scrollbar at that row under virtual scrollview mode.
+local function virtual_topline_lookup(winid)
   local current_winid = vim.fn.win_getid(vim.fn.winnr())
   local workspace_winid = open_win_workspace(winid)
   vim.fn.win_gotoid(workspace_winid)
-  local line = 0
-  local virtual_line = 0
-  local prop = 0.0
+  local winheight = vim.fn.winheight(winid)
+  local result = {}  -- A list of line numbers
   local virtual_line_count = virtual_line_count(winid, 1, '$')
-  if virtual_line_count > 1 then
+  if virtual_line_count > 1 and winheight > 1 then
+    local line = 0
+    local virtual_line = 0
+    local prop = 0.0
+    local row = 1
+    local proportion = (row - 1) / (winheight - 1)
     vim.cmd('keepjumps normal! gg')
-    while true do
+    while #result < winheight do
       local range_start, range_end, fold = advance_virtual_span()
       local line_delta = range_end - range_start + 1
       local virtual_line_delta = 1
@@ -200,32 +200,36 @@ local function virtual_proportion_line(winid, proportion)
         virtual_line_delta = line_delta
       end
       local prop_delta = virtual_line_delta / (virtual_line_count - 1)
-      if prop + prop_delta >= proportion then
+      while prop + prop_delta >= proportion and #result < winheight do
         local ratio = (proportion - prop) / prop_delta
-        prop = prop + (ratio * prop_delta)
-        line = line + round(ratio * line_delta) + 1
+        table.insert(result, line + round(ratio * line_delta) + 1)
+        row = row + 1
+        proportion = (row - 1) / (winheight - 1)
+      end
+      if vim.fn.line('.') == 1 or #result >= winheight then
+        -- advance_virtual_span looped back to the beginning of the document.
         break
       end
       line = line + line_delta
       virtual_line = virtual_line + virtual_line_delta
       prop = virtual_line / (virtual_line_count - 1)
-      if vim.fn.line('.') == 1 then
-        -- advance_virtual_span looped back to the beginning of the document.
-        line = vim.fn.line('$')
-        break
-      end
     end
   end
-  line = math.max(1, line)
-  line = math.min(vim.fn.line('$'), line)
-  local foldclosed = vim.fn.foldclosed(line)
-  if foldclosed ~= -1 then
-    line = foldclosed
+  while #result < winheight do
+    table.insert(result, vim.fn.line('$'))
+  end
+  for idx, line in ipairs(result) do
+    line = math.max(1, line)
+    line = math.min(vim.fn.line('$'), line)
+    local foldclosed = vim.fn.foldclosed(line)
+    if foldclosed ~= -1 then
+      line = foldclosed
+    end
+    result[idx] = line
   end
   vim.fn.win_gotoid(current_winid)
   close_window(workspace_winid)
-  if memoize then cache[memoize_key] = line end
-  return line
+  return result
 end
 
 return {
@@ -235,5 +239,5 @@ return {
   start_memoize = start_memoize,
   stop_memoize = stop_memoize,
   virtual_line_count = virtual_line_count,
-  virtual_proportion_line = virtual_proportion_line
+  virtual_topline_lookup = virtual_topline_lookup
 }

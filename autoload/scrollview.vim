@@ -186,13 +186,6 @@ function! s:VirtualLineCount(winid, start, end) abort
   return float2nr(l:result)
 endfunction
 
-" (documented in scrollview.lua)
-function! s:VirtualProportionLine(winid, proportion) abort
-  let l:result = s:lua_module.virtual_proportion_line(a:winid, a:proportion)
-  " Lua only has floats. Convert to integer as a precaution.
-  return float2nr(l:result)
-endfunction
-
 " Return top line and bottom line in window. For folds, the top line
 " represents the start of the fold and the bottom line represents the end of
 " the fold.
@@ -633,6 +626,33 @@ function! s:ReadInputStream() abort
   return l:result
 endfunction
 
+" Returns an array that maps window rows to the topline that corresponds to a
+" scrollbar at that row.
+function! s:TopLineLookup(winid) abort
+  let l:winid = a:winid
+  let l:winnr = win_id2win(l:winid)
+  let l:scrollview_mode = s:GetVariable('scrollview_mode', l:winnr)
+  let l:topline_lookup = []
+  if l:scrollview_mode !=# 'simple'
+    " Handling for virtual mode or an unknown mode.
+    let l:topline_lookup = s:lua_module.virtual_topline_lookup(l:winid)
+    " Lua only has floats. Convert to integer as a precaution.
+    for l:idx in range(len(l:topline_lookup))
+      let l:topline_lookup[l:idx] = float2nr(l:topline_lookup[l:idx])
+    endfor
+  else
+    let l:bufnr = winbufnr(l:winid)
+    let l:line_count = nvim_buf_line_count(l:bufnr)
+    let l:winheight = winheight(l:winid)
+    for l:row in range(1, l:winheight)
+      let l:proportion = s:NumberToFloat(l:row - 1) / (l:winheight - 1)
+      let l:topline = float2nr(round(l:proportion * (l:line_count - 1))) + 1
+      call add(l:topline_lookup, l:topline)
+    endfor
+  endif
+  return l:topline_lookup
+endfunction
+
 " Scrolls the window so that the specified line number is at the top.
 function! s:SetTopLine(winid, linenr) abort
   " WARN: Unlike other functions that move the cursor (e.g.,
@@ -813,9 +833,8 @@ function! scrollview#HandleMouse(button) abort
   endif
   let l:state = s:Init()
   let l:wins_options = s:GetWindowsOptions()
-  " virtual_line_count and virtual_proportion_line (the memoized functions)
-  " would return the same values for the same arguments, for the duration of
-  " mouse drag scrolling, so use memoization.
+  " virtual_line_count would return the same values for the same arguments,
+  " for the duration of mouse drag scrolling, so use memoization.
   call s:lua_module.start_memoize()
   try
     " Temporarily change foldmethod=syntax to foldmethod=manual to prevent
@@ -840,8 +859,12 @@ function! scrollview#HandleMouse(button) abort
     let l:winid = 0  " The target window ID for a mouse scroll.
     let l:winnr = 0  " The target window number.
     let l:bufnr = 0  " The target buffer number.
+    let l:winheight = winheight(l:winid)
     let l:idx = 0
     let [l:string, l:chars_props] = ['', []]
+    " Computing this prior to the first mouse event could distort the location
+    " since this could be an expensive operation (and the mouse could move).
+    let l:topline_lookup = v:null
     while 1
       while 1
         let l:idx += 1
@@ -898,7 +921,6 @@ function! scrollview#HandleMouse(button) abort
           call feedkeys(l:string[l:str_idx:], 'ni')
           return
         endif
-        let l:scrollview_mode = s:GetVariable('scrollview_mode', l:winnr)
         " Add 1 cell horizonal padding for grabbing the scrollbar. Don't do
         " this when the padding would extend past the window, as it will
         " interfere with dragging the vertical separator to resize the window.
@@ -940,28 +962,25 @@ function! scrollview#HandleMouse(button) abort
       let l:winrow = getwininfo(l:winid)[0].winrow
       let l:window_offset = l:mouse_winrow - l:winrow
       let l:row = l:mouse_row + l:window_offset + l:scrollbar_offset
+      let l:row = min([l:row, l:winheight])
+      let l:row = max([1, l:row])
       " Only update scrollbar if the row changed.
       if l:previous_row !=# l:row
-        let l:winheight = winheight(l:winid)
-        let l:proportion = s:NumberToFloat(l:row - 1) / (l:winheight - 1)
-        if l:scrollview_mode !=# 'simple'
-          " Handling for virtual mode or an unknown mode.
-          let l:top = s:VirtualProportionLine(l:winid, l:proportion)
-        else
-          let l:line_count = nvim_buf_line_count(l:bufnr)
-          let l:top = float2nr(round(l:proportion * (l:line_count - 1))) + 1
+        if l:topline_lookup is v:null
+          let l:topline_lookup = s:TopLineLookup(l:winid)
         endif
-        let l:top = max([1, l:top])
+        let l:topline = l:topline_lookup[l:row - 1]
+        let l:topline = max([1, l:topline])
         if l:row ==# 1
           " If the scrollbar was dragged to the top of the window, always show
           " the first line.
-          let l:top = 1
+          let l:topline = 1
         elseif l:row + l:props.height - 1 >=# l:winheight
           " If the scrollbar was dragged to the bottom of the window, always
           " show the bottom line.
-          let l:top = nvim_buf_line_count(l:bufnr)
+          let l:topline = nvim_buf_line_count(l:bufnr)
         endif
-        call s:SetTopLine(l:winid, l:top)
+        call s:SetTopLine(l:winid, l:topline)
         call scrollview#RefreshBars(0)
         redraw
       endif
