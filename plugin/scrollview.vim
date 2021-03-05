@@ -168,6 +168,8 @@ function! s:ScrollViewEnable() abort
   let s:scrollview_enabled = 1
   augroup scrollview
     autocmd!
+    " === Scrollbar Removal ===
+
     " For the duration of command-line window usage, there should be no bars.
     " Without this, bars can possibly overlap the command line window. This
     " can be problematic particularly when there is a vertical split with the
@@ -177,10 +179,29 @@ function! s:ScrollViewEnable() abort
     " this is triggered by the WinEnter event, just prior to the relevant
     " funcionality becoming unavailable.
     autocmd WinEnter * :call scrollview#RemoveIfCommandLineWindow()
+    " The following error can arise when the last window in a tab is going to
+    " be closed, but there are still open floating windows, and at least one
+    " other tab.
+    "   > "E5601: Cannot close window, only floating window would remain"
+    " Neovim Issue #11440 is open to address this. As of 2020/12/12, this
+    " issue is a 0.6 milestone.
+    " The autocmd below removes bars subsequent to :quit, :wq, or :qall (and
+    " also ZZ and ZQ), to avoid the error. However, the error will still arise
+    " when <ctrl-w>c or :close are used. To avoid the error in those cases,
+    " <ctrl-w>o can be used to first close the floating windows, or
+    " alternatively :tabclose can be used (or one of the alternatives handled
+    " with the autocmd, like ZQ).
+    autocmd QuitPre * :call scrollview#RemoveBars()
+    " Remove scrollbars when leaving tabs. This allows all code in
+    " autoload/scrollview.vim to only consider the current tab.
+    autocmd TabLeave * :call scrollview#RemoveBars()
+
+    " === Scrollbar Refreshing ===
+
     " The following handles bar refreshing when changing the current window.
     autocmd WinEnter,TermEnter * :call scrollview#RefreshBarsAsync()
     " The following restores bars after leaving the command-line window.
-    " Refreshing must be asynchonous, since the command line window is still
+    " Refreshing must be asynchronous, since the command line window is still
     " in an intermediate state when the CmdwinLeave event is triggered.
     autocmd CmdwinLeave * :call scrollview#RefreshBarsAsync()
     " The following handles scrolling events, which could arise from various
@@ -200,19 +221,6 @@ function! s:ScrollViewEnable() abort
     " The following is used so that bars are shown when cycling through tabs.
     autocmd TabEnter * :call scrollview#RefreshBarsAsync()
     autocmd VimResized * :call scrollview#RefreshBarsAsync()
-    " The following error can arise when the last window in a tab is going to
-    " be closed, but there are still open floating windows, and at least one
-    " other tab.
-    "   > "E5601: Cannot close window, only floating window would remain"
-    " Neovim Issue #11440 is open to address this. As of 2020/12/12, this
-    " issue is a 0.6 milestone.
-    " The autocmd below removes bars subsequent to :quit, :wq, or :qall (and
-    " also ZZ and ZQ), to avoid the error. However, the error will still arise
-    " when <ctrl-w>c or :close are used. To avoid the error in those cases,
-    " <ctrl-w>o can be used to first close the floating windows, or
-    " alternatively :tabclose can be used (or one of the alternatives handled
-    " with the autocmd, like ZQ).
-    autocmd QuitPre * :call scrollview#RemoveBars()
   augroup END
   " The initial refresh is asynchronous, since :ScrollViewEnable can be used
   " in a context where Neovim is in an intermediate state. For example, for
