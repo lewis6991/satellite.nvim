@@ -886,8 +886,6 @@ function! scrollview#ScrollViewEnable() abort
     " alternatively :tabclose can be used (or one of the alternatives handled
     " with the autocmd, like ZQ).
     autocmd QuitPre * :call s:RemoveBars()
-    " Remove scrollbars when leaving tabs.
-    autocmd TabLeave * :call s:RemoveBars()
 
     " === Scrollbar Refreshing ===
 
@@ -931,10 +929,7 @@ function! scrollview#ScrollViewDisable() abort
   let l:winid = win_getid(winnr())
   let l:state = s:Init()
   try
-    " Remove scrollbars from all tabs. There should be no scrollbars on other
-    " tabs, since a TabLeave autocommand is registered to remove them.
-    " However, it's possible that the event was ignored (e.g.,
-    " eventignore=TabLeave).
+    " Remove scrollbars from all tabs.
     tabdo silent! call s:RemoveBars()
   finally
     call win_gotoid(l:winid)
