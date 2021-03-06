@@ -8,6 +8,9 @@
 " * Globals
 " *************************************************
 
+" Internal flag for tracking scrollview state.
+let s:scrollview_enabled = 0
+
 " Since there is no text displayed in the buffers, the same buffers are used
 " for multiple windows. This also prevents the buffer list from getting high
 " from usage of the plugin.
@@ -732,11 +735,7 @@ function! s:GetScrollviewProps(winid) abort
   return {}
 endfunction
 
-" *************************************************
-" * Main (entry points)
-" *************************************************
-
-function! scrollview#RemoveBars() abort
+function! s:RemoveBars() abort
   if s:bar_bufnr ==# -1 | return | endif
   let l:state = s:Init()
   try
@@ -754,15 +753,15 @@ endfunction
 " from the CmdwinEnter event (some functionality, like nvim_win_close,
 " cannot be used from the command line window), but works during the
 " transition to the command line window (from the WinEnter event).
-function! scrollview#RemoveIfCommandLineWindow() abort
+function! s:RemoveIfCommandLineWindow() abort
   if s:InCommandLineWindow()
-    silent! call scrollview#RemoveBars()
+    silent! call s:RemoveBars()
   endif
 endfunction
 
 " Refreshes scrollbars. There is an optional argument that specifies whether
 " removing existing scrollbars is asynchronous (defaults to true).
-function! scrollview#RefreshBars(...) abort
+function! s:RefreshBars(...) abort
   let l:async_removal = 1
   if a:0 ># 0
     let l:async_removal = a:1
@@ -831,7 +830,11 @@ function! s:RefreshBarsAsyncCallback(timer_id) abort
     " execute this one.
     return
   endif
-  call scrollview#RefreshBars()
+  " Scrollview may have already been disabled by time this callback executes
+  " asynchronously.
+  if s:scrollview_enabled
+    call s:RefreshBars()
+  endif
 endfunction
 
 " This function refreshes the bars asynchronously. This works better than
@@ -840,9 +843,107 @@ endfunction
 " which can result in bars being placed where they shouldn't be.
 " WARN: For debugging, it's helpful to use synchronous refreshing, so that
 " e.g., echom works as expected.
-function! scrollview#RefreshBarsAsync() abort
+function! s:RefreshBarsAsync() abort
   let s:pending_async_refresh_count += 1
   call timer_start(0, function('s:RefreshBarsAsyncCallback'))
+endfunction
+
+" *************************************************
+" * Main (entry points)
+" *************************************************
+
+" INFO: Asynchronous refreshing was originally used to work around issues
+" (e.g., getwininfo(winid)[0].botline not updated yet in a synchronous
+" context). However, it's now primarily utilized because it makes the UI more
+" responsive and it permits redundant refreshes to be dropped (e.g., for mouse
+" wheel scrolling).
+
+function! scrollview#ScrollViewEnable() abort
+  let s:scrollview_enabled = 1
+  augroup scrollview
+    autocmd!
+    " === Scrollbar Removal ===
+
+    " For the duration of command-line window usage, there should be no bars.
+    " Without this, bars can possibly overlap the command line window. This
+    " can be problematic particularly when there is a vertical split with the
+    " left window's bar on the bottom of the screen, where it would overlap
+    " with the center of the command line window. It was not possible to use
+    " CmdwinEnter, since the removal has to occur prior to that event. Rather,
+    " this is triggered by the WinEnter event, just prior to the relevant
+    " funcionality becoming unavailable.
+    autocmd WinEnter * :call s:RemoveIfCommandLineWindow()
+    " The following error can arise when the last window in a tab is going to
+    " be closed, but there are still open floating windows, and at least one
+    " other tab.
+    "   > "E5601: Cannot close window, only floating window would remain"
+    " Neovim Issue #11440 is open to address this. As of 2020/12/12, this
+    " issue is a 0.6 milestone.
+    " The autocmd below removes bars subsequent to :quit, :wq, or :qall (and
+    " also ZZ and ZQ), to avoid the error. However, the error will still arise
+    " when <ctrl-w>c or :close are used. To avoid the error in those cases,
+    " <ctrl-w>o can be used to first close the floating windows, or
+    " alternatively :tabclose can be used (or one of the alternatives handled
+    " with the autocmd, like ZQ).
+    autocmd QuitPre * :call s:RemoveBars()
+    " Remove scrollbars when leaving tabs. This allows the other code in this
+    " file to only consider the current tab.
+    autocmd TabLeave * :call s:RemoveBars()
+
+    " === Scrollbar Refreshing ===
+
+    " The following handles bar refreshing when changing the current window.
+    autocmd WinEnter,TermEnter * :call s:RefreshBarsAsync()
+    " The following restores bars after leaving the command-line window.
+    " Refreshing must be asynchronous, since the command line window is still
+    " in an intermediate state when the CmdwinLeave event is triggered.
+    autocmd CmdwinLeave * :call s:RefreshBarsAsync()
+    " The following handles scrolling events, which could arise from various
+    " actions, including resizing windows, movements (e.g., j, k), or
+    " scrolling (e.g., <ctrl-e>, zz).
+    autocmd WinScrolled * :call s:RefreshBarsAsync()
+    " The following handles the case where text is pasted. TextChangedI is not
+    " necessary since WinScrolled will be triggered if there is corresponding
+    " scrolling.
+    autocmd TextChanged * :call s:RefreshBarsAsync()
+    " The following handles when :e is used to load a file. The asynchronous
+    " version handles a case where :e is used to reload an existing file, that
+    " is already scrolled. This avoids a scenario where the scrollbar is
+    " refreshed while the window is an intermediate state, resulting in the
+    " scrollbar moving to the top of the window.
+    autocmd BufWinEnter * :call s:RefreshBarsAsync()
+    " The following is used so that bars are shown when cycling through tabs.
+    autocmd TabEnter * :call s:RefreshBarsAsync()
+    autocmd VimResized * :call s:RefreshBarsAsync()
+  augroup END
+  " The initial refresh is asynchronous, since :ScrollViewEnable can be used
+  " in a context where Neovim is in an intermediate state. For example, for
+  " ':bdelete | ScrollViewEnable', with synchronous processing, the 'topline'
+  " and 'botline' in getwininfo's results correspond to the existing buffer
+  " that :bdelete was called on.
+  call s:RefreshBarsAsync()
+endfunction
+
+function! scrollview#ScrollViewDisable() abort
+  let s:scrollview_enabled = 0
+  augroup scrollview
+    autocmd!
+  augroup END
+  call s:RemoveBars()
+endfunction
+
+function! scrollview#ScrollViewRefresh() abort
+  if s:scrollview_enabled
+    " This refresh is asynchronous to keep interactions responsive (e.g.,
+    " mouse wheel scrolling, as redundant async refreshes are dropped). If
+    " scenarios necessitate synchronous refreshes, the interface would have to
+    " be updated to accommodate (as there is currently only a single refresh
+    " command and a single refresh <plug> mapping, both utilizing whatever is
+    " implemented here).
+    call s:RefreshBarsAsync()
+  else
+    call s:RemoveBars()
+  endif
 endfunction
 
 " 'button' can be 'left', 'middle', 'right', 'x1', or 'x2'.
@@ -958,7 +1059,7 @@ function! scrollview#HandleMouse(button) abort
         " ignore all mouse events until a mouseup. This approach was deemed
         " preferable to refreshing scrollbars initially, as that could result
         " in unintended clicking/dragging where there is no scrollbar.
-        call scrollview#RefreshBars(0)
+        call s:RefreshBars(0)
         redraw
         let l:props = s:GetScrollviewProps(l:mouse_winid)
         if l:props ==# {} || l:mouse_row <# l:props.row
@@ -1006,7 +1107,7 @@ function! scrollview#HandleMouse(button) abort
           " WARN: This should be before MoveScrollbar, so the dragged
           " scrollbar always stays under the mouse when
           " g:scrollview_mode=simple.
-          call scrollview#RefreshBars(0)
+          call s:RefreshBars(0)
           let l:props = s:GetScrollviewProps(l:winid)
         endif
         let l:props = s:MoveScrollbar(l:props, l:row)
