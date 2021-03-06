@@ -9,7 +9,7 @@
 " *************************************************
 
 " Internal flag for tracking scrollview state.
-let s:scrollview_enabled = 0
+let s:scrollview_enabled = get(s:, 'scrollview_enabled', 0)
 
 " Since there is no text displayed in the buffers, the same buffers are used
 " for multiple windows. This also prevents the buffer list from getting high
@@ -886,8 +886,7 @@ function! scrollview#ScrollViewEnable() abort
     " alternatively :tabclose can be used (or one of the alternatives handled
     " with the autocmd, like ZQ).
     autocmd QuitPre * :call s:RemoveBars()
-    " Remove scrollbars when leaving tabs. This allows the other code in this
-    " file to only consider the current tab.
+    " Remove scrollbars when leaving tabs.
     autocmd TabLeave * :call s:RemoveBars()
 
     " === Scrollbar Refreshing ===
@@ -929,7 +928,18 @@ function! scrollview#ScrollViewDisable() abort
   augroup scrollview
     autocmd!
   augroup END
-  call s:RemoveBars()
+  let l:winid = win_getid(winnr())
+  let l:state = s:Init()
+  try
+    " Remove scrollbars from all tabs. There should be no scrollbars on other
+    " tabs, since a TabLeave autocommand is registered to remove them.
+    " However, it's possible that the event was ignored (e.g.,
+    " eventignore=TabLeave).
+    tabdo silent! call s:RemoveBars()
+  finally
+    call win_gotoid(l:winid)
+    call s:Restore(l:state)
+  endtry
 endfunction
 
 function! scrollview#ScrollViewRefresh() abort
@@ -941,8 +951,6 @@ function! scrollview#ScrollViewRefresh() abort
     " command and a single refresh <plug> mapping, both utilizing whatever is
     " implemented here).
     call s:RefreshBarsAsync()
-  else
-    call s:RemoveBars()
   endif
 endfunction
 
