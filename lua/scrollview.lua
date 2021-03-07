@@ -140,18 +140,9 @@ local function advance_virtual_span()
 end
 
 -- Returns the count of virtual lines between the specified start and end lines
--- (both inclusive), in the specified window. A closed fold counts as one
--- virtual line. '$' can be used as the end line, to represent the last line.
-local function virtual_line_count(winid, start, _end)
-  if type(_end) == 'string' and _end == '$' then
-    _end = vim.fn.getbufinfo(vim.fn.winbufnr(winid))[1].linecount
-  end
-  local memoize_key =
-    table.concat({'virtual_line_count', winid, start, _end}, ':')
-  if memoize and cache[memoize_key] then return cache[memoize_key] end
-  local current_winid = vim.fn.win_getid(vim.fn.winnr())
-  local workspace_winid = open_win_workspace(winid)
-  vim.fn.win_gotoid(workspace_winid)
+-- (both inclusive), in the current window. A closed fold counts as one virtual
+-- line. The computation loops over virtual spans. The cursor may be moved.
+local function virtual_line_count_spanwise(start, _end)
   start = math.max(1, start)
   _end = math.min(vim.fn.line('$'), _end)
   local count = 0
@@ -169,6 +160,77 @@ local function virtual_line_count(winid, start, _end)
         break
       end
     end
+  end
+  return count
+end
+
+-- Returns the count of virtual lines between the specified start and end lines
+-- (both inclusive), in the current window. A closed fold counts as one virtual
+-- line. The computation loops over lines.
+local function virtual_line_count_linewise(start, _end)
+  local count = 0
+  local line = start
+  while line <= _end do
+    count = count + 1
+    foldclosedend = vim.fn.foldclosedend(line)
+    if foldclosedend ~= -1 then
+      line = foldclosedend
+    end
+    line = line + 1
+  end
+  return count
+end
+
+-- Returns a boolean indicating whether the count of folds (closed folds count
+-- as a single fold) between the specified start and end lines exceeds 'n', in
+-- the current window. The cursor may be moved.
+local function fold_count_exceeds(start, _end, n)
+  vim.cmd('keepjumps normal! ' .. start .. 'G')
+  if vim.fn.foldclosed(start) ~= -1 then
+    n = n - 1
+  end
+  if n < 0 then
+    return true
+  end
+  -- Navigate down n folds.
+  if n > 0 then
+    vim.cmd('keepjumps normal! ' .. n .. 'zj')
+  end
+  local line1 = vim.fn.line('.')
+  -- The fold count exceeds n if there is another fold to navigate to on a line
+  -- less than _end.
+  vim.cmd('keepjumps normal! zj')
+  local line2 = vim.fn.line('.')
+  return line2 > line1 and line2 <= _end
+end
+
+-- Returns the count of virtual lines between the specified start and end lines
+-- (both inclusive), in the specified window. A closed fold counts as one virtual
+-- line. The computation loops over lines. The cursor is not moved.
+local function virtual_line_count(winid, start, _end)
+  local last_line =
+    vim.fn.getbufinfo(vim.fn.winbufnr(winid))[1].linecount
+  if type(_end) == 'string' and _end == '$' then
+    _end = last_line
+  end
+  local memoize_key =
+    table.concat({'virtual_line_count', winid, start, _end}, ':')
+  if memoize and cache[memoize_key] then return cache[memoize_key] end
+  local current_winid = vim.fn.win_getid(vim.fn.winnr())
+  local workspace_winid = open_win_workspace(winid)
+  vim.fn.win_gotoid(workspace_winid)
+  local count
+  -- On an AMD Ryzen 7 2700X, linewise computation takes about 3e-7 seconds per
+  -- line (this is an overestimate, as it assumes all folds are open, but the
+  -- time is reduced when there are closed folds, as lines would be skipped).
+  -- Spanwise computation takes about 5e-5 seconds per fold (closed folds count
+  -- as a single fold). Therefore the linewise computation is worthwhile when
+  -- the number of spans is greater than (3e-7 / 5e-5) * L = .006L, where L is
+  -- the number of lines.
+  if fold_count_exceeds(start, _end, math.floor(last_line * .006)) then
+    count = virtual_line_count_linewise(start, _end)
+  else
+    count = virtual_line_count_spanwise(start, _end)
   end
   vim.fn.win_gotoid(current_winid)
   close_window(workspace_winid)
