@@ -120,10 +120,10 @@ same way.
 
 Mode       Description
 ----       -----------
-*simple*     (`deprecated`) The scrollbar top position reflects the window's top
-           line number relative to the document's line count. The scrollbar
-           height reflects the size of the window relative to the document's
-           line count. Dragging the scrollbars with the mouse may result in
+*simple*     The scrollbar top position reflects the window's top line number
+           relative to the document's line count. The scrollbar height
+           reflects the size of the window relative to the document's line
+           count. Dragging the scrollbars with the mouse may result in
            unresponsive scrolling when there are closed folds.
 
 *virtual*    The scrollbar position and height are calculated similarly to the

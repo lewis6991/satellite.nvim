@@ -594,7 +594,19 @@ function! s:ReadInputStream() abort
   let l:chars_props = []
   let l:str_idx = 0  " in bytes
   while 1
-    let l:char = getchar()
+    try
+      let l:char = getchar()
+    catch
+      " E.g., <c-c>
+      let l:char = "\<esc>"
+    finally
+      " For Vim on Cygwin, pressing <c-c> during getchar() does not raise
+      " "Vim:Interrupt". Handling for such a scenario is added here as a
+      " precaution, by converting to <esc>.
+      if l:char ==# "\<c-c>"
+        let l:char = "\<esc>"
+      endif
+    endtry
     let l:charmod = getcharmod()
     if type(l:char) ==# v:t_number
       let l:char = nr2char(l:char)
@@ -1014,6 +1026,10 @@ function! scrollview#HandleMouse(button) abort
         endif
         break
       endwhile
+      if l:char ==# "\<esc>"
+        call feedkeys(l:string[l:str_idx + 1:], 'ni')
+        return
+      endif
       if l:mouse_winid ==# 0
         " There was no mouse event.
         call feedkeys(l:string[l:str_idx:], 'ni')
