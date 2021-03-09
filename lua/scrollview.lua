@@ -139,6 +139,29 @@ local function advance_virtual_span()
   end
 end
 
+-- Returns a boolean indicating whether the count of folds (closed folds count
+-- as a single fold) between the specified start and end lines exceeds 'n', in
+-- the current window. The cursor may be moved.
+local function fold_count_exceeds(start, _end, n)
+  vim.cmd('keepjumps normal! ' .. start .. 'G')
+  if vim.fn.foldclosed(start) ~= -1 then
+    n = n - 1
+  end
+  if n < 0 then
+    return true
+  end
+  -- Navigate down n folds.
+  if n > 0 then
+    vim.cmd('keepjumps normal! ' .. n .. 'zj')
+  end
+  local line1 = vim.fn.line('.')
+  -- The fold count exceeds n if there is another fold to navigate to on a line
+  -- less than _end.
+  vim.cmd('keepjumps normal! zj')
+  local line2 = vim.fn.line('.')
+  return line2 > line1 and line2 <= _end
+end
+
 -- Returns the count of virtual lines between the specified start and end lines
 -- (both inclusive), in the current window. A closed fold counts as one virtual
 -- line. The computation loops over virtual spans. The cursor may be moved.
@@ -181,29 +204,6 @@ local function virtual_line_count_linewise(start, _end)
   return count
 end
 
--- Returns a boolean indicating whether the count of folds (closed folds count
--- as a single fold) between the specified start and end lines exceeds 'n', in
--- the current window. The cursor may be moved.
-local function fold_count_exceeds(start, _end, n)
-  vim.cmd('keepjumps normal! ' .. start .. 'G')
-  if vim.fn.foldclosed(start) ~= -1 then
-    n = n - 1
-  end
-  if n < 0 then
-    return true
-  end
-  -- Navigate down n folds.
-  if n > 0 then
-    vim.cmd('keepjumps normal! ' .. n .. 'zj')
-  end
-  local line1 = vim.fn.line('.')
-  -- The fold count exceeds n if there is another fold to navigate to on a line
-  -- less than _end.
-  vim.cmd('keepjumps normal! zj')
-  local line2 = vim.fn.line('.')
-  return line2 > line1 and line2 <= _end
-end
-
 -- Returns the count of virtual lines between the specified start and end lines
 -- (both inclusive), in the specified window. A closed fold counts as one virtual
 -- line. The computation loops over lines. The cursor is not moved.
@@ -225,7 +225,7 @@ local function virtual_line_count(winid, start, _end)
   -- time is reduced when there are closed folds, as lines would be skipped).
   -- Spanwise computation takes about 5e-5 seconds per fold (closed folds count
   -- as a single fold). Therefore the linewise computation is worthwhile when
-  -- the number of spans is greater than (3e-7 / 5e-5) * L = .006L, where L is
+  -- the number of folds is greater than (3e-7 / 5e-5) * L = .006L, where L is
   -- the number of lines.
   if fold_count_exceeds(start, _end, math.floor(last_line * .006)) then
     count = virtual_line_count_linewise(start, _end)
@@ -239,13 +239,12 @@ local function virtual_line_count(winid, start, _end)
 end
 
 -- Returns an array that maps window rows to the topline that corresponds to a
--- scrollbar at that row under virtual scrollview mode.
-local function virtual_topline_lookup(winid)
-  local current_winid = vim.fn.win_getid(vim.fn.winnr())
-  local workspace_winid = open_win_workspace(winid)
-  vim.fn.win_gotoid(workspace_winid)
-  local winheight = vim.fn.winheight(winid)
+-- scrollbar at that row under virtual scrollview mode, in the current window.
+-- The computation loops over virtual spans. The cursor may be moved.
+local function virtual_topline_lookup_spanwise()
+  local winheight = vim.fn.winheight(0)
   local result = {}  -- A list of line numbers
+  local winid = vim.fn.win_getid(vim.fn.winnr())
   local virtual_line_count = virtual_line_count(winid, 1, '$')
   if virtual_line_count > 1 and winheight > 1 then
     local line = 0
@@ -264,7 +263,15 @@ local function virtual_topline_lookup(winid)
       local prop_delta = virtual_line_delta / (virtual_line_count - 1)
       while prop + prop_delta >= proportion and #result < winheight do
         local ratio = (proportion - prop) / prop_delta
-        table.insert(result, line + round(ratio * line_delta) + 1)
+        local topline = line + 1
+        if fold then
+          -- If ratio >= 0.5, add all lines in the fold, otherwise don't add
+          -- the fold.
+          topline = topline + round(ratio) * line_delta
+        else
+          topline = topline + round(ratio * line_delta)
+        end
+        table.insert(result, topline)
         row = row + 1
         proportion = (row - 1) / (winheight - 1)
       end
@@ -290,6 +297,81 @@ local function virtual_topline_lookup(winid)
       line = foldclosed
     end
     result[idx] = line
+  end
+  return result
+end
+
+-- Returns an array that maps window rows to the topline that corresponds to a
+-- scrollbar at that row under virtual scrollview mode, in the current window.
+-- The computation loops over lines.
+local function virtual_topline_lookup_linewise()
+  local winheight = vim.fn.winheight(0)
+  local last_line = vim.fn.line('$')
+  local result = {}  -- A list of line numbers
+  local winid = vim.fn.win_getid(vim.fn.winnr())
+  local virtual_line_count = virtual_line_count(winid, 1, '$')
+  if virtual_line_count > 1 and winheight > 1 then
+    local count = 1  -- The count of virtual lines
+    local line = 1
+    local best = line
+    local best_distance = math.huge
+    local best_count = count
+    for row=1,winheight do
+      local proportion = (row - 1) / (winheight - 1)
+      while line <= last_line do
+        local current = (count - 1) / (virtual_line_count - 1)
+        local distance = math.abs(current - proportion)
+        if distance <= best_distance then
+          best = line
+          best_distance = distance
+          best_count = count
+        elseif distance > best_distance then
+          -- Prepare variables so that the next row starts iterating at the
+          -- current line and count, using an infinite best distance.
+          line = best
+          best_distance = math.huge
+          count = best_count
+          break
+        end
+        foldclosedend = vim.fn.foldclosedend(line)
+        if foldclosedend ~= -1 then
+          line = foldclosedend
+        end
+        line = line + 1
+        count = count + 1
+      end
+      local value = best
+      local foldclosed = vim.fn.foldclosed(value)
+      if foldclosed ~= -1 then
+        value = foldclosed
+      end
+      table.insert(result, value)
+    end
+  end
+  return result
+end
+
+-- Returns an array that maps window rows to the topline that corresponds to a
+-- scrollbar at that row under virtual scrollview mode. The cursor is not
+-- moved.
+local function virtual_topline_lookup(winid)
+  local last_line =
+    vim.fn.getbufinfo(vim.fn.winbufnr(winid))[1].linecount
+  local current_winid = vim.fn.win_getid(vim.fn.winnr())
+  local workspace_winid = open_win_workspace(winid)
+  vim.fn.win_gotoid(workspace_winid)
+  local result
+  -- On an AMD Ryzen 7 2700X, linewise computation takes about 1.6e-6 seconds
+  -- per line (this is an overestimate, as it assumes all folds are open, but
+  -- the time is reduced when there are closed folds, as lines would be
+  -- skipped). Spanwise computation takes about 6.5e-5 seconds per fold (closed
+  -- folds count as a single fold). Therefore the linewise computation is
+  -- worthwhile when the number of folds is greater than (1.6e-6 / 6.5e-5) * L
+  -- = .0246L, where L is the number of lines.
+  if fold_count_exceeds(1, last_line, math.floor(last_line * .0246)) then
+    result = virtual_topline_lookup_linewise()
+  else
+    result = virtual_topline_lookup_spanwise()
   end
   vim.fn.win_gotoid(current_winid)
   close_window(workspace_winid)
