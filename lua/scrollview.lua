@@ -267,7 +267,9 @@ local function virtual_topline_lookup_spanwise()
         if fold then
           -- If ratio >= 0.5, add all lines in the fold, otherwise don't add
           -- the fold.
-          topline = topline + round(ratio) * line_delta
+          if ratio >= 0.5 then
+            topline = topline + line_delta
+          end
         else
           topline = topline + round(ratio * line_delta)
         end
