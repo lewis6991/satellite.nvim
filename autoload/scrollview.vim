@@ -600,9 +600,9 @@ function! s:ReadInputStream() abort
       " E.g., <c-c>
       let l:char = "\<esc>"
     finally
-      " On Cygwin, pressing <c-c> during getchar() does not raise
-      " "Vim:Interrupt", so it would still be <c-c> at this point. Convert to
-      " <esc>.
+      " For Vim on Cygwin, pressing <c-c> during getchar() does not raise
+      " "Vim:Interrupt". Handling for such a scenario is added here as a
+      " precaution, by converting to <esc>.
       if l:char ==# "\<c-c>"
         let l:char = "\<esc>"
       endif
