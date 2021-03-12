@@ -10,7 +10,6 @@ The plugin is customizable (see `:help scrollview-configuration`).
 * Handling for folds
 * Scrollbars can be dragged with the mouse
 * Partially transparent scrollbars so that text is not covered
-* No configuration necessary
 
 ## Requirements
 
