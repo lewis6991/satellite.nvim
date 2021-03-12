@@ -996,6 +996,20 @@ function! scrollview#HandleMouse(button) abort
   " for the duration of mouse drag scrolling, so use memoization.
   call s:lua_module.start_memoize()
   try
+    let l:mousedown = eval(printf('"\<%smouse>"', a:button))
+    let l:mouseup = eval(printf('"\<%srelease>"', a:button))
+    " Re-send the click, so its position can be obtained from a subsequent call
+    " to getchar().
+    " XXX: If/when Vim's getmousepos is ported to Neovim, the position of the
+    " initial click would be available without getchar(), but would require
+    " some refactoring below to accommodate.
+    call feedkeys(l:mousedown, 'ni')
+    " Mouse handling is not relevant in the command line window since
+    " scrollbars are not shown. Additionally, the overlay cannot be closed
+    " from that mode.
+    if s:InCommandLineWindow()
+      return
+    endif
     " Temporarily change foldmethod=syntax to foldmethod=manual to prevent
     " lagging (Issue #20). This could result in a brief change to the text
     " displayed for closed folds, due to the 'foldtext' function using
@@ -1006,14 +1020,6 @@ function! scrollview#HandleMouse(button) abort
         call setwinvar(l:winid, '&foldmethod', 'manual')
       endif
     endfor
-    let l:mousedown = eval(printf('"\<%smouse>"', a:button))
-    let l:mouseup = eval(printf('"\<%srelease>"', a:button))
-    " Re-send the click, so its position can be obtained from a subsequent call
-    " to getchar().
-    " XXX: If/when Vim's getmousepos is ported to Neovim, the position of the
-    " initial click would be available without getchar(), but would require
-    " some refactoring below to accommodate.
-    call feedkeys(l:mousedown, 'ni')
     let l:count = 0
     let l:winid = 0  " The target window ID for a mouse scroll.
     let l:winnr = 0  " The target window number.
