@@ -11,6 +11,8 @@
 " Internal flag for tracking scrollview state.
 let s:scrollview_enabled = get(s:, 'scrollview_enabled', 0)
 
+let s:lua_module = luaeval('require("scrollview")')
+
 " Since there is no text displayed in the buffers, the same buffers are used
 " for multiple windows. This also prevents the buffer list from getting high
 " from usage of the plugin.
@@ -37,8 +39,6 @@ let s:props_var = 'scrollview_props'
 " A key for flagging windows that are pending async removal.
 let s:pending_async_removal_var = 'scrollview_pending_async_removal'
 
-let s:lua_module = luaeval('require("scrollview")')
-
 " *************************************************
 " * Utils
 " *************************************************
@@ -49,6 +49,11 @@ endfunction
 
 function! s:NumberToFloat(number) abort
   return a:number + 0.0
+endfunction
+
+function! s:ReltimeToMicroseconds(reltime) abort
+  let l:reltimestr = reltimestr(a:reltime)
+  return str2nr(join(split(l:reltimestr, '\.'), ''))
 endfunction
 
 " *************************************************
@@ -182,6 +187,18 @@ function! s:GetVariable(name, winnr, ...) abort
   return l:default
 endfunction
 
+" Returns the scrollview mode. The function signature matches s:GetVariable,
+" without the 'name' argument.
+function! s:ScrollViewMode(...) abort
+  " When g:scrollview_refresh_time_exceeded was exceeded, always use 'simple'
+  " mode.
+  if g:scrollview_refresh_time_exceeded
+    return 'simple'
+  endif
+  let l:args = ['scrollview_mode'] + a:000
+  return call(function('s:GetVariable'), l:args)
+endfunction
+
 " (documented in scrollview.lua)
 function! s:VirtualLineCount(winid, start, end) abort
   let l:result = s:lua_module.virtual_line_count(a:winid, a:start, a:end)
@@ -221,7 +238,7 @@ function! s:CalculatePosition(winnr) abort
   let l:line_count = nvim_buf_line_count(l:bufnr)
   let l:effective_topline = l:topline
   let l:effective_line_count = l:line_count
-  let l:scrollview_mode = s:GetVariable('scrollview_mode', l:winnr)
+  let l:scrollview_mode = s:ScrollViewMode(l:winnr)
   if l:scrollview_mode !=# 'simple'
     " For virtual mode or an unknown mode, update effective_topline and
     " effective_line_count to correspond to virtual lines, which account for
@@ -666,7 +683,7 @@ endfunction
 function! s:TopLineLookup(winid) abort
   let l:winid = a:winid
   let l:winnr = win_id2win(l:winid)
-  let l:scrollview_mode = s:GetVariable('scrollview_mode', l:winnr)
+  let l:scrollview_mode = s:ScrollViewMode(l:winnr)
   let l:topline_lookup = []
   if l:scrollview_mode !=# 'simple'
     " Handling for virtual mode or an unknown mode.
@@ -736,7 +753,7 @@ endfunction
 
 " Returns scrollview properties for the specified window. An empty dictionary
 " is returned if there is no corresponding scrollbar.
-function! s:GetScrollviewProps(winid) abort
+function! s:GetScrollViewProps(winid) abort
   let l:winid = a:winid
   for l:scrollview_winid in s:GetScrollViewWindows()
     let l:props = getwinvar(l:scrollview_winid, s:props_var)
@@ -801,9 +818,16 @@ function! s:RefreshBars(...) abort
           \ s:GetVariable('scrollview_current_only', winnr(), 'tg')
     let l:target_wins =
           \ l:current_only ? [win_getid(winnr())] : s:GetOrdinaryWindows()
+    let l:start_reltime = reltime()
     for l:winid in l:target_wins
       call s:ShowScrollbar(l:winid)
     endfor
+    " The elapsed microseconds for showing scrollbars.
+    let l:elapsed_micro = s:ReltimeToMicroseconds(reltime(l:start_reltime))
+    if g:scrollview_refresh_time ># -1
+          \ && l:elapsed_micro ># g:scrollview_refresh_time * 1000
+      let g:scrollview_refresh_time_exceeded = 1
+    end
     if l:async_removal
       " Remove bars asynchronously to prevent flickering (e.g., when there are
       " folds and mode='virtual'). Even when nvim_win_close is called
@@ -842,7 +866,7 @@ function! s:RefreshBarsAsyncCallback(timer_id) abort
     " execute this one.
     return
   endif
-  " Scrollview may have already been disabled by time this callback executes
+  " ScrollView may have already been disabled by time this callback executes
   " asynchronously.
   if s:scrollview_enabled
     call s:RefreshBars()
@@ -1053,7 +1077,7 @@ function! scrollview#HandleMouse(button) abort
         return
       endif
       if l:count ==# 0
-        let l:props = s:GetScrollviewProps(l:mouse_winid)
+        let l:props = s:GetScrollViewProps(l:mouse_winid)
         if l:props ==# {}
           " There was no scrollbar in the window where a click occurred.
           call feedkeys(l:string[l:str_idx:], 'ni')
@@ -1080,7 +1104,7 @@ function! scrollview#HandleMouse(button) abort
         " in unintended clicking/dragging where there is no scrollbar.
         call s:RefreshBars(0)
         redraw
-        let l:props = s:GetScrollviewProps(l:mouse_winid)
+        let l:props = s:GetScrollViewProps(l:mouse_winid)
         if l:props ==# {} || l:mouse_row <# l:props.row
               \ || l:mouse_row >=# l:props.row + l:props.height
           while getchar() !=# l:mouseup | endwhile | return
@@ -1127,7 +1151,7 @@ function! scrollview#HandleMouse(button) abort
           " scrollbar always stays under the mouse when
           " g:scrollview_mode=simple.
           call s:RefreshBars(0)
-          let l:props = s:GetScrollviewProps(l:winid)
+          let l:props = s:GetScrollViewProps(l:winid)
         endif
         let l:props = s:MoveScrollbar(l:props, l:row)
         redraw

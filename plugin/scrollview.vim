@@ -42,6 +42,20 @@ let g:scrollview_auto_mouse = get(g:, 'scrollview_auto_mouse', 1)
 let g:scrollview_auto_workarounds = get(g:, 'scrollview_auto_workarounds', 1)
 let g:scrollview_nvim_14040_workaround =
       \ get(g:, 'scrollview_nvim_14040_workaround', 0)
+let g:scrollview_refresh_time = get(g:, 'scrollview_refresh_time', 100)
+
+" *************************************************
+" * Global State
+" *************************************************
+
+" External global state that can be modified by the user is specified here.
+" Internal global state is represented with local variables in
+" autoload/scrollview.vim and lua/scrollview.lua.
+
+" A flag that gets set to true if the time to refresh scrollbars exceeded
+" g:scrollview_refresh_time.
+let g:scrollview_refresh_time_exceeded =
+      \ get(g:, 'scrollview_refresh_time_exceeded', 0)
 
 " *************************************************
 " * Commands
