@@ -103,8 +103,8 @@ have the highest precedence, and global variables have the lowest).
   (see |scrollview-memory-leak-issue|)
 *scrollview_refresh_time*                 `100`
   When scrollbar refreshing takes more    Considered only at global scope;
-  than this many milliseconds,            A value of -1 corresponds to no limit
-  subsequent refreshing will use
+  than this many milliseconds,            A value of -1 corresponds to no
+  subsequent refreshing will use          limit
   `simple` |scrollview_mode|. Setting
   `g:scrollview_refresh_time_exceeded`
   to 0 resets the mode behaviour.
