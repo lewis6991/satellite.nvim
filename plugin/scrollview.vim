@@ -133,6 +133,23 @@ function s:CreateRefreshMapping(modes, seq) abort
   endfor
 endfunction
 
+" An 'operatorfunc' for g@ that executes zf and then refreshes scrollbars.
+function! s:ZfOperator(type) abort
+  " Handling for 'char' is needed since e.g., using linewise mark jumping
+  " results in the cursor moving to the beginning of the line for zfl, which
+  " should not move the cursor. Separate handling for 'line' is needed since
+  " e.g., with 'char' handling, zfG won't include the last line in the fold if
+  " the cursor gets positioned on the first character.
+  if a:type ==# 'char'
+    silent normal! `[zf`]
+  elseif a:type ==# 'line'
+    silent normal! '[zf']
+  else
+    " Unsupported
+  endif
+  ScrollViewRefresh
+endfunction
+
 if g:scrollview_auto_workarounds
   " === Window arrangement synchronization workarounds ===
   let s:win_seqs = [
@@ -148,7 +165,8 @@ if g:scrollview_auto_workarounds
     call s:CreateRefreshMapping('nvi', s:seq)
   endfor
   " === Fold command synchronization workarounds ===
-  " zf takes a motion in normal mode, so a normal mode mapping doesn't work.
+  " zf takes a motion in normal mode, so it requires a g@ mapping.
+  silent! nnoremap <unique> zf <cmd>set operatorfunc=<sid>ZfOperator<cr>g@
   call s:CreateRefreshMapping('v', 'zf')
   let s:fold_seqs = [
         \   'zF', 'zd', 'zD', 'zE', 'zo', 'zO', 'zc', 'zC', 'za', 'zA', 'zv',
