@@ -1004,8 +1004,8 @@ function! scrollview#HandleMouse(button) abort
   try
     let l:mousedown = eval(printf('"\<%smouse>"', a:button))
     let l:mouseup = eval(printf('"\<%srelease>"', a:button))
-    " Re-send the click, so its position can be obtained from a subsequent call
-    " to getchar().
+    " Re-send the click, so its position can be obtained from a subsequent
+    " call to getchar().
     " XXX: If/when Vim's getmousepos is ported to Neovim, the position of the
     " initial click would be available without getchar(), but would require
     " some refactoring below to accommodate.

@@ -84,7 +84,7 @@ have the highest precedence, and global variables have the lowest).
   for scrollbars                          100 (transparent)
 *scrollview_base*                         `'right'`
   Specifies where the scrollbar is        `'left'` or `'right'` for corresponding
-  anchored                                window edges, or `'buffer'` for buffer
+  anchored                                window edges, or `'buffer'`
 *scrollview_column*                       `2`
   Specifies the scrollbar column          An integer greater than or equal
   (relative to |scrollview_base|)           to 1
@@ -250,8 +250,8 @@ Error Message Issues ~
     is not at the beginning (see |recursive_mapping| for details).
 
 * Deleting a buffer with |:bdelete|, when it's the only visible buffer and there
-  are multiple buffers on the buffer list, results in the following error (with
-  duplicate lines, as shown): >
+  are multiple buffers on the buffer list, results in the following error
+  (with duplicate lines, as shown): >
     E444: Cannot close last window
     E444: Cannot close last window
 <  The buffer may not be deleted from the buffer list. Neovim Issue #13628 is
