@@ -958,13 +958,19 @@ function! scrollview#ScrollViewEnable() abort
 endfunction
 
 function! scrollview#ScrollViewDisable() abort
-  let s:scrollview_enabled = 0
-  augroup scrollview
-    autocmd!
-  augroup END
   let l:winid = win_getid(winnr())
   let l:state = s:Init()
   try
+    if s:InCommandLineWindow()
+      echohl ErrorMsg
+      echo 'nvim-scrollview: Cannot disable from command-line window'
+      echohl None
+      return
+    endif
+    let s:scrollview_enabled = 0
+    augroup scrollview
+      autocmd!
+    augroup END
     " Remove scrollbars from all tabs.
     tabdo silent! call s:RemoveBars()
   finally
