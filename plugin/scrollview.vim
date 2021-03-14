@@ -89,8 +89,8 @@ let s:mouse_plug_pairs = [
 for [s:plug_name, s:button] in s:mouse_plug_pairs
   let s:lhs = printf('<silent> <plug>(%s)', s:plug_name)
   let s:rhs = printf('<cmd>call scrollview#HandleMouse("%s")<cr>', s:button)
-  execute 'noremap ' . s:lhs . ' ' . s:rhs
-  execute 'inoremap ' . s:lhs . ' ' . s:rhs
+  execute 'noremap' s:lhs s:rhs
+  execute 'inoremap' s:lhs s:rhs
 endfor
 
 if g:scrollview_auto_mouse
