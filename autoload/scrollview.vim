@@ -60,6 +60,14 @@ endfunction
 " * Core
 " *************************************************
 
+function! s:IsVisualMode(mode) abort
+  return s:Contains(['v', 'V', "\<c-v>"], a:mode)
+endfunction
+
+function! s:IsSelectMode(mode) abort
+  return s:Contains(['s', 'S', "\<c-s>"], a:mode)
+endfunction
+
 " Returns true for ordinary windows (not floating and not external), and
 " false otherwise.
 function! s:IsOrdinaryWindow(winid) abort
@@ -447,7 +455,8 @@ function! s:Init() abort
         \   'belloff': &belloff,
         \   'eventignore': &eventignore,
         \   'winwidth': &winwidth,
-        \   'winheight': &winheight
+        \   'winheight': &winheight,
+        \   'mode': mode()
         \ }
   " Disable the bell (e.g., for invalid cursor movements, trying to navigate
   " to a next fold, when no fold exists).
@@ -457,6 +466,11 @@ function! s:Init() abort
   " doesn't unexpectedly cause window resizing.
   let &winwidth = max([1, &winminwidth])
   let &winheight = max([1, &winminheight])
+  if s:IsSelectMode(l:state.mode)
+    " Temporarily switch from select-mode to visual-mode, so that 'normal!'
+    " commands can be executed properly.
+    execute "normal! \<c-g>"
+  endif
   return l:state
 endfunction
 
@@ -476,6 +490,16 @@ function! s:Restore(state) abort
     call win_gotoid(a:state.initial_winid)
   endif
   call win_gotoid(l:current_winid)
+  " Switch back to select mode where applicable.
+  if l:current_winid ==# a:state.initial_winid
+    if s:IsSelectMode(a:state.mode)
+      if s:IsVisualMode(mode())
+        execute "normal! \<c-g>"
+      else
+        " WARN: this scenario should not arise, and is not handled.
+      endif
+    endif
+  endif
   " Restore options.
   let &belloff = a:state.belloff
   let &eventignore = a:state.eventignore
@@ -1122,7 +1146,7 @@ function! scrollview#HandleMouse(button) abort
           while getchar() !=# l:mouseup | endwhile | return
         endif
         " By this point, the click on a scrollbar was successful.
-        if s:Contains(['v', 'V', "\<c-v>"], mode())
+        if s:IsVisualMode(mode())
           " Exit visual mode.
           execute "normal! \<esc>"
         endif
