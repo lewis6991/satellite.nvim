@@ -661,7 +661,7 @@ function! s:ReadInputStream() abort
           \   'mouse_row': v:mouse_lnum,
           \   'mouse_col': v:mouse_col
           \ }
-    let l:str_idx += len(l:char)
+    let l:str_idx += strlen(l:char)
     call add(l:chars_props, l:char_props)
     " Break if there are no more items on the input stream.
     if !getchar(1)
@@ -1087,7 +1087,7 @@ function! scrollview#HandleMouse(button) abort
         break
       endwhile
       if l:char ==# "\<esc>"
-        call feedkeys(l:string[l:str_idx + 1:], 'ni')
+        call feedkeys(l:string[l:str_idx + strlen(l:char):], 'ni')
         return
       endif
       " In select-mode, mouse usage results in the mode intermediately
