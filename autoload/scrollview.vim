@@ -788,12 +788,14 @@ function! s:GetScrollViewProps(winid) abort
   return {}
 endfunction
 
-function! s:RemoveBars() abort
+" With no argument, remove all bars. Otherwise, remove the specified list of
+" bars. Global state is initialized and restored.
+function! s:RemoveBars(...) abort
   if s:bar_bufnr ==# -1 | return | endif
   let l:state = s:Init()
   try
-    " Remove all existing bars
-    for l:winid in s:GetScrollViewWindows()
+    let l:target_wins = a:0 ># 0 ? a:1 : s:GetScrollViewWindows()
+    for l:winid in l:target_wins
       call s:CloseScrollViewWindow(l:winid)
     endfor
   catch
@@ -813,7 +815,8 @@ function! s:RemoveIfCommandLineWindow() abort
 endfunction
 
 " Refreshes scrollbars. There is an optional argument that specifies whether
-" removing existing scrollbars is asynchronous (defaults to true).
+" removing existing scrollbars is asynchronous (defaults to true). Global
+" state is initialized and restored.
 function! s:RefreshBars(...) abort
   let l:async_removal = 1
   if a:0 ># 0
@@ -857,18 +860,15 @@ function! s:RefreshBars(...) abort
       " folds and mode='virtual'). Even when nvim_win_close is called
       " synchronously after the code that adds the other windows, the window
       " removal still happens earlier in time, as confirmed by using
-      " 'writedelay'. Even with asyncronous execution, the call to timer_start
-      " must still occur after the code for the window additions.
-      " WARN: The statement is put in a string to prevent a closure whereby
-      " the variable used in the lambda will have its value change by the time
-      " the code executes. By putting this in a string, the window ID becomes
-      " fixed at string-creation time.
+      " 'writedelay'. Even with asynchronous execution, the call to
+      " timer_start must still occur after the code for the window additions.
       for l:winid in l:existing_wins
         call setwinvar(win_id2win(l:winid), s:pending_async_removal_var, 1)
-        let l:cmd = 'silent! call s:CloseScrollViewWindow(' . l:winid . ')'
-        let l:expr = 'call timer_start(0, {-> execute("' . l:cmd . '")})'
-        execute l:expr
       endfor
+      " RemoveBars is used instead of CloseScrollViewWindow for global state
+      " initialization and restoration.
+      let l:cmd = 'silent! call s:RemoveBars(' . string(l:existing_wins) . ')'
+      call timer_start(0, {-> execute(l:cmd)})
     else
       for l:winid in l:existing_wins
         call s:CloseScrollViewWindow(l:winid)
