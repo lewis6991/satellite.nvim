@@ -1090,6 +1090,13 @@ function! scrollview#HandleMouse(button) abort
         call feedkeys(l:string[l:str_idx + 1:], 'ni')
         return
       endif
+      " In select-mode, mouse usage results in the mode intermediately
+      " switching to visual mode, accompanied by a call to this function.
+      " After the initial mouse event, the next getchar() character is
+      " <80><f5>X, which is ignored.
+      if l:char ==# "\x80\xf5X" && l:count ># 0
+        continue
+      endif
       if l:mouse_winid ==# 0
         " There was no mouse event.
         call feedkeys(l:string[l:str_idx:], 'ni')
