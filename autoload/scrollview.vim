@@ -1008,9 +1008,9 @@ function! scrollview#ScrollViewRefresh() abort
     " This refresh is asynchronous to keep interactions responsive (e.g.,
     " mouse wheel scrolling, as redundant async refreshes are dropped). If
     " scenarios necessitate synchronous refreshes, the interface would have to
-    " be updated to accommodate (as there is currently only a single refresh
-    " command and a single refresh <plug> mapping, both utilizing whatever is
-    " implemented here).
+    " be updated (e.g., :ScrollViewRefresh --sync) to accommodate (as there is
+    " currently only a single refresh command and a single refresh <plug>
+    " mapping, both utilizing whatever is implemented here).
     call s:RefreshBarsAsync()
   endif
 endfunction
