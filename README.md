@@ -1,3 +1,5 @@
+[![build][badge_thumbnail]][badge_link]
+
 # nvim-scrollview
 
 `nvim-scrollview` is a Neovim plugin that displays interactive scrollbars.
@@ -101,6 +103,8 @@ The source code has an [MIT License](https://en.wikipedia.org/wiki/MIT_License).
 
 See [LICENSE](LICENSE).
 
+[badge_link]: https://github.com/dstein64/nvim-scrollview/actions/workflows/build.yml
+[badge_thumbnail]: https://github.com/dstein64/nvim-scrollview/actions/workflows/build.yml/badge.svg
 [dein]: https://github.com/Shougo/dein.vim
 [neobundle]: https://github.com/Shougo/neobundle.vim
 [neovim_14040]: https://github.com/neovim/neovim/issues/14040
