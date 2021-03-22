@@ -1,0 +1,23 @@
+name: build
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run weekly (* is a special character in YAML, so quote the string)
+    - cron:  '0 0 * * 0'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - name: Check Help Tags
+      run: |
+        # Check if the help tags file should be updated
+        vim -c 'helptags doc/' -c quit
+        test -z "$(git status --porcelain doc/)"
