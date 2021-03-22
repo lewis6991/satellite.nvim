@@ -127,14 +127,14 @@ same way.
 
 Mode       Description
 ----       -----------
-*simple*     The scrollbar top position reflects the window's top line number
+`simple`     The scrollbar top position reflects the window's top line number
            relative to the document's line count. The scrollbar height
            reflects the size of the window relative to the document's line
            count. Dragging the scrollbars with the mouse may result in
            unresponsive scrolling when there are closed folds.
 
-*virtual*    The scrollbar position and height are calculated similarly to the
-           |simple| mode, but line numbers and the document line count are
+`virtual`    The scrollbar position and height are calculated similarly to the
+           `simple` mode, but line numbers and the document line count are
            implicitly updated to virtual counterparts that account for closed
            folds. The scrollbar top position reflects the window's top virtual
            line number relative to the document's virtual line count. The
