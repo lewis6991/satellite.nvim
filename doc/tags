@@ -27,5 +27,3 @@ scrollview_nvim_14040_workaround	scrollview.txt	/*scrollview_nvim_14040_workarou
 scrollview_on_startup	scrollview.txt	/*scrollview_on_startup*
 scrollview_refresh_time	scrollview.txt	/*scrollview_refresh_time*
 scrollview_winblend	scrollview.txt	/*scrollview_winblend*
-simple	scrollview.txt	/*simple*
-virtual	scrollview.txt	/*virtual*
