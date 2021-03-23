@@ -1093,7 +1093,13 @@ function! scrollview#HandleMouse(button) abort
       " In select-mode, mouse usage results in the mode intermediately
       " switching to visual mode, accompanied by a call to this function.
       " After the initial mouse event, the next getchar() character is
-      " <80><f5>X, which is ignored.
+      " <80><f5>X. This is "Used for switching Select mode back on after a
+      " mapping or menu" (https://github.com/vim/vim/blob/
+      " c54f347d63bcca97ead673d01ac6b59914bb04e5/src/keymap.h#L84-L88,
+      " https://github.com/vim/vim/blob/
+      " c54f347d63bcca97ead673d01ac6b59914bb04e5/src/getchar.c#L2660-L2672)
+      " Ignore this character after scrolling has started.
+      " NOTE: "\x80\xf5X" (hex) ==# "\200\365X" (octal)
       if l:char ==# "\x80\xf5X" && l:count ># 0
         continue
       endif
