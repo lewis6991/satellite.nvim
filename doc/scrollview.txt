@@ -112,9 +112,10 @@ scrollview_auto_workarounds                *scrollview_auto_workarounds*
                        is loaded.
 
 scrollview_nvim_14040_workaround           *scrollview_nvim_14040_workaround*
-                       |Number| specifying whether a workaround is used for
-                       Neovim Issue #14040 (see |scrollview-memory-leak-issue|).
-                       Defaults to `0`. Considered only at global scope.
+                       |Boolean| |Number| specifying whether a workaround is used
+                       for Neovim Issue #14040 (|scrollview-memory-leak-issue|
+                       has additional details). Defaults to `0`. Considered only
+                       at global scope.
 
 scrollview_refresh_time                    *scrollview_refresh_time*
                        |Number| specifying the refresh limit. When scrollbar
