@@ -85,8 +85,8 @@ scrollview_current_only                    *scrollview_current_only*
 
                                            *scrollview_winblend*
 scrollview_winblend    |Number| specifying the level of transparency for
-                       scrollbars. Defaults to `50`. Must be between between
-                       `0` (opaque) and `100` (transparent).
+                       scrollbars. Defaults to `50`. Must be between `0` (opaque)
+                       and `100` (transparent).
 
                                            *scrollview_base*
 scrollview_base        |String| specifying where the scrollbar is anchored.
