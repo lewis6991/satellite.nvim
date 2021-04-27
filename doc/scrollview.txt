@@ -63,7 +63,6 @@ and/or 4) global scope, with that order of precedence (i.e., window variables
 have the highest precedence, and global variables have the lowest).
 
 Configuration Variables ~
-
                                            *scrollview_on_startup*
 scrollview_on_startup  |Boolean| |Number| specifying whether scrollbars are
                        enabled on startup. Defaults to `1`. Considered only at
@@ -121,10 +120,10 @@ scrollview_refresh_time                    *scrollview_refresh_time*
                        |Number| specifying the refresh limit. When scrollbar
                        refreshing takes more than this many milliseconds,
                        subsequent refreshing will use `simple` |scrollview_mode|.
-                       Setting `g:scrollview_refresh_time_exceeded` to `0` resets
-                       the mode behaviour. Defaults to `100`. A value of `-1`
-                       corresponds to no limit. Considered only at global
-                       scope.
+                       Defaults to `100`. A value of `-1` corresponds to no limit.
+                       Considered only at global scope. To reset the mode
+                       mode behaviour, set `g:scrollview_refresh_time_exceeded`
+                       to `0`.
 
 Configuration Example ~
                                            *scrollview-configuration-example*
@@ -187,9 +186,9 @@ clobbered.
 Mappings can be used to manually create mappings for mouse support.
  >
     " Add support for dragging scrollbars with the left mouse button
-    nmap <leftmouse> <plug>(ScrollViewMiddleMouse)
-    vmap <leftmouse> <plug>(ScrollViewMiddleMouse)
-    imap <leftmouse> <plug>(ScrollViewMiddleMouse)
+    nmap <leftmouse> <plug>(ScrollViewLeftMouse)
+    vmap <leftmouse> <plug>(ScrollViewLeftMouse)
+    imap <leftmouse> <plug>(ScrollViewLeftMouse)
 
     " Add support for dragging scrollbars with the middle mouse button
     nmap <middlemouse> <plug>(ScrollViewMiddleMouse)
