@@ -96,7 +96,7 @@ scrollview_base        |String| specifying where the scrollbar is anchored.
                                            *scrollview_column*
 scrollview_column      |Number| specifying the scrollbar column (relative to
                        |scrollview_base|). Defaults to `2`. Must be an integer
-                       greater than or equal to 1.
+                       greater than or equal to `1`.
 
                                            *scrollview_auto_mouse*
 scrollview_auto_mouse  |Boolean| |Number| specifying whether a mapping is
