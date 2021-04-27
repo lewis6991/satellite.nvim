@@ -121,7 +121,7 @@ scrollview_refresh_time                    *scrollview_refresh_time*
                        |Number| specifying the refresh limit. When scrollbar
                        refreshing takes more than this many milliseconds,
                        subsequent refreshing will use `simple` |scrollview_mode|.
-                       Setting `scrollview_refresh_time_exceeded` to `0` resets
+                       Setting `g:scrollview_refresh_time_exceeded` to `0` resets
                        the mode behaviour. Defaults to `100`. A value of `-1`
                        corresponds to no limit. Considered only at global
                        scope.
