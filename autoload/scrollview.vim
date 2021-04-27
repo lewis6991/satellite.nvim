@@ -302,7 +302,12 @@ function! s:CalculatePosition(winnr) abort
   return l:result
 endfunction
 
-function! s:ShowScrollbar(winid) abort
+" Show a scrollbar for the specified 'winid' window ID, using the specified
+" 'bar_winid' floating window ID (a new floating window will be created if
+" this is -1). Returns -1 if the bar is not shown, and the floating window ID
+" otherwise.
+function! s:ShowScrollbar(winid, bar_winid) abort
+  let l:bar_winid = a:bar_winid
   let l:winid = a:winid
   let l:winnr = win_id2win(l:winid)
   let l:bufnr = winbufnr(l:winnr)
@@ -313,28 +318,28 @@ function! s:ShowScrollbar(winid) abort
   let l:excluded_filetypes =
         \ s:GetVariable('scrollview_excluded_filetypes', l:winnr)
   if s:Contains(l:excluded_filetypes, l:buf_filetype)
-    return
+    return -1
   endif
   " Don't show in terminal mode, since the bar won't be properly updated for
   " insertions.
   if getwininfo(l:winid)[0].terminal
-    return
+    return -1
   endif
   if l:winheight ==# 0 || l:winwidth ==# 0
-    return
+    return -1
   endif
   let l:line_count = nvim_buf_line_count(l:bufnr)
   " Don't show the position bar when all lines are on screen.
   let [l:topline, l:botline] = s:LineRange(l:winid)
   if l:botline - l:topline + 1 ==# l:line_count
-    return
+    return -1
   endif
   let l:bar_position = s:CalculatePosition(l:winnr)
   " Height has to be positive for the call to nvim_open_win. When opening a
   " terminal, the topline and botline can be set such that height is negative
   " when you're using scrollview document mode.
   if l:bar_position.height <=# 0
-    return
+    return -1
   endif
   " Don't show scrollbar when its column is beyond what's valid.
   let l:min_valid_col = 1
@@ -344,10 +349,10 @@ function! s:ShowScrollbar(winid) abort
     let l:min_valid_col = s:BufferViewBeginsColumn(l:winid)
   endif
   if l:bar_position.col <# l:min_valid_col
-    return
+    return -1
   endif
   if l:bar_position.col ># l:winwidth
-    return
+    return -1
   endif
   if s:bar_bufnr ==# -1 || !bufexists(s:bar_bufnr)
     let s:bar_bufnr = nvim_create_buf(0, 1)
@@ -358,7 +363,7 @@ function! s:ShowScrollbar(winid) abort
     call setbufvar(s:bar_bufnr, '&bufhidden', 'hide')
     call setbufvar(s:bar_bufnr, '&buflisted', 0)
   endif
-  let l:options = {
+  let l:config = {
         \   'win': l:winid,
         \   'relative': 'win',
         \   'focusable': 0,
@@ -368,11 +373,15 @@ function! s:ShowScrollbar(winid) abort
         \   'row': l:bar_position.row - 1,
         \   'col': l:bar_position.col - 1
         \ }
-  let l:bar_winid = nvim_open_win(s:bar_bufnr, 0, l:options)
+  if l:bar_winid ==# -1
+    let l:bar_winid = nvim_open_win(s:bar_bufnr, 0, l:config)
+  else
+    call nvim_win_set_config(l:bar_winid, l:config)
+  endif
+  let l:bar_winnr = win_id2win(l:bar_winid)
   " It's not sufficient to just specify Normal highlighting. With just that, a
   " color scheme's specification of EndOfBuffer would be used to color the
   " bottom of the scrollbar.
-  let l:bar_winnr = win_id2win(l:bar_winid)
   let l:winhighlight = 'Normal:ScrollView,EndOfBuffer:ScrollView'
   call setwinvar(l:bar_winnr, '&winhighlight', l:winhighlight)
   let l:winblend = s:GetVariable('scrollview_winblend', l:winnr)
@@ -388,6 +397,7 @@ function! s:ShowScrollbar(winid) abort
         \   'col': l:bar_position.col
         \ }
   call setwinvar(l:bar_winnr, s:props_var, l:props)
+  return l:bar_winid
 endfunction
 
 " Given a scrollbar properties dictionary and a target window row, the
@@ -847,7 +857,23 @@ function! s:RefreshBars(...) abort
           \ l:current_only ? [win_getid(winnr())] : s:GetOrdinaryWindows()
     let l:start_reltime = reltime()
     for l:winid in l:target_wins
-      call s:ShowScrollbar(l:winid)
+      let l:existing_winid = -1
+      if len(l:existing_wins) ># 0
+        " Reuse an existing scrollbar floating window when available.
+        " This prevents flickering when there are folds. This keeps the window
+        " IDs smaller than they would be otherwise. The benefits of small
+        " window IDs seems relatively less beneficial than small buffer
+        " numbers, since they would ordinarily be used less as inputs to
+        " commands (where smaller numbers are preferable for their fewer
+        " digits to type).
+        let l:existing_winid = l:existing_wins[-1]
+      endif
+      let l:bar_winid = s:ShowScrollbar(l:winid, l:existing_winid)
+      " If an existing window was successfully reused, remove it from the
+      " existing window list.
+      if l:bar_winid !=# -1 && l:existing_winid !=# -1
+        call remove(l:existing_wins, -1)
+      endif
     endfor
     " The elapsed microseconds for showing scrollbars.
     let l:elapsed_micro = s:ReltimeToMicroseconds(reltime(l:start_reltime))
@@ -856,12 +882,13 @@ function! s:RefreshBars(...) abort
       let g:scrollview_refresh_time_exceeded = 1
     end
     if l:async_removal
-      " Remove bars asynchronously to prevent flickering (e.g., when there are
-      " folds and mode='virtual'). Even when nvim_win_close is called
-      " synchronously after the code that adds the other windows, the window
-      " removal still happens earlier in time, as confirmed by using
-      " 'writedelay'. Even with asynchronous execution, the call to
-      " timer_start must still occur after the code for the window additions.
+      " Remove bars asynchronously to prevent flickering (this may help when
+      " there are folds and mode='virtual' in some cases). Even when
+      " nvim_win_close is called synchronously after the code that adds the
+      " other windows, the window removal still happens earlier in time, as
+      " confirmed by using 'writedelay'. Even with asynchronous execution, the
+      " call to timer_start must still occur after the code for the window
+      " additions.
       for l:winid in l:existing_wins
         call setwinvar(win_id2win(l:winid), s:pending_async_removal_var, 1)
       endfor
