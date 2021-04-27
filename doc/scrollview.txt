@@ -62,121 +62,71 @@ The following variables can be used to customize the behavior of
 and/or 4) global scope, with that order of precedence (i.e., window variables
 have the highest precedence, and global variables have the lowest).
 
+Configuration Variables ~
+                                           *scrollview-configuration-variables*
 
-scrollview_on_startup                                  *scrollview_on_startup*
+                                           *scrollview_on_startup*
+scrollview_on_startup  |Boolean| |Number| specifying whether scrollbars are
+                       enabled on startup. Defaults to `1`.
 
-  Type: |Number|
-  Default: `1`
+                                           *scrollview_mode*
+scrollview_mode        |String| specifying what the scrollbar position and size
+                       correspond to. See |scrollview-modes| for details on the
+                       available modes. Defaults to `'virtual'`.
 
-  Specifies whether scrollbars are enabled on startup.
+scrollview_excluded_filetypes              *scrollview_excluded_filetypes*
+                       |List| of optional file types for which scrollbars should
+                       not be displayed. Defaults to `[]`.
 
+scrollview_current_only                    *scrollview_current_only*
+                       |Boolean| |Number| specifying whether scrollbars should
+                       only be displayed in the current window. Defaults to `0`.
+                       Considered only at tab and global scopes.
 
-scrollview_mode                                              *scrollview_mode*
+                                           *scrollview_winblend*
+scrollview_winblend    |Number| specifying the level of transparency for
+                       scrollbars. Defaults to `50`. Must be between between
+                       `0` (opaque) and `100` (transparent).
 
-  Type: |String|
-  Default: `'virtual'`
+                                           *scrollview_base*
+scrollview_base        |String| specifying where the scrollbar is anchored.
+                       Possible values are `'left'` or `'right'` for corresponding
+                       window edges, or `'buffer'`. Defaults to `'right'`.
 
-  Specifies what the scrollbar position and size correspond to.
-  See |scrollview-modes| for details on the available modes.
+                                           *scrollview_column*
+scrollview_column      |Number| specifying the scrollbar column (relative to
+                       |scrollview_base|). Defaults to `2`. Must be an integer
+                       greater than or equal to 1.
 
+                                           *scrollview_auto_mouse*
+scrollview_auto_mouse  |Boolean| |Number| specifying whether a mapping is
+                       automatically created for mouse support (without
+                       clobbering). Defaults to `1`. Considered only at global
+                       scope, when the plugin is loaded.
 
-scrollview_excluded_filetypes                  *scrollview_excluded_filetypes*
+scrollview_auto_workarounds                *scrollview_auto_workarounds*
+                       |Boolean| |Number| specifying whether select workarounds
+                       are automatically applied for known |scrollview-issues|
+                       (without clobbering existing customizations). Defaults
+                       to `1`. Considered only at global scope, when the plugin
+                       is loaded.
 
-  Type: |List|
-  Default: `[]`
+scrollview_nvim_14040_workaround           *scrollview_nvim_14040_workaround*
+                       |Number| specifying whether a workaround is used for
+                       Neovim Issue #14040 (see |scrollview-memory-leak-issue|).
+                       Defaults to `0`. Considered only at global scope.
 
-  Optional file types for which scrollbars should not be displayed.
+scrollview_refresh_time                    *scrollview_refresh_time*
+                       |Number| specifying the refresh limit. When scrollbar
+                       refreshing takes more than this many milliseconds,
+                       subsequent refreshing will use `simple` |scrollview_mode|.
+                       Setting `scrollview_refresh_time_exceeded` to `0` resets
+                       the mode behaviour. Defaults to `100`. A value of `-1`
+                       corresponds to no limit. Considered only at global
+                       scope.
 
-
-scrollview_current_only                              *scrollview_current_only*
-
-  Type: |Number|
-  Default: `0`
-
-  Specifies whether scrollbars should only be displayed in the current
-  window.
-
-  Considered only at tab and global scopes.
-
-
-scrollview_winblend                                      *scrollview_winblend*
-
-  Type: |Number|
-  Default: `50`
-
-  Specifies the level of transparency for scrollbars.
-
-  Must be between between 0 (opaque) and 100 (transparent).
-
-
-scrollview_base                                              *scrollview_base*
-
-  Type: |String|
-  Default: `right`
-
-  Specifies where the scrollbar is anchored.
-
-  Possible values are `'left'` or `'right'` for corresponding window edges,
-  or `'buffer'`.
-
-
-scrollview_column                                          *scrollview_column*
-
-  Type: |Number|
-  Default: `2`
-
-  Specifies the scrollbar column (relative to |scrollview_base|).
-
-  Must be an integer greater than or equal to 1.
-
-
-scrollview_auto_mouse                                  *scrollview_auto_mouse*
-
-  Type: |Number|
-  Default: `1`
-
-  Specifies whether a mapping is automatically created for mouse support
-  (without clobbering).
-
-  Considered only at global scope, when the plugin is loaded.
-
-
-scrollview_auto_workarounds                      *scrollview_auto_workarounds*
-
-  Type: |Number|
-  Default: `1`
-
-  Specifies whether select workarounds are automatically applied for known
-  |scrollview-issues| (without clobbering existing customizations).
-
-  Considered only at global scope, when the plugin is loaded.
-
-
-scrollview_nvim_14040_workaround            *scrollview_nvim_14040_workaround*
-
-  Type: |Number|
-  Default: `0`
-
-  Specifies whether a workaround is used for Neovim Issue #14040 (see
-  |scrollview-memory-leak-issue|).
-
-  Considered only at global scope.
-
-
-scrollview_refresh_time                              *scrollview_refresh_time*
-
-  Type: |Number|
-  Default: `100`
-
-  When scrollbar refreshing takes more than this many milliseconds,
-  subsequent refreshing will use `simple` |scrollview_mode|. Setting
-  `scrollview_refresh_time_exceeded` to 0 resets the mode behaviour.
-
-  A value of -1 corresponds to no limit.
-
-  Considered only at global scope.
-
-
+Configuration Example ~
+                                           *scrollview-configuration-example*
 The variables can be customized in your |init.vim|, as shown in the following
 example.
  >
