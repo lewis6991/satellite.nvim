@@ -67,7 +67,7 @@ Configuration Variables ~
                                            *scrollview_on_startup*
 scrollview_on_startup  |Boolean| |Number| specifying whether scrollbars are
                        enabled on startup. Defaults to `1`. Considered only at
-                       global scope.
+                       global scope, when the plugin is loaded.
 
                                            *scrollview_mode*
 scrollview_mode        |String| specifying what the scrollbar position and size
