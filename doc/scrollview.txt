@@ -63,11 +63,11 @@ and/or 4) global scope, with that order of precedence (i.e., window variables
 have the highest precedence, and global variables have the lowest).
 
 Configuration Variables ~
-                                           *scrollview-configuration-variables*
 
                                            *scrollview_on_startup*
 scrollview_on_startup  |Boolean| |Number| specifying whether scrollbars are
-                       enabled on startup. Defaults to `1`.
+                       enabled on startup. Defaults to `1`. Considered only at
+                       global scope.
 
                                            *scrollview_mode*
 scrollview_mode        |String| specifying what the scrollbar position and size
