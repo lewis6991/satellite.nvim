@@ -572,7 +572,11 @@ function! s:ReadInputStream() abort
     call setbufvar(s:overlay_bufnr, '&buflisted', 0)
   endif
   let l:init_winid = win_getid()
-  let l:target_wins = s:GetOrdinaryWindows()
+  let l:target_wins = []
+  for l:winnr in range(1, winnr('$'))
+    let l:winid = win_getid(l:winnr)
+    call add(l:target_wins, l:winid)
+  endfor
 
   " Make sure that the buffer size is at least as big as the largest window.
   " Use 'lines' option for this, since a window height can't exceed this.
