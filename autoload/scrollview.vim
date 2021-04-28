@@ -367,7 +367,7 @@ function! s:ShowScrollbar(winid, bar_winid) abort
   " Make sure that a custom character is up-to-date and is repeated enough to
   " cover the full height of the scrollbar.
   let l:bar_line_count = nvim_buf_line_count(s:bar_bufnr)
-  if nvim_buf_get_lines(2, 0, 1, 0)[0] !=# g:scrollview_character
+  if nvim_buf_get_lines(s:bar_bufnr, 0, 1, 0)[0] !=# g:scrollview_character
         \ || l:bar_position.height ># l:bar_line_count
     call setbufvar(s:bar_bufnr, '&modifiable', 1)
     call nvim_buf_set_lines(
