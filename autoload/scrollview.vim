@@ -371,7 +371,7 @@ function! s:ShowScrollbar(winid, bar_winid) abort
         \ || l:bar_position.height ># l:bar_line_count
     call setbufvar(s:bar_bufnr, '&modifiable', 1)
     call nvim_buf_set_lines(
-          \ s:bar_bufnr, 0, l:bar_line_count + 1, 0,
+          \ s:bar_bufnr, 0, l:bar_line_count, 0,
           \ repeat([g:scrollview_character], l:bar_position.height))
     call setbufvar(s:bar_bufnr, '&modifiable', 0)
   endif
