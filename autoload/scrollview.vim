@@ -356,12 +356,24 @@ function! s:ShowScrollbar(winid, bar_winid) abort
   endif
   if s:bar_bufnr ==# -1 || !bufexists(s:bar_bufnr)
     let s:bar_bufnr = nvim_create_buf(0, 1)
+    call nvim_buf_set_lines(s:bar_bufnr, 0, 1, 0, [g:scrollview_character])
     call setbufvar(s:bar_bufnr, '&modifiable', 0)
     call setbufvar(s:bar_bufnr, '&filetype', 'scrollview')
     call setbufvar(s:bar_bufnr, '&buftype', 'nofile')
     call setbufvar(s:bar_bufnr, '&swapfile', 0)
     call setbufvar(s:bar_bufnr, '&bufhidden', 'hide')
     call setbufvar(s:bar_bufnr, '&buflisted', 0)
+  endif
+  " Make sure that a custom character is up-to-date and is repeated enough to
+  " cover the full height of the scrollbar.
+  let l:bar_line_count = nvim_buf_line_count(s:bar_bufnr)
+  if nvim_buf_get_lines(2, 0, 1, 0)[0] !=# g:scrollview_character
+        \ || l:bar_position.height ># l:bar_line_count
+    call setbufvar(s:bar_bufnr, '&modifiable', 1)
+    call nvim_buf_set_lines(
+          \ s:bar_bufnr, 0, l:bar_line_count + 1, 0,
+          \ repeat([g:scrollview_character], l:bar_position.height))
+    call setbufvar(s:bar_bufnr, '&modifiable', 0)
   endif
   let l:config = {
         \   'win': l:winid,
@@ -378,6 +390,8 @@ function! s:ShowScrollbar(winid, bar_winid) abort
   else
     call nvim_win_set_config(l:bar_winid, l:config)
   endif
+  " Scroll to top so that the custom character spans full scrollbar height.
+  keepjumps call nvim_win_set_cursor(l:bar_winid, [1, 0])
   let l:bar_winnr = win_id2win(l:bar_winid)
   " It's not sufficient to just specify Normal highlighting. With just that, a
   " color scheme's specification of EndOfBuffer would be used to color the
@@ -387,6 +401,7 @@ function! s:ShowScrollbar(winid, bar_winid) abort
   let l:winblend = s:GetVariable('scrollview_winblend', l:winnr)
   call setwinvar(l:bar_winnr, '&winblend', l:winblend)
   call setwinvar(l:bar_winnr, '&foldcolumn', 0)
+  call setwinvar(l:bar_winnr, '&wrap', 0)
   call setwinvar(l:bar_winnr, s:win_var, s:win_val)
   call setwinvar(l:bar_winnr, s:pending_async_removal_var, 0)
   let l:props = {

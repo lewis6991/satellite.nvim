@@ -1,4 +1,4 @@
-*scrollview.txt*   Plugin that displays (non-interactive) scrollbars
+*scrollview.txt*   Plugin that displays interactive scrollbars
 *nvim-scrollview*
 
 Author: Daniel Steinberg - https://www.dannyadam.com
@@ -10,8 +10,8 @@ Web: https://github.com/dstein64/nvim-scrollview
 4. Configuration                           |scrollview-configuration|
 5. Issues                                  |scrollview-issues|
 
-|nvim-scrollview| is a plugin that displays (non-interactive) scrollbars.
-The plugin is customizable (see |scrollview-configuration|).
+|nvim-scrollview| is a plugin that displays interactive scrollbars. The plugin
+is customizable (see |scrollview-configuration|).
 
 ============================================================================
 1. Requirements                            *scrollview-requirements*
@@ -27,8 +27,7 @@ Use |packages| or one of the various package managers.
 ============================================================================
 3. Usage                                   *scrollview-usage*
 
-* |nvim-scrollview| works automatically, displaying (non-interactive)
-  scrollbars.
+* |nvim-scrollview| works automatically, displaying interactive scrollbars.
 
                                            *scrollview-commands*
 * The *:ScrollViewDisable* command disables scrollbars.
@@ -124,6 +123,12 @@ scrollview_refresh_time                    *scrollview_refresh_time*
                        Considered only at global scope. To reset the mode
                        mode behaviour, set `g:scrollview_refresh_time_exceeded`
                        to `0`.
+
+                                           *scrollview_character*
+scrollview_character  |String| specifying a character to display on scrollbars.
+                      Defaults to `''`. Considered only at global scope.
+                      Scrollbar transparency (via |scrollview_winblend|) is not
+                      possible when a scrollbar character is used.
 
 Configuration Example ~
                                            *scrollview-configuration-example*

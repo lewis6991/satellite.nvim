@@ -43,6 +43,7 @@ let g:scrollview_auto_workarounds = get(g:, 'scrollview_auto_workarounds', 1)
 let g:scrollview_nvim_14040_workaround =
       \ get(g:, 'scrollview_nvim_14040_workaround', 0)
 let g:scrollview_refresh_time = get(g:, 'scrollview_refresh_time', 100)
+let g:scrollview_character = get(g:, 'scrollview_character', '')
 
 " *************************************************
 " * Global State
