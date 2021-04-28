@@ -561,6 +561,9 @@ function! s:ReadInputStream() abort
   " XXX: If/when Vim's getmousepos is ported to Neovim, an overlay would not
   " be necessary. That function would return the necessary information, making
   " most of the steps in this function unnecessary.
+  " TODO: It may be possible to do this using a single floating window. I
+  " recall trying unsuccessfully, but that may be from not setting the window
+  " as focusable.
 
   " === Configure overlay ===
   if s:overlay_bufnr ==# -1 || !bufexists(s:overlay_bufnr)
