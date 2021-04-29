@@ -356,7 +356,6 @@ function! s:ShowScrollbar(winid, bar_winid) abort
   endif
   if s:bar_bufnr ==# -1 || !bufexists(s:bar_bufnr)
     let s:bar_bufnr = nvim_create_buf(0, 1)
-    call nvim_buf_set_lines(s:bar_bufnr, 0, 1, 0, [g:scrollview_character])
     call setbufvar(s:bar_bufnr, '&modifiable', 0)
     call setbufvar(s:bar_bufnr, '&filetype', 'scrollview')
     call setbufvar(s:bar_bufnr, '&buftype', 'nofile')
