@@ -24,6 +24,7 @@ scrollview_character	scrollview.txt	/*scrollview_character*
 scrollview_column	scrollview.txt	/*scrollview_column*
 scrollview_current_only	scrollview.txt	/*scrollview_current_only*
 scrollview_excluded_filetypes	scrollview.txt	/*scrollview_excluded_filetypes*
+scrollview_hide_on_intersect	scrollview.txt	/*scrollview_hide_on_intersect*
 scrollview_mode	scrollview.txt	/*scrollview_mode*
 scrollview_nvim_14040_workaround	scrollview.txt	/*scrollview_nvim_14040_workaround*
 scrollview_on_startup	scrollview.txt	/*scrollview_on_startup*

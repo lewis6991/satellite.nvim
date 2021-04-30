@@ -60,7 +60,9 @@ A package manager can be used to install `nvim-scrollview`.
 
 ## Configuration
 
-There are various settings that can be configured.
+There are various settings that can be configured. Please see the documentation
+for details.
+<details><summary>Settings</summary><br>
 
 * Whether scrollbars are enabled or disabled on startup
   - `scrollview_on_startup`
@@ -84,8 +86,14 @@ There are various settings that can be configured.
   - `scrollview_auto_workarounds`
 * Whether to apply a workaround for [Neovim Issue #14040][neovim_14040]
   - `scrollview_nvim_14040_workaround`
+* Refresh time limit that triggers setting `scrollview_mode` to `simple`
+  - `scrollview_refresh_time`
+* A character to display on scrollbars
+  - `scrollview_character`
+* Whether each scrollbar becomes hidden when intersecting a floating window
+  - `scrollview_hide_on_intersect`
 
-Please see the documentation for details.
+</details>
 
 ## Documentation
 

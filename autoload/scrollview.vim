@@ -302,6 +302,34 @@ function! s:CalculatePosition(winnr) abort
   return l:result
 endfunction
 
+function! s:GetWindowEdges(winid) abort
+  let [l:top, l:left] = win_screenpos(a:winid)
+  let l:bottom = l:top + winheight(a:winid) - 1
+  let l:right = l:left + winwidth(a:winid) - 1
+  return [l:top, l:bottom, l:left, l:right]
+endfunction
+
+" Return the floating windows that overlap the specified region edges.
+function! s:GetFloatOverlaps(top, bottom, left, right) abort
+  let l:result = []
+  for l:winnr in range(1, winnr('$'))
+    let l:winid = win_getid(l:winnr)
+    let l:config = nvim_win_get_config(l:winid)
+    let l:not_floating = get(l:config, 'relative', '') ==# ''
+    if l:not_floating | continue | endif
+    if s:IsScrollViewWindow(l:winid) | continue | endif
+    let [l:top, l:bottom, l:left, l:right] = s:GetWindowEdges(l:winid)
+    if a:top ># l:bottom
+          \ || a:bottom <# l:top
+          \ || a:left ># l:right
+          \ || a:right <# l:left
+      continue
+    endif
+    call add(l:result, l:winid)
+  endfor
+  return l:result
+endfunction
+
 " Show a scrollbar for the specified 'winid' window ID, using the specified
 " 'bar_winid' floating window ID (a new floating window will be created if
 " this is -1). Returns -1 if the bar is not shown, and the floating window ID
@@ -314,6 +342,7 @@ function! s:ShowScrollbar(winid, bar_winid) abort
   let l:buf_filetype = getbufvar(l:bufnr, '&l:filetype', '')
   let l:winheight = winheight(l:winnr)
   let l:winwidth = winwidth(l:winnr)
+  let l:wininfo = getwininfo(l:winid)[0]
   " Skip if the filetype is on the list of exclusions.
   let l:excluded_filetypes =
         \ s:GetVariable('scrollview_excluded_filetypes', l:winnr)
@@ -322,7 +351,7 @@ function! s:ShowScrollbar(winid, bar_winid) abort
   endif
   " Don't show in terminal mode, since the bar won't be properly updated for
   " insertions.
-  if getwininfo(l:winid)[0].terminal
+  if l:wininfo.terminal
     return -1
   endif
   if l:winheight ==# 0 || l:winwidth ==# 0
@@ -353,6 +382,19 @@ function! s:ShowScrollbar(winid, bar_winid) abort
   endif
   if l:bar_position.col ># l:winwidth
     return -1
+  endif
+  if s:GetVariable('scrollview_hide_on_intersect', l:winnr)
+    let l:winrow_0 = l:wininfo.winrow - 1
+    let l:wincol_0 = l:wininfo.wincol - 1
+    let l:float_overlaps = s:GetFloatOverlaps(
+          \   l:winrow_0 + l:bar_position.row,
+          \   l:winrow_0 + l:bar_position.row + l:bar_position.height - 1,
+          \   l:wincol_0 + l:bar_position.col,
+          \   l:wincol_0 + l:bar_position.col
+          \ )
+    if len(l:float_overlaps) ># 0
+      return -1
+    endif
   endif
   if s:bar_bufnr ==# -1 || !bufexists(s:bar_bufnr)
     let s:bar_bufnr = nvim_create_buf(0, 1)
@@ -1170,6 +1212,10 @@ function! scrollview#HandleMouse(button) abort
           " 'feedkeys' is not called, since the full mouse interaction has
           " already been processed. The current window (from prior to
           " scrolling) is not changed.
+          " Refresh scrollbars to handle the scenario where
+          " scrollview_hide_on_intersect is enabled and dragging resulted in a
+          " scrollbar overlapping a floating window.
+          call s:RefreshBars(0)
         endif
         return
       endif

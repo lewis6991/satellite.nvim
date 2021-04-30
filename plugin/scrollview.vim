@@ -44,6 +44,8 @@ let g:scrollview_nvim_14040_workaround =
       \ get(g:, 'scrollview_nvim_14040_workaround', 0)
 let g:scrollview_refresh_time = get(g:, 'scrollview_refresh_time', 100)
 let g:scrollview_character = get(g:, 'scrollview_character', '')
+let g:scrollview_hide_on_intersect =
+      \ get(g:, 'scrollview_hide_on_intersect', 0)
 
 " *************************************************
 " * Global State
