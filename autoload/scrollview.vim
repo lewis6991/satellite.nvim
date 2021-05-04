@@ -309,7 +309,8 @@ function! s:GetWindowEdges(winid) abort
   return [l:top, l:bottom, l:left, l:right]
 endfunction
 
-" Return the floating windows that overlap the specified region edges.
+" Return the floating windows that overlap the region corresponding to the
+" specified edges.
 function! s:GetFloatOverlaps(top, bottom, left, right) abort
   let l:result = []
   for l:winnr in range(1, winnr('$'))
