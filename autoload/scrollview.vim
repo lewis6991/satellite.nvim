@@ -417,15 +417,6 @@ function! s:ShowScrollbar(winid, bar_winid) abort
           \ repeat([g:scrollview_character], l:bar_position.height))
     call setbufvar(s:bar_bufnr, '&modifiable', 0)
   endif
-  " Temporary workaround for Issue #39. If the scrollbar is not scrollable,
-  " coc.nvim will skip the window. This can be removed if coc.nvim PR #3066 is
-  " merged.
-  if g:scrollview_character ==# ''
-    call setbufvar(s:bar_bufnr, '&modifiable', 1)
-    call nvim_buf_set_lines(
-          \ s:bar_bufnr, 0, nvim_buf_line_count(s:bar_bufnr), 0, [''])
-    call setbufvar(s:bar_bufnr, '&modifiable', 0)
-  endif
   let l:config = {
         \   'win': l:winid,
         \   'relative': 'win',
