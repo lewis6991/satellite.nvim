@@ -121,8 +121,7 @@ scrollview_refresh_time                    *scrollview_refresh_time*
                        subsequent refreshing will use `simple` |scrollview_mode|.
                        Defaults to `100`. A value of `-1` corresponds to no limit.
                        Considered only at global scope. To reset the mode
-                       mode behaviour, set `g:scrollview_refresh_time_exceeded`
-                       to `0`.
+                       behavior, set `g:scrollview_refresh_time_exceeded` to `0`.
 
                                            *scrollview_character*
 scrollview_character  |String| specifying a character to display on scrollbars.
