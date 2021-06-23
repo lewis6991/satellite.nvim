@@ -959,7 +959,9 @@ function! s:RefreshBars(...) abort
       " RemoveBars is used instead of CloseScrollViewWindow for global state
       " initialization and restoration.
       let l:cmd = 'silent! call s:RemoveBars(' . string(l:existing_wins) . ')'
-      call timer_start(0, {-> execute(l:cmd)})
+      if len(l:existing_wins) ># 0
+        call timer_start(0, {-> execute(l:cmd)})
+      endif
     else
       for l:winid in l:existing_wins
         call s:CloseScrollViewWindow(l:winid)
