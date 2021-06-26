@@ -959,18 +959,14 @@ function! s:RefreshBars(...) abort
       " additions.
       " - RemoveBars is used instead of CloseScrollViewWindow for global state
       "   initialization and restoration.
-      " - The 'tmp' dict is used for creating a local function. This is
-      "   utilized instead of the existing approach that used a closure and
-      "   led to unreleased memory (Vim Issue #8439).
       for l:winid in l:existing_wins
         call setwinvar(win_id2win(l:winid), s:pending_async_removal_var, 1)
       endfor
-      let l:tmp = {}
-      function l:tmp.callback(wins, timer_id) dict
-        echom a:timer_id
-        silent! call s:RemoveBars(a:wins)
-      endfunction
-      call timer_start(0, function(l:tmp.callback, [l:existing_wins]))
+      let l:cmd = 'silent! call s:RemoveBars(' . string(l:existing_wins) . ')'
+      " Use 'execute' so that the lambda is not a closure that accesses outer
+      " scoped variables, which would lead to unreleased memory (Vim Issue
+      " #8439).
+      execute 'call timer_start(0, {-> execute("' . l:cmd . '")})'
     else
       for l:winid in l:existing_wins
         call s:CloseScrollViewWindow(l:winid)
