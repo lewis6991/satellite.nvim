@@ -945,7 +945,11 @@ function! s:RefreshBars(...) abort
           \ && l:elapsed_micro ># g:scrollview_refresh_time * 1000
       let g:scrollview_refresh_time_exceeded = 1
     end
-    if l:async_removal
+    if len(l:existing_wins) ==# 0
+      " Do nothing. The following clauses are only applicable when there are
+      " existing windows. Skipping prevents the creation of an unnecessary
+      " timer.
+    elseif l:async_removal
       " Remove bars asynchronously to prevent flickering (this may help when
       " there are folds and mode='virtual' in some cases). Even when
       " nvim_win_close is called synchronously after the code that adds the
@@ -953,15 +957,20 @@ function! s:RefreshBars(...) abort
       " confirmed by using 'writedelay'. Even with asynchronous execution, the
       " call to timer_start must still occur after the code for the window
       " additions.
+      " - RemoveBars is used instead of CloseScrollViewWindow for global state
+      "   initialization and restoration.
+      " - The 'tmp' dict is used for creating a local function. This is
+      "   utilized instead of the existing approach that used a closure and
+      "   led to unreleased memory (Vim Issue #8439).
       for l:winid in l:existing_wins
         call setwinvar(win_id2win(l:winid), s:pending_async_removal_var, 1)
       endfor
-      " RemoveBars is used instead of CloseScrollViewWindow for global state
-      " initialization and restoration.
-      let l:cmd = 'silent! call s:RemoveBars(' . string(l:existing_wins) . ')'
-      if len(l:existing_wins) ># 0
-        call timer_start(0, {-> execute(l:cmd)})
-      endif
+      let l:tmp = {}
+      function l:tmp.callback(wins, timer_id) dict
+        echom a:timer_id
+        silent! call s:RemoveBars(a:wins)
+      endfunction
+      call timer_start(0, function(l:tmp.callback, [l:existing_wins]))
     else
       for l:winid in l:existing_wins
         call s:CloseScrollViewWindow(l:winid)
