@@ -963,8 +963,8 @@ function! s:RefreshBars(...) abort
         call setwinvar(win_id2win(l:winid), s:pending_async_removal_var, 1)
       endfor
       let l:cmd = 'silent! call s:RemoveBars(' . string(l:existing_wins) . ')'
-      " Use 'execute' so that the lambda is not a closure that accesses outer
-      " scoped variables, which would lead to unreleased memory (Vim Issue
+      " Use 'execute' so that the lambda is not a closure that accesses scoped
+      " variable l:cmd, which would lead to unreleased memory (Vim Issue
       " #8439).
       execute 'call timer_start(0, {-> execute("' . l:cmd . '")})'
     else
