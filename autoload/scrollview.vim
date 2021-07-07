@@ -162,17 +162,13 @@ endfunction
 " highest precedence is given to window variables, then tab page variables,
 " then buffer variables, then global variables. Without specifying a default
 " value, 0 will be used.
-function! s:GetVariable(name, winnr, ...) abort
+function! s:GetVariable(name, winnr, precedence='wtbg', default=0) abort
   " WARN: The try block approach below is used instead of getwinvar(a:winnr,
   " a:name), since the latter approach provides no way to know whether a
   " returned default value was from a missing key or a match that
   " coincidentally had the same value.
-  let l:precedence = 'wtbg'
-  if a:0 ># 0
-    let l:precedence = a:1
-  endif
-  for l:idx in range(strchars(l:precedence))
-    let l:c = strcharpart(l:precedence, l:idx, 1)
+  for l:idx in range(strchars(a:precedence))
+    let l:c = strcharpart(a:precedence, l:idx, 1)
     if l:c ==# 'w'
       let l:winvars = getwinvar(a:winnr, '')
       try | return l:winvars[a:name] | catch | endtry
@@ -188,11 +184,7 @@ function! s:GetVariable(name, winnr, ...) abort
       throw 'Unknown variable type ' . l:c
     endif
   endfor
-  let l:default = 0
-  if a:0 ># 1
-    let l:default = a:2
-  endif
-  return l:default
+  return a:default
 endfunction
 
 " Returns the scrollview mode. The function signature matches s:GetVariable,
@@ -864,12 +856,14 @@ endfunction
 
 " With no argument, remove all bars. Otherwise, remove the specified list of
 " bars. Global state is initialized and restored.
-function! s:RemoveBars(...) abort
+" From documentation:
+"   'The argument default expressions are evaluated at the time of the
+"   function call, not definition.'
+function! s:RemoveBars(target_wins=s:GetScrollViewWindows()) abort
   if s:bar_bufnr ==# -1 | return | endif
   let l:state = s:Init()
   try
-    let l:target_wins = a:0 ># 0 ? a:1 : s:GetScrollViewWindows()
-    for l:winid in l:target_wins
+    for l:winid in a:target_wins
       call s:CloseScrollViewWindow(l:winid)
     endfor
   catch
@@ -891,11 +885,7 @@ endfunction
 " Refreshes scrollbars. There is an optional argument that specifies whether
 " removing existing scrollbars is asynchronous (defaults to true). Global
 " state is initialized and restored.
-function! s:RefreshBars(...) abort
-  let l:async_removal = 1
-  if a:0 ># 0
-    let l:async_removal = a:1
-  endif
+function! s:RefreshBars(async_removal=1) abort
   let l:state = s:Init()
   try
     if s:InCommandLineWindow()
@@ -949,7 +939,7 @@ function! s:RefreshBars(...) abort
       " Do nothing. The following clauses are only applicable when there are
       " existing windows. Skipping prevents the creation of an unnecessary
       " timer.
-    elseif l:async_removal
+    elseif a:async_removal
       " Remove bars asynchronously to prevent flickering (this may help when
       " there are folds and mode='virtual' in some cases). Even when
       " nvim_win_close is called synchronously after the code that adds the
