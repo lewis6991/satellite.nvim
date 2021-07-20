@@ -73,8 +73,9 @@ scrollview_mode        |String| specifying what the scrollbar position and size
                        available modes. Defaults to `'virtual'`.
 
 scrollview_excluded_filetypes              *scrollview_excluded_filetypes*
-                       |List| of optional file types for which scrollbars should
-                       not be displayed. Defaults to `[]`.
+                       |List| of |String|s specifying optional file types for
+                       which scrollbars should not be displayed. Defaults to
+                       `[]`.
 
 scrollview_current_only                    *scrollview_current_only*
                        |Boolean| |Number| specifying whether scrollbars should
