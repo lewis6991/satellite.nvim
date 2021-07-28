@@ -143,9 +143,8 @@ example.
 
 Scrollview Modes ~
                                            *scrollview-modes*
-The following modes are available for the |scrollview_mode| configuration
-setting (set as a |string|). Without closed |folds|, all three modes work the
-same way.
+The following modes are available for the |scrollview_mode| configuration setting
+(set as a |string|). Without closed |folds|, both modes work the same way.
 
 Mode       Description
 ----       -----------
