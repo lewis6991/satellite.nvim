@@ -84,8 +84,6 @@ for details.
   - `scrollview_auto_mouse`
 * Whether select workarounds are automatically applied for known issues
   - `scrollview_auto_workarounds`
-* Whether to apply a workaround for [Neovim Issue #14040][neovim_14040]
-  - `scrollview_nvim_14040_workaround`
 * Refresh time limit that triggers setting `scrollview_mode` to `simple`
   - `scrollview_refresh_time`
 * A character to display on scrollbars
@@ -115,7 +113,6 @@ See [LICENSE](LICENSE).
 [badge_thumbnail]: https://github.com/dstein64/nvim-scrollview/actions/workflows/build.yml/badge.svg
 [dein]: https://github.com/Shougo/dein.vim
 [neobundle]: https://github.com/Shougo/neobundle.vim
-[neovim_14040]: https://github.com/neovim/neovim/issues/14040
 [packer]: https://github.com/wbthomason/packer.nvim
 [pathogen]: https://github.com/tpope/vim-pathogen
 [vim8pack]: http://vimhelp.appspot.com/repeat.txt.html#packages

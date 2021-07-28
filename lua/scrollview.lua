@@ -44,31 +44,6 @@ end
 -- * Core
 -- *************************************************
 
--- Closes the window, with optional (g:scrollview_nvim_14040_workaround)
--- special handling for floating windows to first delete all folds in all
--- buffers. Folds are local to the window, so this doesn't have any side
--- effects on folds in other windows. This is a workaround for Neovim Issue
--- #14040, which results in a memory leak otherwise.
-local function close_window(winid)
-  local config = vim.api.nvim_win_get_config(winid)
-  local nvim_14040_workaround =
-    to_bool(vim.g.scrollview_nvim_14040_workaround)
-  if config.relative ~= '' and nvim_14040_workaround then
-    local current_winid = vim.fn.win_getid(vim.fn.winnr())
-    vim.api.nvim_set_current_win(winid)
-    for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
-      if vim.api.nvim_buf_is_loaded(bufnr) then
-        vim.api.nvim_win_set_buf(winid, bufnr)
-        -- zE only works when 'foldmethod' is "manual" or "marker".
-        vim.api.nvim_win_set_option(winid, 'foldmethod', 'manual')
-        vim.cmd('silent! normal! zE')
-      end
-    end
-    vim.fn.win_gotoid(current_winid)
-  end
-  vim.api.nvim_win_close(winid, true)
-end
-
 -- Creates a temporary floating window that can be used for computations
 -- ---corresponding to the specified window---that require temporary cursor
 -- movements (e.g., counting virtual lines, where all lines in a closed fold
@@ -233,7 +208,7 @@ local function virtual_line_count(winid, start, _end)
     count = virtual_line_count_spanwise(start, _end)
   end
   vim.fn.win_gotoid(current_winid)
-  close_window(workspace_winid)
+  vim.api.nvim_win_close(workspace_winid, true)
   if memoize then cache[memoize_key] = count end
   return count
 end
@@ -376,12 +351,11 @@ local function virtual_topline_lookup(winid)
     result = virtual_topline_lookup_spanwise()
   end
   vim.fn.win_gotoid(current_winid)
-  close_window(workspace_winid)
+  vim.api.nvim_win_close(workspace_winid, true)
   return result
 end
 
 return {
-  close_window = close_window,
   open_win_workspace = open_win_workspace,
   reset_memoize = reset_memoize,
   start_memoize = start_memoize,
