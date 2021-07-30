@@ -505,9 +505,36 @@ function! s:CloseScrollViewWindow(winid) abort
   silent! noautocmd call nvim_win_close(l:winid, 1)
 endfunction
 
+" Returns a dictionary mapping winid to topline for the ordinary windows in
+" the current tab.
+function! s:GetToplines() abort
+  let l:result = {}
+  let l:tabnr = tabpagenr()
+  for l:info in getwininfo()
+    let l:winid = l:info.winid
+    if l:info.tabnr !=# l:tabnr || !s:IsOrdinaryWindow(l:winid)
+      continue
+    endif
+    let l:result[l:winid] = l:info.topline
+  endfor
+  return l:result
+endfunction
+
 " Sets global state that is assumed by the core functionality and returns a
 " state that can be used for restoration.
 function! s:Init() abort
+  " It's possible that window views can change as a result of moving the
+  " cursor across windows throughout nvim-scrollview processing (Issue #43).
+  " Toplines are saved so that the views can be restored in s:Restore.
+  " winsaveview/winrestview would be insufficient to restore views (vim Issue
+  " #8654).
+  " XXX: Because window views can change, scrollbars could be positioned
+  " slightly incorrectly when that happens since they would correspond to the
+  " (temporarily) shifted view. A possible workaround could be to 1)
+  " temporarily set scrolloff to 0 (both global and local scrolloff options)
+  " for the duration of processing, or 2) update nvim-scrollview so that it
+  " uses win_execute for all functionality and never has to change windows,
+  " preventing the shifted views from occurring.
   let l:state = {
         \   'previous_winid': win_getid(winnr('#')),
         \   'initial_winid': win_getid(winnr()),
@@ -515,7 +542,8 @@ function! s:Init() abort
         \   'eventignore': &eventignore,
         \   'winwidth': &winwidth,
         \   'winheight': &winheight,
-        \   'mode': mode()
+        \   'mode': mode(),
+        \   'toplines': s:GetToplines()
         \ }
   " Disable the bell (e.g., for invalid cursor movements, trying to navigate
   " to a next fold, when no fold exists).
@@ -533,7 +561,7 @@ function! s:Init() abort
   return l:state
 endfunction
 
-function! s:Restore(state) abort
+function! s:Restore(state, restore_toplines=1) abort
   " Restore the previous window so that <c-w>p and winnr('#') function as
   " expected, and so that plugins that utilize previous windows (e.g., CtrlP)
   " function properly. If the current window is the same as the initial
@@ -564,6 +592,21 @@ function! s:Restore(state) abort
   let &eventignore = a:state.eventignore
   let &winwidth = a:state.winwidth
   let &winheight = a:state.winheight
+  if a:restore_toplines
+    " Scroll windows back to their original positions.
+    for [l:winid, l:topline] in items(a:state.toplines)
+      " The number of scrolls is limited as a precaution against entering an
+      " infinite loop.
+      let l:countdown = l:topline - getwininfo(l:winid)[0].topline
+      while l:countdown ># 0 && getwininfo(l:winid)[0].topline <# l:topline
+        " Can't use s:SetTopLine, since that function changes the current
+        " window, and would result in the same problem that is intended to be
+        " solved here.
+        call win_execute(l:winid, "keepjumps normal! \<c-e>")
+        let l:countdown -= 1
+      endwhile
+    endfor
+  endif
 endfunction
 
 " Returns a dictionary that maps window ID to a dictionary of corresponding
@@ -1109,6 +1152,7 @@ function! scrollview#HandleMouse(button) abort
     throw 'Unsupported button: ' . a:button
   endif
   let l:state = s:Init()
+  let l:restore_toplines = 1
   let l:wins_options = s:GetWindowsOptions()
   " virtual_line_count would return the same values for the same arguments,
   " for the duration of mouse drag scrolling, so use memoization.
@@ -1245,6 +1289,13 @@ function! scrollview#HandleMouse(button) abort
         " in unintended clicking/dragging where there is no scrollbar.
         call s:RefreshBars(0)
         redraw
+        " Don't restore toplines whenever a scrollbar was clicked. This
+        " prevents the window where a scrollbar is dragged from having its
+        " topline restored to the pre-drag position. This also prevents
+        " restoring windows that may have had their windows shifted during the
+        " course of scrollbar clicking/dragging, to prevent jumpiness in the
+        " display.
+        let l:restore_toplines = 0
         let l:props = s:GetScrollViewProps(l:mouse_winid)
         if l:props ==# {} || l:mouse_row <# l:props.row
               \ || l:mouse_row >=# l:props.row + l:props.height
@@ -1305,6 +1356,6 @@ function! scrollview#HandleMouse(button) abort
     call s:lua_module.stop_memoize()
     call s:lua_module.reset_memoize()
     call s:RestoreWindowsOptions(l:wins_options)
-    call s:Restore(l:state)
+    call s:Restore(l:state, l:restore_toplines)
   endtry
 endfunction
