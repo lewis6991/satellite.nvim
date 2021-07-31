@@ -523,6 +523,8 @@ endfunction
 " Sets global state that is assumed by the core functionality and returns a
 " state that can be used for restoration.
 function! s:Init() abort
+  let l:eventignore = &eventignore
+  set eventignore=all
   " It's possible that window views can change as a result of moving the
   " cursor across windows throughout nvim-scrollview processing (Issue #43).
   " Toplines are saved so that the views can be restored in s:Restore.
@@ -539,7 +541,7 @@ function! s:Init() abort
         \   'previous_winid': win_getid(winnr('#')),
         \   'initial_winid': win_getid(winnr()),
         \   'belloff': &belloff,
-        \   'eventignore': &eventignore,
+        \   'eventignore': l:eventignore,
         \   'winwidth': &winwidth,
         \   'winheight': &winheight,
         \   'mode': mode(),
@@ -548,7 +550,6 @@ function! s:Init() abort
   " Disable the bell (e.g., for invalid cursor movements, trying to navigate
   " to a next fold, when no fold exists).
   set belloff=all
-  set eventignore=all
   " Minimize winwidth and winheight so that changing the current window
   " doesn't unexpectedly cause window resizing.
   let &winwidth = max([1, &winminwidth])
