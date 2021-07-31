@@ -591,7 +591,6 @@ function! s:Restore(state, restore_toplines=1) abort
   let &belloff = a:state.belloff
   let &winwidth = a:state.winwidth
   let &winheight = a:state.winheight
-  let &eventignore = a:state.eventignore
   if a:restore_toplines
     " Scroll windows back to their original positions.
     for [l:winid, l:topline] in items(a:state.toplines)
@@ -607,6 +606,7 @@ function! s:Restore(state, restore_toplines=1) abort
       endwhile
     endfor
   endif
+  let &eventignore = a:state.eventignore
 endfunction
 
 " Returns a dictionary that maps window ID to a dictionary of corresponding
