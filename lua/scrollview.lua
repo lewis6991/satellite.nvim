@@ -180,8 +180,8 @@ local function virtual_line_count_linewise(start, _end)
 end
 
 -- Returns the count of virtual lines between the specified start and end lines
--- (both inclusive), in the specified window. A closed fold counts as one virtual
--- line. The computation loops over lines. The cursor is not moved.
+-- (both inclusive), in the specified window. A closed fold counts as one
+-- virtual line. The computation loops over lines. The cursor is not moved.
 local function virtual_line_count(winid, start, _end)
   local last_line =
     vim.fn.getbufinfo(vim.fn.winbufnr(winid))[1].linecount
