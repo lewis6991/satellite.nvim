@@ -589,9 +589,9 @@ function! s:Restore(state, restore_toplines=1) abort
   endif
   " Restore options.
   let &belloff = a:state.belloff
-  let &eventignore = a:state.eventignore
   let &winwidth = a:state.winwidth
   let &winheight = a:state.winheight
+  let &eventignore = a:state.eventignore
   if a:restore_toplines
     " Scroll windows back to their original positions.
     for [l:winid, l:topline] in items(a:state.toplines)
