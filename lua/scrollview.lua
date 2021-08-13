@@ -1,3 +1,5 @@
+local api = vim.api
+
 -- *************************************************
 -- * Memoization
 -- *************************************************
@@ -55,27 +57,25 @@ end
 -- out-of-sync). It's the caller's responsibility to close the workspace
 -- window.
 local function open_win_workspace(winid)
-  local current_winid = vim.fn.win_getid(vim.fn.winnr())
   -- Make the target window active, so that its folds are inherited by the
   -- created floating window (this is necessary when there are multiple windows
   -- that have the same buffer, each window having different folds).
-  vim.fn.win_gotoid(winid)
-  local config = {
-    relative = 'editor',
-    focusable = false,
-    width = math.max(1, vim.fn.winwidth(winid)),
-    height = math.max(1, vim.fn.winheight(winid)),
-    row = 0,
-    col = 0
-  }
-  local bufnr = vim.fn.winbufnr(winid)
-  local workspace_winid = vim.api.nvim_open_win(bufnr, false, config)
+  local workspace_winid = api.nvim_win_call(winid, function()
+    local bufnr = api.nvim_win_get_buf(winid)
+    return api.nvim_open_win(bufnr, false, {
+      relative = 'editor',
+      focusable = false,
+      width = math.max(1, api.nvim_win_get_width(winid)),
+      height = math.max(1, api.nvim_win_get_height(winid)),
+      row = 0,
+      col = 0
+    })
+  end)
   -- Disable scrollbind and cursorbind on the workspace window so that diff
   -- mode and other functionality that utilizes binding (e.g., :Gdiff, :Gblame)
   -- can function properly.
-  vim.api.nvim_win_set_option(workspace_winid, 'scrollbind', false)
-  vim.api.nvim_win_set_option(workspace_winid, 'cursorbind', false)
-  vim.fn.win_gotoid(current_winid)
+  api.nvim_win_set_option(workspace_winid, 'scrollbind', false)
+  api.nvim_win_set_option(workspace_winid, 'cursorbind', false)
   return workspace_winid
 end
 
