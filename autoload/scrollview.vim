@@ -104,27 +104,21 @@ function! s:OpenWinWorkspace(winid) abort
   return s:lua_module.open_win_workspace(a:winid)
 endfunction
 
-" Returns true if the window has at least one fold (either closed or open).
-function! s:WindowHasFold(winid) abort
+" Returns true if the current window has at least one fold (either closed or
+" open).
+function! s:WindowHasFold() abort
   " A window has at least one fold if 1) the first line is within a fold or 2)
   " it's possible to move from the first line to some other line with a fold.
-  let l:winid = a:winid
-  let l:init_winid = win_getid()
-  let l:result = 0
-  call win_gotoid(l:winid)
-  if foldlevel(1) !=# 0
-    let l:result = 1
-  else
+  let l:winid = win_getid()
+  " The default assumes the first line is within a fold, and is updated
+  " accordingly otherwise.
+  let l:result = 1
+  if foldlevel(1) ==# 0
     let l:workspace_winid = s:OpenWinWorkspace(l:winid)
-    call win_gotoid(l:workspace_winid)
-    keepjumps normal! ggzj
-    let l:result = line('.') !=# 1
-    " Leave the workspace so it can be closed. Return to the existing window,
-    " which was l:winid (from the win_gotoid call above).
-    call win_gotoid(l:winid)
+    call win_execute(l:workspace_winid, 'keepjumps normal! ggzj')
+    call win_execute(l:workspace_winid, 'let l:result = line(".") !=# 1')
     call nvim_win_close(l:workspace_winid, 1)
   endif
-  call win_gotoid(l:init_winid)
   return l:result
 endfunction
 
@@ -724,8 +718,11 @@ function! s:ReadInputStream() abort
     " No observed consequential side-effects were encountered when setting
     " buftype=help in this scenario. The change in warning text for Neovim may
     " have been intended to reduce the text to a single line.
-    if getbufvar(l:bufnr, '&buftype') ==# 'help' && s:WindowHasFold(l:winid)
-      call setbufvar(l:bufnr, '&buftype', '')
+    if getbufvar(l:bufnr, '&buftype') ==# 'help'
+      call win_execute(l:winid, 'let l:has_fold = s:WindowHasFold()')
+      if l:has_fold
+        call setbufvar(l:bufnr, '&buftype', '')
+      endif
     endif
     " Change buffer
     keepalt keepjumps call nvim_win_set_buf(l:winid, s:overlay_bufnr)
