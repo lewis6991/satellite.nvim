@@ -172,17 +172,16 @@ end
 -- (both inclusive), in the specified window. A closed fold counts as one
 -- virtual line. The computation loops over lines. The cursor is not moved.
 local function virtual_line_count(winid, start, _end)
-  local last_line =
-    vim.fn.getbufinfo(vim.fn.winbufnr(winid))[1].linecount
+  local last_line = api.nvim_buf_line_count(api.nvim_win_get_buf(winid))
   if type(_end) == 'string' and _end == '$' then
     _end = last_line
   end
   local memoize_key =
     table.concat({'virtual_line_count', winid, start, _end}, ':')
   if memoize and cache[memoize_key] then return cache[memoize_key] end
-  local current_winid = vim.fn.win_getid(vim.fn.winnr())
+  local current_winid = api.nvim_get_current_win()
   local workspace_winid = open_win_workspace(winid)
-  vim.fn.win_gotoid(workspace_winid)
+  api.nvim_set_current_win(workspace_winid)
   local count
   -- On an AMD Ryzen 7 2700X, linewise computation takes about 3e-7 seconds per
   -- line (this is an overestimate, as it assumes all folds are open, but the
@@ -196,8 +195,8 @@ local function virtual_line_count(winid, start, _end)
   else
     count = virtual_line_count_spanwise(start, _end)
   end
-  vim.fn.win_gotoid(current_winid)
-  vim.api.nvim_win_close(workspace_winid, true)
+  api.nvim_set_current_win(current_winid)
+  api.nvim_win_close(workspace_winid, true)
   if memoize then cache[memoize_key] = count end
   return count
 end
@@ -206,9 +205,9 @@ end
 -- scrollbar at that row under virtual scrollview mode, in the current window.
 -- The computation loops over virtual spans. The cursor may be moved.
 local function virtual_topline_lookup_spanwise()
-  local winheight = vim.fn.winheight(0)
+  local winheight = api.nvim_win_get_height(0)
   local result = {}  -- A list of line numbers
-  local winid = vim.fn.win_getid(vim.fn.winnr())
+  local winid = api.nvim_get_current_win()
   local virtual_line_count = virtual_line_count(winid, 1, '$')
   if virtual_line_count > 1 and winheight > 1 then
     local line = 0
@@ -271,10 +270,10 @@ end
 -- scrollbar at that row under virtual scrollview mode, in the current window.
 -- The computation loops over lines.
 local function virtual_topline_lookup_linewise()
-  local winheight = vim.fn.winheight(0)
+  local winheight = api.nvim_win_get_height(0)
   local last_line = vim.fn.line('$')
   local result = {}  -- A list of line numbers
-  local winid = vim.fn.win_getid(vim.fn.winnr())
+  local winid = api.nvim_get_current_win()
   local virtual_line_count = virtual_line_count(winid, 1, '$')
   if virtual_line_count > 1 and winheight > 1 then
     local count = 1  -- The count of virtual lines
