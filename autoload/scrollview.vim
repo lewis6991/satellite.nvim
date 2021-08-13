@@ -125,29 +125,23 @@ endfunction
 " Returns the window column where the buffer's text begins. This may be
 " negative due to horizontal scrolling. This may be greater than one due to
 " the sign column and 'number' column.
-function! s:BufferTextBeginsColumn(winid) abort
-  let l:current_winid = win_getid(winnr())
-  call win_gotoid(a:winid)
+function! s:BufferTextBeginsColumn() abort
   " The calculation assumes lines don't wrap, so 'nowrap' is temporarily set.
   let l:wrap = &l:wrap
   setlocal nowrap
   let l:result = wincol() - virtcol('.') + 1
   let &l:wrap = l:wrap
-  call win_gotoid(l:current_winid)
   return l:result
 endfunction
 
 " Returns the window column where the view of the buffer begins. This can be
 " greater than one due to the sign column and 'number' column.
-function! s:BufferViewBeginsColumn(winid) abort
-  let l:current_winid = win_getid(winnr())
-  call win_gotoid(a:winid)
+function! s:BufferViewBeginsColumn() abort
   " The calculation assumes lines don't wrap, so 'nowrap' is temporarily set.
   let l:wrap = &l:wrap
   setlocal nowrap
   let l:result = wincol() - virtcol('.') + winsaveview().leftcol + 1
   let &l:wrap = l:wrap
-  call win_gotoid(l:current_winid)
   return l:result
 endfunction
 
@@ -271,8 +265,8 @@ function! s:CalculatePosition(winnr) abort
   elseif l:base ==# 'right'
     let l:left += l:winwidth - l:column
   elseif l:base ==# 'buffer'
-    let l:left += l:column - 1
-          \ + s:BufferTextBeginsColumn(l:winid) - 1
+    call win_execute(l:winid, 'let l:btbc = s:BufferTextBeginsColumn()')
+    let l:left += l:column - 1 + l:btbc - 1
   else
     " For an unknown base, use the default position (right edge of window).
     let l:left += l:winwidth - 1
@@ -359,7 +353,8 @@ function! s:ShowScrollbar(winid, bar_winid) abort
   let l:max_valid_col = l:winwidth
   let l:base = s:GetVariable('scrollview_base', l:winnr)
   if l:base ==# 'buffer'
-    let l:min_valid_col = s:BufferViewBeginsColumn(l:winid)
+    call win_execute(
+          \ l:winid, 'let l:min_valid_col = s:BufferViewBeginsColumn()')
   endif
   if l:bar_position.col <# l:min_valid_col
     return -1
