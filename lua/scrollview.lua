@@ -321,26 +321,23 @@ end
 -- scrollbar at that row under virtual scrollview mode. The cursor is not
 -- moved.
 local function virtual_topline_lookup(winid)
-  local last_line =
-    vim.fn.getbufinfo(vim.fn.winbufnr(winid))[1].linecount
-  local current_winid = vim.fn.win_getid(vim.fn.winnr())
   local workspace_winid = open_win_workspace(winid)
-  vim.fn.win_gotoid(workspace_winid)
-  local result
-  -- On an AMD Ryzen 7 2700X, linewise computation takes about 1.6e-6 seconds
-  -- per line (this is an overestimate, as it assumes all folds are open, but
-  -- the time is reduced when there are closed folds, as lines would be
-  -- skipped). Spanwise computation takes about 6.5e-5 seconds per fold (closed
-  -- folds count as a single fold). Therefore the linewise computation is
-  -- worthwhile when the number of folds is greater than (1.6e-6 / 6.5e-5) * L
-  -- = .0246L, where L is the number of lines.
-  if fold_count_exceeds(1, last_line, math.floor(last_line * .0246)) then
-    result = virtual_topline_lookup_linewise()
-  else
-    result = virtual_topline_lookup_spanwise()
-  end
-  vim.fn.win_gotoid(current_winid)
-  vim.api.nvim_win_close(workspace_winid, true)
+  local result = api.nvim_win_call(workspace_winid, function()
+    local last_line = api.nvim_buf_line_count(api.nvim_win_get_buf(winid))
+    -- On an AMD Ryzen 7 2700X, linewise computation takes about 1.6e-6 seconds
+    -- per line (this is an overestimate, as it assumes all folds are open, but
+    -- the time is reduced when there are closed folds, as lines would be
+    -- skipped). Spanwise computation takes about 6.5e-5 seconds per fold (closed
+    -- folds count as a single fold). Therefore the linewise computation is
+    -- worthwhile when the number of folds is greater than (1.6e-6 / 6.5e-5) * L
+    -- = .0246L, where L is the number of lines.
+    if fold_count_exceeds(1, last_line, math.floor(last_line * .0246)) then
+      return virtual_topline_lookup_linewise()
+    else
+      return virtual_topline_lookup_spanwise()
+    end
+  end)
+  api.nvim_win_close(workspace_winid, true)
   return result
 end
 
