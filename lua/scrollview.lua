@@ -181,21 +181,20 @@ local function virtual_line_count(winid, start, _end)
   if memoize and cache[memoize_key] then return cache[memoize_key] end
   local current_winid = api.nvim_get_current_win()
   local workspace_winid = open_win_workspace(winid)
-  api.nvim_set_current_win(workspace_winid)
-  local count
-  -- On an AMD Ryzen 7 2700X, linewise computation takes about 3e-7 seconds per
-  -- line (this is an overestimate, as it assumes all folds are open, but the
-  -- time is reduced when there are closed folds, as lines would be skipped).
-  -- Spanwise computation takes about 5e-5 seconds per fold (closed folds count
-  -- as a single fold). Therefore the linewise computation is worthwhile when
-  -- the number of folds is greater than (3e-7 / 5e-5) * L = .006L, where L is
-  -- the number of lines.
-  if fold_count_exceeds(start, _end, math.floor(last_line * .006)) then
-    count = virtual_line_count_linewise(start, _end)
-  else
-    count = virtual_line_count_spanwise(start, _end)
-  end
-  api.nvim_set_current_win(current_winid)
+  local count = api.nvim_win_call(workspace_winid, function()
+    -- On an AMD Ryzen 7 2700X, linewise computation takes about 3e-7 seconds
+    -- per line (this is an overestimate, as it assumes all folds are open, but
+    -- the time is reduced when there are closed folds, as lines would be
+    -- skipped). Spanwise computation takes about 5e-5 seconds per fold (closed
+    -- folds count as a single fold). Therefore the linewise computation is
+    -- worthwhile when the number of folds is greater than (3e-7 / 5e-5) * L =
+    -- .006L, where L is the number of lines.
+    if fold_count_exceeds(start, _end, math.floor(last_line * .006)) then
+      return virtual_line_count_linewise(start, _end)
+    else
+      return virtual_line_count_spanwise(start, _end)
+    end
+  end)
   api.nvim_win_close(workspace_winid, true)
   if memoize then cache[memoize_key] = count end
   return count
