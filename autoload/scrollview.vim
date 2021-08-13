@@ -214,17 +214,14 @@ function! s:LineRange(winid) abort
   " movements (Neovim Issue #13510), so this is implemeneted as a workaround.
   " This was originally handled by using an asynchronous context, but this was
   " not possible for refreshing bars during mouse drags.
-  let l:current_winid = win_getid(winnr())
-  call win_gotoid(a:winid)
   " Using scrolloff=0 combined with H and L breaks diff mode. Scrolling is not
   " possible and/or the window scrolls when it shouldn't. Temporarily turning
   " off scrollbind and cursorbind accommodates, but the following is simpler.
-  let l:topline = line('w0')
-  let l:botline = line('w$')
+  call win_execute(a:winid, 'let l:topline = line("w0")')
+  call win_execute(a:winid, 'let l:botline = line("w$")')
   " line('w$') returns 0 in silent Ex mode, but line('w0') is always greater
   " than or equal to 1.
   let l:botline = max([l:botline, l:topline])
-  call win_gotoid(l:current_winid)
   return [l:topline, l:botline]
 endfunction
 
