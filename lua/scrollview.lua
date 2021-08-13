@@ -325,10 +325,10 @@ local function virtual_topline_lookup(winid)
     -- On an AMD Ryzen 7 2700X, linewise computation takes about 1.6e-6 seconds
     -- per line (this is an overestimate, as it assumes all folds are open, but
     -- the time is reduced when there are closed folds, as lines would be
-    -- skipped). Spanwise computation takes about 6.5e-5 seconds per fold (closed
-    -- folds count as a single fold). Therefore the linewise computation is
-    -- worthwhile when the number of folds is greater than (1.6e-6 / 6.5e-5) * L
-    -- = .0246L, where L is the number of lines.
+    -- skipped). Spanwise computation takes about 6.5e-5 seconds per fold
+    -- (closed folds count as a single fold). Therefore the linewise
+    -- computation is worthwhile when the number of folds is greater than
+    -- (1.6e-6 / 6.5e-5) * L = .0246L, where L is the number of lines.
     if fold_count_exceeds(1, last_line, math.floor(last_line * .0246)) then
       return virtual_topline_lookup_linewise()
     else
