@@ -31,17 +31,6 @@ local function round(x)
   return math.floor(x + 0.5)
 end
 
--- Returns true for boolean true and any non-zero number, otherwise returns
--- false.
-local function to_bool(x)
-  if type(x) == 'boolean' then
-    return x
-  elseif type(x) == 'number' then
-    return x ~= 0
-  end
-  return false
-end
-
 -- *************************************************
 -- * Core
 -- *************************************************
