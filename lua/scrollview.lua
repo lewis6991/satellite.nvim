@@ -206,8 +206,8 @@ local function virtual_topline_lookup_spanwise()
   local winheight = api.nvim_win_get_height(0)
   local result = {}  -- A list of line numbers
   local winid = api.nvim_get_current_win()
-  local virtual_line_count = virtual_line_count(winid, 1, '$')
-  if virtual_line_count > 1 and winheight > 1 then
+  local total_vlines = virtual_line_count(winid, 1, '$')
+  if total_vlines > 1 and winheight > 1 then
     local line = 0
     local virtual_line = 0
     local prop = 0.0
@@ -221,7 +221,7 @@ local function virtual_topline_lookup_spanwise()
       if not fold then
         virtual_line_delta = line_delta
       end
-      local prop_delta = virtual_line_delta / (virtual_line_count - 1)
+      local prop_delta = virtual_line_delta / (total_vlines - 1)
       while prop + prop_delta >= proportion and #result < winheight do
         local ratio = (proportion - prop) / prop_delta
         local topline = line + 1
@@ -246,7 +246,7 @@ local function virtual_topline_lookup_spanwise()
       end
       line = line + line_delta
       virtual_line = virtual_line + virtual_line_delta
-      prop = virtual_line / (virtual_line_count - 1)
+      prop = virtual_line / (total_vlines - 1)
     end
   end
   while #result < winheight do
@@ -272,8 +272,8 @@ local function virtual_topline_lookup_linewise()
   local last_line = vim.fn.line('$')
   local result = {}  -- A list of line numbers
   local winid = api.nvim_get_current_win()
-  local virtual_line_count = virtual_line_count(winid, 1, '$')
-  if virtual_line_count > 1 and winheight > 1 then
+  local total_vlines = virtual_line_count(winid, 1, '$')
+  if total_vlines > 1 and winheight > 1 then
     local count = 1  -- The count of virtual lines
     local line = 1
     local best = line
@@ -282,7 +282,7 @@ local function virtual_topline_lookup_linewise()
     for row=1,winheight do
       local proportion = (row - 1) / (winheight - 1)
       while line <= last_line do
-        local current = (count - 1) / (virtual_line_count - 1)
+        local current = (count - 1) / (total_vlines - 1)
         local distance = math.abs(current - proportion)
         if distance <= best_distance then
           best = line
