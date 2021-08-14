@@ -179,7 +179,6 @@ local function virtual_line_count(winid, start, _end)
   local memoize_key =
     table.concat({'virtual_line_count', winid, start, _end}, ':')
   if memoize and cache[memoize_key] then return cache[memoize_key] end
-  local current_winid = api.nvim_get_current_win()
   local workspace_winid = open_win_workspace(winid)
   local count = api.nvim_win_call(workspace_winid, function()
     -- On an AMD Ryzen 7 2700X, linewise computation takes about 3e-7 seconds
