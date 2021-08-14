@@ -159,7 +159,7 @@ local function virtual_line_count_linewise(start, _end)
   local line = start
   while line <= _end do
     count = count + 1
-    foldclosedend = vim.fn.foldclosedend(line)
+    local foldclosedend = vim.fn.foldclosedend(line)
     if foldclosedend ~= -1 then
       line = foldclosedend
     end
@@ -296,7 +296,7 @@ local function virtual_topline_lookup_linewise()
           count = best_count
           break
         end
-        foldclosedend = vim.fn.foldclosedend(line)
+        local foldclosedend = vim.fn.foldclosedend(line)
         if foldclosedend ~= -1 then
           line = foldclosedend
         end
