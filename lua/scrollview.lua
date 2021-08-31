@@ -228,10 +228,10 @@ end
 -- the sign column and 'number' column.
 local buf_text_begins_col = function()
   -- The calculation assumes lines don't wrap, so 'nowrap' is temporarily set.
-  local wrap = vim.wo.wrap
-  vim.wo.wrap = false
+  local wrap = api.nvim_win_get_option(0, 'wrap')
+  set_window_option(0, 'wrap', false)
   local result = fn.wincol() - fn.virtcol('.') + 1
-  vim.wo.wrap = wrap
+  set_window_option(0, 'wrap', wrap)
   return result
 end
 
@@ -239,10 +239,10 @@ end
 -- greater than one due to the sign column and 'number' column.
 local buf_view_begins_col = function()
   -- The calculation assumes lines don't wrap, so 'nowrap' is temporarily set.
-  local wrap = vim.wo.wrap
-  vim.wo.wrap = false
+  local wrap = api.nvim_win_get_option(0, 'wrap')
+  set_window_option(0, 'wrap', false)
   local result = fn.wincol() - fn.virtcol('.') + fn.winsaveview().leftcol + 1
-  vim.wo.wrap = wrap
+  set_window_option(0, 'wrap', wrap)
   return result
 end
 
