@@ -63,15 +63,18 @@ let g:scrollview_refresh_time_exceeded =
 " *************************************************
 
 if !exists(':ScrollViewRefresh')
-  command -bar ScrollViewRefresh :call scrollview#ScrollViewRefresh()
+  command -bar ScrollViewRefresh :lua
+        \ require('scrollview').scrollview_refresh()
 endif
 
 if !exists(':ScrollViewEnable')
-  command -bar ScrollViewEnable :call scrollview#ScrollViewEnable()
+  command -bar ScrollViewEnable :lua
+        \ require('scrollview').scrollview_enable()
 endif
 
 if !exists(':ScrollViewDisable')
-  command -bar ScrollViewDisable :call scrollview#ScrollViewDisable()
+  command -bar ScrollViewDisable :lua
+        \ require('scrollview').scrollview_disable()
 endif
 
 " *************************************************
@@ -89,7 +92,8 @@ let s:mouse_plug_pairs = [
       \ ]
 for [s:plug_name, s:button] in s:mouse_plug_pairs
   let s:lhs = printf('<silent> <plug>(%s)', s:plug_name)
-  let s:rhs = printf('<cmd>call scrollview#HandleMouse("%s")<cr>', s:button)
+  let s:rhs = printf(
+        \ '<cmd>lua require("scrollview").handle_mouse("%s")<cr>', s:button)
   execute 'noremap' s:lhs s:rhs
   execute 'inoremap' s:lhs s:rhs
 endfor
@@ -192,7 +196,8 @@ if g:scrollview_on_startup
   " Enable scrollview asynchronously. This avoids an issue that prevents diff
   " mode from functioning properly when it's launched at startup (i.e., with
   " nvim -d). The issue is reported in Neovim Issue #13720.
-  call timer_start(0, {-> execute('call scrollview#ScrollViewEnable()')})
+  call timer_start(
+        \ 0, {-> luaeval('require("scrollview").scrollview_enable()')})
 endif
 
 " *************************************************
