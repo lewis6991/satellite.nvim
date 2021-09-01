@@ -196,8 +196,7 @@ if g:scrollview_on_startup
   " Enable scrollview asynchronously. This avoids an issue that prevents diff
   " mode from functioning properly when it's launched at startup (i.e., with
   " nvim -d). The issue is reported in Neovim Issue #13720.
-  call timer_start(
-        \ 0, {-> luaeval('require("scrollview").scrollview_enable()')})
+  lua vim.defer_fn(require('scrollview').scrollview_enable, 0)
 endif
 
 " *************************************************
