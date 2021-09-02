@@ -682,7 +682,7 @@ local get_window_edges = function(winid)
   -- corners don't have to be checked). Borders don't impact the top and left
   -- positions calculated above; only the bottom and right positions.
   local border = api.nvim_win_get_config(winid).border
-  if border ~= nil and vim.tbl_islist(border) then
+  if border ~= nil and vim.tbl_islist(border) and #border == 8 then
     if border[2] ~= '' then
       -- There is a top border.
       bottom = bottom + 1
