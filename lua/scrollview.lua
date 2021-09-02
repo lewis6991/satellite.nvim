@@ -672,10 +672,34 @@ local is_scrollview_window = function(winid)
   return bufnr == bar_bufnr
 end
 
+-- Returns the position of window edges, with borders considered part of the
+-- window.
 local get_window_edges = function(winid)
   local top, left = unpack(fn.win_screenpos(winid))
   local bottom = top + fn.winheight(winid) - 1
   local right = left + fn.winwidth(winid) - 1
+  -- Only edges have to be checked to determine if a border is present (i.e.,
+  -- corners don't have to be checked). Borders don't impact the top and left
+  -- positions calculated above; only the bottom and right positions.
+  local border = api.nvim_win_get_config(winid).border
+  if border ~= nil and vim.tbl_islist(border) then
+    if border[2] ~= '' then
+      -- There is a top border.
+      bottom = bottom + 1
+    end
+    if border[4] ~= '' then
+      -- There is a right border.
+      right = right + 1
+    end
+    if border[6] ~= '' then
+      -- There is a bottom border.
+      bottom = bottom + 1
+    end
+    if border[8] ~= '' then
+      -- There is a left border.
+      right = right + 1
+    end
+  end
   return top, bottom, left, right
 end
 
@@ -689,7 +713,6 @@ local get_float_overlaps = function(top, bottom, left, right)
     local floating = tbl_get(config, 'relative', '') ~= ''
     if floating and not is_scrollview_window(winid) then
       local top2, bottom2, left2, right2 = get_window_edges(winid)
-      -- TODO: Additional handling for borders.
       if top <= bottom2
           and bottom >= top2
           and left <= right2
