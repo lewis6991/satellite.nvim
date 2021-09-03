@@ -14,15 +14,15 @@ local fn = vim.fn
 local cache = {}
 local memoize = false
 
-local function start_memoize()
+local start_memoize = function()
   memoize = true
 end
 
-local function stop_memoize()
+local stop_memoize = function()
   memoize = false
 end
 
-local function reset_memoize()
+local reset_memoize = function()
   cache = {}
 end
 
