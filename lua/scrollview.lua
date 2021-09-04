@@ -1506,8 +1506,8 @@ local scrollview_disable = function()
       api.nvim_set_current_tabpage(tabnr)
       pcall(remove_bars)
     end
-    api.nvim_set_current_win(winid)
   end)
+  api.nvim_set_current_win(winid)
   restore(state)
 end
 
