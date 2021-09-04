@@ -44,6 +44,9 @@ let g:scrollview_refresh_time = get(g:, 'scrollview_refresh_time', 100)
 let g:scrollview_character = get(g:, 'scrollview_character', '')
 let g:scrollview_hide_on_intersect =
       \ get(g:, 'scrollview_hide_on_intersect', 0)
+" The default zindex for floating windows is 50. A smaller value is used here
+" by default so that scrollbars don't cover floating windows.
+let g:scrollview_zindex = get(g:, 'scrollview_zindex', 40)
 
 " *************************************************
 " * Global State

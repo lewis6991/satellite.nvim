@@ -28,3 +28,4 @@ scrollview_mode	scrollview.txt	/*scrollview_mode*
 scrollview_on_startup	scrollview.txt	/*scrollview_on_startup*
 scrollview_refresh_time	scrollview.txt	/*scrollview_refresh_time*
 scrollview_winblend	scrollview.txt	/*scrollview_winblend*
+scrollview_zindex	scrollview.txt	/*scrollview_zindex*

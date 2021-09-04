@@ -129,6 +129,10 @@ scrollview_hide_on_intersect               *scrollview_hide_on_intersect*
                       hidden (not shown) when it would otherwise intersect
                       with a floating window. Defaults to `0`.
 
+scrollview_zindex                          *scrollview_zindex*
+                       |Number| specifying the scrollbar z-index. Defaults to
+                       `40`.
+
 Configuration Example ~
                                            *scrollview-configuration-example*
 The variables can be customized in your |init.vim|, as shown in the following

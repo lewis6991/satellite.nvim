@@ -807,6 +807,7 @@ local show_scrollbar = function(winid, bar_winid)
       fn['repeat']({vim.g.scrollview_character}, bar_position.height))
     api.nvim_buf_set_option(bar_bufnr, 'modifiable', false)
   end
+  local zindex = get_variable('scrollview_zindex', winnr)
   local config = {
     win = winid,
     relative = 'win',
@@ -815,7 +816,8 @@ local show_scrollbar = function(winid, bar_winid)
     height = bar_position.height,
     width = 1,
     row = bar_position.row - 1,
-    col = bar_position.col - 1
+    col = bar_position.col - 1,
+    zindex = zindex
   }
   if bar_winid == -1 then
     bar_winid = api.nvim_open_win(bar_bufnr, false, config)
