@@ -22,11 +22,25 @@ endif
 " * User Configuration
 " *************************************************
 
-let g:scrollview_on_startup = get(g:, 'scrollview_on_startup', 1)
-let g:scrollview_mode = get(g:, 'scrollview_mode', 'virtual')
+let g:scrollview_auto_mouse = get(g:, 'scrollview_auto_mouse', 1)
+let g:scrollview_auto_workarounds = get(g:, 'scrollview_auto_workarounds', 1)
+let g:scrollview_base = get(g:, 'scrollview_base', 'right')
+let g:scrollview_character = get(g:, 'scrollview_character', '')
+let g:scrollview_column = get(g:, 'scrollview_column', 2)
+let g:scrollview_current_only = get(g:, 'scrollview_current_only', 0)
 let g:scrollview_excluded_filetypes = 
       \ get(g:, 'scrollview_excluded_filetypes', [])
-let g:scrollview_current_only = get(g:, 'scrollview_current_only', 0)
+let g:scrollview_hide_on_intersect =
+      \ get(g:, 'scrollview_hide_on_intersect', 0)
+let g:scrollview_mode = get(g:, 'scrollview_mode', 'virtual')
+let g:scrollview_on_startup = get(g:, 'scrollview_on_startup', 1)
+let g:scrollview_refresh_time = get(g:, 'scrollview_refresh_time', 100)
+" Using a winblend of 100 results in the bar becoming invisible on nvim-qt.
+let g:scrollview_winblend = get(g:, 'scrollview_winblend', 50)
+" The default zindex for floating windows is 50. A smaller value is used here
+" by default so that scrollbars don't cover floating windows.
+let g:scrollview_zindex = get(g:, 'scrollview_zindex', 40)
+
 " The default highlight group is specified below.
 " Change this default by defining or linking an alternative highlight group.
 " E.g., the following will use the Pmenu highlight.
@@ -34,19 +48,6 @@ let g:scrollview_current_only = get(g:, 'scrollview_current_only', 0)
 " E.g., the following will use custom highlight colors.
 "   :highlight ScrollView ctermbg=159 guibg=LightCyan
 highlight default link ScrollView Visual
-" Using a winblend of 100 results in the bar becoming invisible on nvim-qt.
-let g:scrollview_winblend = get(g:, 'scrollview_winblend', 50)
-let g:scrollview_column = get(g:, 'scrollview_column', 2)
-let g:scrollview_base = get(g:, 'scrollview_base', 'right')
-let g:scrollview_auto_mouse = get(g:, 'scrollview_auto_mouse', 1)
-let g:scrollview_auto_workarounds = get(g:, 'scrollview_auto_workarounds', 1)
-let g:scrollview_refresh_time = get(g:, 'scrollview_refresh_time', 100)
-let g:scrollview_character = get(g:, 'scrollview_character', '')
-let g:scrollview_hide_on_intersect =
-      \ get(g:, 'scrollview_hide_on_intersect', 0)
-" The default zindex for floating windows is 50. A smaller value is used here
-" by default so that scrollbars don't cover floating windows.
-let g:scrollview_zindex = get(g:, 'scrollview_zindex', 40)
 
 " *************************************************
 " * Global State

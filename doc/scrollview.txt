@@ -62,41 +62,6 @@ and/or 4) global scope, with that order of precedence (i.e., window variables
 have the highest precedence, and global variables have the lowest).
 
 Configuration Variables ~
-                                           *scrollview_on_startup*
-scrollview_on_startup  |Boolean| |Number| specifying whether scrollbars are
-                       enabled on startup. Defaults to `1`. Considered only at
-                       global scope, when the plugin is loaded.
-
-                                           *scrollview_mode*
-scrollview_mode        |String| specifying what the scrollbar position and size
-                       correspond to. See |scrollview-modes| for details on the
-                       available modes. Defaults to `'virtual'`.
-
-scrollview_excluded_filetypes              *scrollview_excluded_filetypes*
-                       |List| of |String|s specifying optional file types for
-                       which scrollbars should not be displayed. Defaults to
-                       `[]`.
-
-scrollview_current_only                    *scrollview_current_only*
-                       |Boolean| |Number| specifying whether scrollbars should
-                       only be displayed in the current window. Defaults to `0`.
-                       Considered only at tab and global scopes.
-
-                                           *scrollview_winblend*
-scrollview_winblend    |Number| specifying the level of transparency for
-                       scrollbars. Defaults to `50`. Must be between `0` (opaque)
-                       and `100` (transparent).
-
-                                           *scrollview_base*
-scrollview_base        |String| specifying where the scrollbar is anchored.
-                       Possible values are `'left'` or `'right'` for corresponding
-                       window edges, or `'buffer'`. Defaults to `'right'`.
-
-                                           *scrollview_column*
-scrollview_column      |Number| specifying the scrollbar column (relative to
-                       |scrollview_base|). Defaults to `2`. Must be an integer
-                       greater than or equal to `1`.
-
                                            *scrollview_auto_mouse*
 scrollview_auto_mouse  |Boolean| |Number| specifying whether a mapping is
                        automatically created for mouse support (without
@@ -110,6 +75,47 @@ scrollview_auto_workarounds                *scrollview_auto_workarounds*
                        to `1`. Considered only at global scope, when the plugin
                        is loaded.
 
+                                           *scrollview_base*
+scrollview_base        |String| specifying where the scrollbar is anchored.
+                       Possible values are `'left'` or `'right'` for corresponding
+                       window edges, or `'buffer'`. Defaults to `'right'`.
+
+                                           *scrollview_character*
+scrollview_character  |String| specifying a character to display on scrollbars.
+                      Defaults to `''`. Considered only at global scope.
+                      Scrollbar transparency (via |scrollview_winblend|) is not
+                      possible when a scrollbar character is used.
+
+                                           *scrollview_column*
+scrollview_column      |Number| specifying the scrollbar column (relative to
+                       |scrollview_base|). Defaults to `2`. Must be an integer
+                       greater than or equal to `1`.
+
+scrollview_current_only                    *scrollview_current_only*
+                       |Boolean| |Number| specifying whether scrollbars should
+                       only be displayed in the current window. Defaults to `0`.
+                       Considered only at tab and global scopes.
+
+scrollview_excluded_filetypes              *scrollview_excluded_filetypes*
+                       |List| of |String|s specifying optional file types for
+                       which scrollbars should not be displayed. Defaults to
+                       `[]`.
+
+scrollview_hide_on_intersect               *scrollview_hide_on_intersect*
+                      |Boolean| |Number| specifying whether each scrollbar becomes
+                      hidden (not shown) when it would otherwise intersect
+                      with a floating window. Defaults to `0`.
+
+                                           *scrollview_mode*
+scrollview_mode        |String| specifying what the scrollbar position and size
+                       correspond to. See |scrollview-modes| for details on the
+                       available modes. Defaults to `'virtual'`.
+
+                                           *scrollview_on_startup*
+scrollview_on_startup  |Boolean| |Number| specifying whether scrollbars are
+                       enabled on startup. Defaults to `1`. Considered only at
+                       global scope, when the plugin is loaded.
+
 scrollview_refresh_time                    *scrollview_refresh_time*
                        |Number| specifying the refresh limit. When scrollbar
                        refreshing takes more than this many milliseconds,
@@ -118,16 +124,10 @@ scrollview_refresh_time                    *scrollview_refresh_time*
                        Considered only at global scope. To reset the mode
                        behavior, set `g:scrollview_refresh_time_exceeded` to `0`.
 
-                                           *scrollview_character*
-scrollview_character  |String| specifying a character to display on scrollbars.
-                      Defaults to `''`. Considered only at global scope.
-                      Scrollbar transparency (via |scrollview_winblend|) is not
-                      possible when a scrollbar character is used.
-
-scrollview_hide_on_intersect               *scrollview_hide_on_intersect*
-                      |Boolean| |Number| specifying whether each scrollbar becomes
-                      hidden (not shown) when it would otherwise intersect
-                      with a floating window. Defaults to `0`.
+                                           *scrollview_winblend*
+scrollview_winblend    |Number| specifying the level of transparency for
+                       scrollbars. Defaults to `50`. Must be between `0` (opaque)
+                       and `100` (transparent).
 
 scrollview_zindex                          *scrollview_zindex*
                        |Number| specifying the scrollbar z-index. Defaults to
