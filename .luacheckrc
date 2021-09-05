@@ -10,3 +10,4 @@ read_globals = {
   }
 }
 include_files = {'lua/', '*.lua'}
+std = 'luajit'
