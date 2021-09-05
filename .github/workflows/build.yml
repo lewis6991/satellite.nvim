@@ -23,4 +23,7 @@ jobs:
         test -z "$(git status --porcelain doc/)"
 
     - name: Luacheck
-      run: luacheck .
+      run: |
+        apt-get update
+        apt-get install luacheck
+        luacheck .
