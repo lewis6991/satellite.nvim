@@ -977,7 +977,7 @@ local restore = function(state, restore_toplines)
     if is_select_mode(state.mode) then
       if is_visual_mode(fn.mode()) then
         vim.cmd('normal! ' .. t'<c-g>')
-      else
+      else  -- luacheck: ignore 542 (an empty if branch)
         -- WARN: this scenario should not arise, and is not handled.
       end
     end
