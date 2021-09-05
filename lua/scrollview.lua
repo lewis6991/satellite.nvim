@@ -1082,7 +1082,8 @@ local read_input_stream = function()
     api.nvim_buf_set_lines(overlay_bufnr, 0, 0, false,
       fn['repeat']({''}, delta))
     api.nvim_buf_set_option(overlay_bufnr, 'modifiable', false)
-    overlay_height = api.nvim_get_option('lines')
+    -- Make sure 'overlay_height' is correct, as a precaution.
+    overlay_height = api.nvim_get_option('lines')  -- luacheck: no unused
   end
 
   -- === Save state and load overlay ===
@@ -1234,7 +1235,8 @@ local set_topline = function(winid, linenr)
     if virtual_line > 1 then
       vim.cmd('keepjumps normal! ' .. (virtual_line - 1) .. t'<c-e>')
     end
-    topline = nil  -- topline may no longer be correct
+    -- Make sure 'topline' is correct, as a precaution.
+    topline = nil  -- luacheck: no unused
     local _, botline = line_range(winid)
     if botline == fn.line('$') then
       -- If the last buffer line is on-screen, position that line at the bottom
@@ -1356,7 +1358,7 @@ local refresh_bars = function(async_removal)
         and elapsed_micro > vim.g.scrollview_refresh_time * 1000 then
       vim.g.scrollview_refresh_time_exceeded = 1
     end
-    if vim.tbl_isempty(existing_wins) then
+    if vim.tbl_isempty(existing_wins) then  -- luacheck: ignore 542 (empty if)
       -- Do nothing. The following clauses are only applicable when there are
       -- existing windows. Skipping prevents the creation of an unnecessary
       -- timer.
