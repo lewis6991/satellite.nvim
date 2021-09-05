@@ -21,3 +21,6 @@ jobs:
         # Check if the help tags file should be updated
         vim -c 'helptags doc/' -c quit
         test -z "$(git status --porcelain doc/)"
+
+    - name: Luacheck
+      run: luacheck .
