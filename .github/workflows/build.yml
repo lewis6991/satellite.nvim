@@ -25,5 +25,5 @@ jobs:
     - name: Luacheck
       run: |
         sudo apt-get update
-        sudo apt-get install luacheck
+        sudo apt-get install lua-check
         luacheck .
