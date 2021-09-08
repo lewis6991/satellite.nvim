@@ -8,25 +8,6 @@ local fn = vim.fn
 -- the documentation for with_win_workspace.
 
 -- *************************************************
--- * Memoization
--- *************************************************
-
-local cache = {}
-local memoize = false
-
-local start_memoize = function()
-  memoize = true
-end
-
-local stop_memoize = function()
-  memoize = false
-end
-
-local reset_memoize = function()
-  cache = {}
-end
-
--- *************************************************
 -- * Globals
 -- *************************************************
 
@@ -415,9 +396,6 @@ local virtual_line_count = function(winid, start, _end)
   if type(_end) == 'string' and _end == '$' then
     _end = last_line
   end
-  local memoize_key =
-    table.concat({'virtual_line_count', winid, start, _end}, ':')
-  if memoize and cache[memoize_key] then return cache[memoize_key] end
   local count = with_win_workspace(winid, function()
     -- On an AMD Ryzen 7 2700X, linewise computation takes about 3e-7 seconds
     -- per line (this is an overestimate, as it assumes all folds are open, but
@@ -432,7 +410,6 @@ local virtual_line_count = function(winid, start, _end)
       return virtual_line_count_spanwise(start, _end)
     end
   end)
-  if memoize then cache[memoize_key] = count end
   return count
 end
 
@@ -1533,9 +1510,6 @@ local handle_mouse = function(button)
   local state = init()
   local restore_toplines = true
   local wins_options = get_windows_options()
-  -- virtual_line_count would return the same values for the same arguments,
-  -- for the duration of mouse drag scrolling, so use memoization.
-  start_memoize()
   pcall(function()
     local mousedown = t('<' .. button .. 'mouse>')
     local mouseup = t('<' .. button .. 'release>')
@@ -1736,8 +1710,6 @@ local handle_mouse = function(button)
       ::continue::
     end  -- end while
   end)  -- end pcall
-  stop_memoize()
-  reset_memoize()
   restore_windows_options(wins_options)
   restore(state, restore_toplines)
 end
