@@ -136,8 +136,10 @@ inoremap <silent> <plug>(ScrollViewRefresh) <cmd>ScrollViewRefresh<cr>
 function s:CreateRefreshMapping(modes, seq) abort
   for l:idx in range(strchars(a:modes))
     let l:mode = strcharpart(a:modes, l:idx, 1)
+    " A <plug> mapping is avoided since it doesn't work properly in
+    " terminal-job mode.
     execute printf(
-          \ 'silent! %smap <unique> %s %s<plug>(ScrollViewRefresh)',
+          \ 'silent! %snoremap <unique> %s %s<cmd>ScrollViewRefresh<cr>',
           \ l:mode, a:seq, a:seq)
   endfor
 endfunction
@@ -171,7 +173,7 @@ if g:scrollview_auto_workarounds
   " === Mouse wheel scrolling syncronization workarounds ===
   let s:wheel_seqs = ['<scrollwheelup>', '<scrollwheeldown>']
   for s:seq in s:wheel_seqs
-    call s:CreateRefreshMapping('nvi', s:seq)
+    call s:CreateRefreshMapping('nvit', s:seq)
   endfor
   " === Fold command synchronization workarounds ===
   " zf takes a motion in normal mode, so it requires a g@ mapping.
