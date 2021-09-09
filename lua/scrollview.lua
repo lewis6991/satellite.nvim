@@ -1507,12 +1507,18 @@ local handle_mouse = function(button)
   if not vim.tbl_contains({'left', 'middle', 'right', 'x1', 'x2'}, button) then
     error('Unsupported button: ' .. button)
   end
+  local mousedown = t('<' .. button .. 'mouse>')
+  local mouseup = t('<' .. button .. 'release>')
+  if not scrollview_enabled then
+    -- nvim-scrollview is disabled. Process the click as it would ordinarily be
+    -- processed, by re-sending the click and returning.
+    fn.feedkeys(mousedown, 'ni')
+    return
+  end
   local state = init()
   local restore_toplines = true
   local wins_options = get_windows_options()
   pcall(function()
-    local mousedown = t('<' .. button .. 'mouse>')
-    local mouseup = t('<' .. button .. 'release>')
     -- Re-send the click, so its position can be obtained from a subsequent
     -- call to getchar().
     -- XXX: If/when Vim's getmousepos is ported to Neovim, the position of the
