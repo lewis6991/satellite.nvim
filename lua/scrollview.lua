@@ -21,9 +21,6 @@ local scrollview_enabled = false
 -- bar_bufnr has the bufnr of the buffer created for a position bar.
 local bar_bufnr = -1
 
--- overlay_bufnr has the bufnr of the buffer created for the click overlay.
-local overlay_bufnr = -1
-
 -- Keep count of pending async refreshes.
 local pending_async_refresh_count = 0
 
@@ -184,24 +181,6 @@ local in_command_line_window = function()
   local buftype = api.nvim_buf_get_option(bufnr, 'buftype')
   local bufname = fn.bufname(bufnr)
   return buftype == 'nofile' and bufname == '[Command Line]'
-end
-
--- Returns true if the current window has at least one fold (either closed or
--- open).
-local window_has_fold = function()
-  -- A window has at least one fold if 1) the first line is within a fold or 2)
-  -- it's possible to move from the first line to some other line with a fold.
-  local winid = fn.win_getid()
-  -- The default assumes the first line is within a fold, and is updated
-  -- accordingly otherwise.
-  local result = true
-  if fn.foldlevel(1) == 0 then
-    result = with_win_workspace(winid, function()
-      vim.cmd('keepjumps normal! ggzj')
-      return fn.line('.') ~= 1
-    end)
-  end
-  return result
 end
 
 -- Returns the window column where the buffer's text begins. This may be
