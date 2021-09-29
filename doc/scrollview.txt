@@ -17,7 +17,8 @@ is customizable (see |scrollview-configuration|).
 1. Requirements                            *scrollview-requirements*
 
 * `nvim>=0.5`
-* Scrollbar mouse dragging requires mouse support (see |'mouse'|).
+* Scrollbar mouse dragging requires mouse support (see |'mouse'|) and
+  `nvim>=0.5.2`.
 
 ============================================================================
 2. Installation                            *scrollview-installation*
