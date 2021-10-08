@@ -1,4 +1,4 @@
-*scrollview.txt*   Plugin that displays interactive scrollbars
+*scrollview.txt*   Plugin that displays interactive vertical scrollbars
 *nvim-scrollview*
 
 Author: Daniel Steinberg - https://www.dannyadam.com
@@ -10,8 +10,8 @@ Web: https://github.com/dstein64/nvim-scrollview
 4. Configuration                           |scrollview-configuration|
 5. Issues                                  |scrollview-issues|
 
-|nvim-scrollview| is a plugin that displays interactive scrollbars. The plugin
-is customizable (see |scrollview-configuration|).
+|nvim-scrollview| is a plugin that displays interactive vertical scrollbars.
+The plugin is customizable (see |scrollview-configuration|).
 
 ============================================================================
 1. Requirements                            *scrollview-requirements*
