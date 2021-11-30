@@ -136,6 +136,10 @@ local with_win_workspace = function(winid, fun)
   -- can function properly.
   set_window_option(workspace_winid, 'scrollbind', false)
   set_window_option(workspace_winid, 'cursorbind', false)
+  -- Don't include the workspace window in a diff session. If included, closing
+  -- it could end the diff session (e.g., when there is one other window in the
+  -- session). Issue #57.
+  set_window_option(workspace_winid, 'diff', false)
   local result
   local success, err = pcall(function()
     result = api.nvim_win_call(workspace_winid, fun)
