@@ -18,7 +18,7 @@ The plugin is customizable (see |scrollview-configuration|).
 
 * `nvim>=0.5`
 * Scrollbar mouse dragging requires mouse support (see |'mouse'|) and
-  `nvim>=0.5.2`.
+  `nvim>=0.6`.
 
 ============================================================================
 2. Installation                            *scrollview-installation*
