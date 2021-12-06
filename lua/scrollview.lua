@@ -1376,18 +1376,21 @@ end
 -- e.g., echom works as expected.
 local refresh_bars_async = function()
   pending_async_refresh_count = pending_async_refresh_count + 1
+  -- Use defer_fn twice so that refreshing happens after other processing. Issue #59.
   vim.defer_fn(function()
-    pending_async_refresh_count = math.max(0, pending_async_refresh_count - 1)
-    if pending_async_refresh_count > 0 then
-      -- If there are asynchronous refreshes that will occur subsequently,
-      -- don't execute this one.
-      return
-    end
-    -- ScrollView may have already been disabled by time this callback executes
-    -- asynchronously.
-    if scrollview_enabled then
-      refresh_bars()
-    end
+    vim.defer_fn(function()
+      pending_async_refresh_count = math.max(0, pending_async_refresh_count - 1)
+      if pending_async_refresh_count > 0 then
+        -- If there are asynchronous refreshes that will occur subsequently,
+        -- don't execute this one.
+        return
+      end
+      -- ScrollView may have already been disabled by time this callback executes
+      -- asynchronously.
+      if scrollview_enabled then
+        refresh_bars()
+      end
+    end, 0)
   end, 0)
 end
 
