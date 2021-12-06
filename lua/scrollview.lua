@@ -21,9 +21,6 @@ local scrollview_enabled = false
 -- bar_bufnr has the bufnr of the buffer created for a position bar.
 local bar_bufnr = -1
 
--- overlay_bufnr has the bufnr of the buffer created for the click overlay.
-local overlay_bufnr = -1
-
 -- Keep count of pending async refreshes.
 local pending_async_refresh_count = 0
 
@@ -188,24 +185,6 @@ local in_command_line_window = function()
   local buftype = api.nvim_buf_get_option(bufnr, 'buftype')
   local bufname = fn.bufname(bufnr)
   return buftype == 'nofile' and bufname == '[Command Line]'
-end
-
--- Returns true if the current window has at least one fold (either closed or
--- open).
-local window_has_fold = function()
-  -- A window has at least one fold if 1) the first line is within a fold or 2)
-  -- it's possible to move from the first line to some other line with a fold.
-  local winid = fn.win_getid()
-  -- The default assumes the first line is within a fold, and is updated
-  -- accordingly otherwise.
-  local result = true
-  if fn.foldlevel(1) == 0 then
-    result = with_win_workspace(winid, function()
-      vim.cmd('keepjumps normal! ggzj')
-      return fn.line('.') ~= 1
-    end)
-  end
-  return result
 end
 
 -- Returns the window column where the buffer's text begins. This may be
@@ -1024,105 +1003,9 @@ end
 --   4) mouse_winid
 --   5) mouse_row
 --   6) mouse_col
--- The mouse values are 0 when there was no mouse event.
+-- The mouse values are 0 when there was no mouse event or getmousepos is not
+-- available.
 local read_input_stream = function()
-  -- An overlay is displayed in each window so that mouse position can be
-  -- properly determined. Otherwise, v:mouse_lnum and v:mouse_col may not
-  -- correspond to the actual position of the click (e.g., when there is a
-  -- sign/number/relativenumber/fold column, when lines span multiple screen
-  -- rows from wrapping, or when the last line of the buffer is not at the last
-  -- line of the window due to a short document or scrolling past the end).
-  -- XXX: If/when Vim's getmousepos is ported to Neovim, an overlay would not
-  -- be necessary. That function would return the necessary information, making
-  -- most of the steps in this function unnecessary.
-  -- TODO: It may be possible to do this using a single floating window. I
-  -- recall trying unsuccessfully, but that may be from not setting the window
-  -- as focusable.
-
-  -- === Configure overlay ===
-  if overlay_bufnr == -1 or not fn.bufexists(overlay_bufnr) then
-    overlay_bufnr = api.nvim_create_buf(false, true)
-    api.nvim_buf_set_option(overlay_bufnr, 'modifiable', false)
-    api.nvim_buf_set_option(overlay_bufnr, 'buftype', 'nofile')
-    api.nvim_buf_set_option(overlay_bufnr, 'swapfile', false)
-    api.nvim_buf_set_option(overlay_bufnr, 'bufhidden', 'hide')
-    api.nvim_buf_set_option(overlay_bufnr, 'buflisted', false)
-  end
-  local target_wins = {}
-  for winnr = 1, fn.winnr('$') do
-    local winid = fn.win_getid(winnr)
-    table.insert(target_wins, winid)
-  end
-
-  -- Make sure that the buffer size is at least as big as the largest window.
-  -- Use 'lines' option for this, since a window height can't exceed this.
-  local overlay_height = api.nvim_buf_line_count(overlay_bufnr)
-  if api.nvim_get_option('lines') > overlay_height then
-    api.nvim_buf_set_option(overlay_bufnr, 'modifiable', true)
-    local delta = api.nvim_get_option('lines') - overlay_height
-    api.nvim_buf_set_lines(overlay_bufnr, 0, 0, false,
-      fn['repeat']({''}, delta))
-    api.nvim_buf_set_option(overlay_bufnr, 'modifiable', false)
-    -- Make sure 'overlay_height' is correct, as a precaution.
-    overlay_height = api.nvim_get_option('lines')  -- luacheck: no unused
-  end
-
-  -- === Save state and load overlay ===
-  local win_states = {}
-  local buf_states = {}
-  for _, winid in ipairs(target_wins) do
-    local bufnr = api.nvim_win_get_buf(winid)
-    local view = api.nvim_win_call(winid, fn.winsaveview)
-    -- All buffer and window variables are restored; not just those that were
-    -- manually modified. This is because some are automatically modified, like
-    -- 'conceallevel', which was noticed when testing the functionality on help
-    -- pages, and confirmed further for 'concealcursor' and 'foldenable'.
-    local win_state = {
-      bufnr = bufnr,
-      win_options = fn.getwinvar(winid, '&'),
-      view = view
-    }
-    win_states[winid] = win_state
-    -- Only save the buffer state when it is first visited. If multiple windows
-    -- have the same buffer, the options would already be modified after
-    -- visiting the first window with that buffer.
-    if buf_states[bufnr] == nil then
-      local buf_state = fn.getbufvar(bufnr, '&')
-      buf_states[bufnr] = buf_state
-    end
-    -- Set options on buffer. This is outside the preceding if-block, since a
-    -- necessary setting (e.g., removing buftype=help below) may not be applied
-    -- if only the first window is considered (and it doesn't have a fold, for
-    -- the running example).
-    api.nvim_buf_set_option(bufnr, 'bufhidden', 'hide')
-    -- Temporarily change buftype=help to buftype=<empty> so that mouse
-    -- interactions don't result in manual folds being deleted from help pages.
-    -- WARN: 'buftype' is set to 'help' when the state is restored later in
-    -- this function, which ignores Vim's and Neovim's warnings on setting
-    -- buftype=help.
-    --   Vim: "you are not supposed to set this manually"
-    --        - commit 071d427 added this text on Jun 13, 2004
-    --   Neovim: "do not set this manually"
-    --        - commit 2e1217d changed Vim's text on Nov 10, 2016
-    -- No observed consequential side-effects were encountered when setting
-    -- buftype=help in this scenario. The change in warning text for Neovim may
-    -- have been intended to reduce the text to a single line.
-    if api.nvim_buf_get_option(bufnr, 'buftype') == 'help' then
-      if api.nvim_win_call(winid, window_has_fold) then
-        api.nvim_buf_set_option(bufnr, 'buftype', '')
-      end
-    end
-    -- Change buffer
-    local args = winid .. ', ' .. overlay_bufnr
-    vim.cmd('keepalt keepjumps call nvim_win_set_buf(' .. args .. ')')
-    -- Set options on overlay window/buffer.
-    set_window_option(winid, 'number', false)
-    set_window_option(winid, 'relativenumber', false)
-    set_window_option(winid, 'foldcolumn', '0')  -- foldcolumn takes a string
-    set_window_option(winid, 'signcolumn', 'no')
-  end
-
-  -- === Obtain inputs ===
   local chars = {}
   local chars_props = {}
   local str_idx = 1  -- in bytes, 1-indexed
@@ -1145,13 +1028,22 @@ local read_input_stream = function()
       char = tostring(char)
     end
     table.insert(chars, char)
+    local mouse_winid = 0
+    local mouse_row = 0
+    local mouse_col = 0
+    if vim.v.mouse_winid ~= 0 and to_bool(fn.exists('*getmousepos')) then
+      mouse_winid = vim.v.mouse_winid
+      local mousepos = fn.getmousepos()
+      mouse_row = mousepos.winrow
+      mouse_col = mousepos.wincol
+    end
     local char_props = {
       char = char,
       str_idx = str_idx,
       charmod = charmod,
-      mouse_winid = vim.v.mouse_winid,
-      mouse_row = vim.v.mouse_lnum,
-      mouse_col = vim.v.mouse_col
+      mouse_winid = mouse_winid,
+      mouse_row = mouse_row,
+      mouse_col = mouse_col
     }
     str_idx = str_idx + string.len(char)
     table.insert(chars_props, char_props)
@@ -1162,42 +1054,6 @@ local read_input_stream = function()
   end
   local string = table.concat(chars, '')
   local result = {string, chars_props}
-
-  -- === Remove overlay and restore state ===
-  for _, winid in ipairs(target_wins) do
-    local state = win_states[winid]
-    local args = winid .. ', ' .. state.bufnr
-    vim.cmd('keepalt keepjumps call nvim_win_set_buf(' .. args .. ')')
-    -- Restore window state.
-    for key, value in pairs(state.win_options) do
-      -- getwinvar(..., '&...', ...) is used in place of nvim_win_get_option to
-      -- avoid Neovim Issue #13964, where invalid values can be returned for
-      -- global-local options (e.g., scrolloff).
-      if fn.getwinvar(winid, '&' .. key) ~= value then
-        fn.setwinvar(winid, '&' .. key, value)
-      end
-      api.nvim_win_call(winid, function()
-        fn.winrestview(state.view)
-      end)
-    end
-    -- Restore buffer state.
-    for bufnr, buf_state in pairs(buf_states) do
-      -- Dictionary keys are saved as strings. Convert back to number, since
-      -- the following function calls depend on type information (i.e., a
-      -- string passed to getbufvar refers to a buffer name).
-      bufnr = tonumber(bufnr)
-      for key, value in pairs(buf_state) do
-        -- getbufvar(..., '&...', ...) is used in place of nvim_buf_get_option
-        -- to avoid Neovim Issue #13964, where invalid values can be returned
-        -- for global-local options (e.g., undolevels).
-        if fn.getbufvar(bufnr, '&' .. key) ~= value then
-          fn.setbufvar(bufnr, '&' .. key, value)
-        end
-      end
-    end
-  end
-
-  -- === Return result ===
   return unpack(result)
 end
 
@@ -1526,11 +1382,8 @@ local handle_mouse = function(button)
   local restore_toplines = true
   local wins_options = get_windows_options()
   pcall(function()
-    -- Re-send the click, so its position can be obtained from a subsequent
-    -- call to getchar().
-    -- XXX: If/when Vim's getmousepos is ported to Neovim, the position of the
-    -- initial click would be available without getchar(), but would require
-    -- some refactoring below to accommodate.
+    -- Re-send the click, so its position can be obtained through
+    -- read_input_stream().
     fn.feedkeys(mousedown, 'ni')
     -- Mouse handling is not relevant in the command line window since
     -- scrollbars are not shown. Additionally, the overlay cannot be closed
