@@ -1004,7 +1004,9 @@ end
 --   5) mouse_row
 --   6) mouse_col
 -- The mouse values are 0 when there was no mouse event or getmousepos is not
--- available.
+-- available. The mouse_winid is set to -1 when a mouse event was on the
+-- command line. The mouse_winid is set to -2 when a mouse event was on the
+-- tabline.
 local read_input_stream = function()
   local chars = {}
   local chars_props = {}
@@ -1031,11 +1033,31 @@ local read_input_stream = function()
     local mouse_winid = 0
     local mouse_row = 0
     local mouse_col = 0
+    -- Check v:mouse_winid to see if there was a mouse event. Even for clicks
+    -- on the command line, where getmousepos().winid could be zero,
+    -- v:mousewinid is non-zero.
     if vim.v.mouse_winid ~= 0 and to_bool(fn.exists('*getmousepos')) then
       mouse_winid = vim.v.mouse_winid
       local mousepos = fn.getmousepos()
       mouse_row = mousepos.winrow
       mouse_col = mousepos.wincol
+      -- Handle a mouse event on the command line.
+      if mousepos.screenrow > vim.go.lines - vim.go.cmdheight then
+        mouse_winid = -1
+        mouse_row = mousepos.screenrow - vim.go.lines + vim.go.cmdheight
+        mouse_col = mousepos.screencol
+      end
+      -- Handle a mouse event on the tabline. When the click is on a floating
+      -- window covering the tabline, mousepos.winid will be set to that
+      -- floating window's winid. Otherwise, mousepos.winid would correspond to
+      -- an ordinary window ID (seemingly for the window below the tabline).
+      if fn.win_screenpos(1) == {2, 1}
+          and mousepos.screenrow == 1
+          and is_ordinary_window(mousepos.winid) then
+        mouse_winid = -2
+        mouse_row = mousepos.screenrow
+        mouse_col = mousepos.screencol
+      end
     end
     local char_props = {
       char = char,
@@ -1483,6 +1505,11 @@ local handle_mouse = function(button)
         return
       end
       if count == 0 then
+        if mouse_winid < 0 then
+          -- The mouse event was on the tabline or command line.
+          fn.feedkeys(string.sub(string, str_idx), 'ni')
+          return
+        end
         props = get_scrollview_props(mouse_winid)
         if vim.tbl_isempty(props) then
           -- There was no scrollbar in the window where a click occurred.
@@ -1539,39 +1566,43 @@ local handle_mouse = function(button)
         scrollbar_offset = props.row - mouse_row
         previous_row = props.row
       end
-      local winheight = api.nvim_win_get_height(winid)
-      local mouse_winrow = fn.getwininfo(mouse_winid)[1].winrow
-      local winrow = fn.getwininfo(winid)[1].winrow
-      local window_offset = mouse_winrow - winrow
-      local row = mouse_row + window_offset + scrollbar_offset
-      row = math.min(row, winheight - props.height + 1)
-      row = math.max(1, row)
-      -- Only update scrollbar if the row changed.
-      if previous_row ~= row then
-        if the_topline_lookup == nil then
-          the_topline_lookup = topline_lookup(winid)
+      -- Only consider a scrollbar update for mouse events on windows (i.e.,
+      -- not on the tabline or command line).
+      if mouse_winid > 0 then
+        local winheight = api.nvim_win_get_height(winid)
+        local mouse_winrow = fn.getwininfo(mouse_winid)[1].winrow
+        local winrow = fn.getwininfo(winid)[1].winrow
+        local window_offset = mouse_winrow - winrow
+        local row = mouse_row + window_offset + scrollbar_offset
+        row = math.min(row, winheight - props.height + 1)
+        row = math.max(1, row)
+        -- Only update scrollbar if the row changed.
+        if previous_row ~= row then
+          if the_topline_lookup == nil then
+            the_topline_lookup = topline_lookup(winid)
+          end
+          local topline = the_topline_lookup[row]
+          topline = math.max(1, topline)
+          if row == 1 then
+            -- If the scrollbar was dragged to the top of the window, always show
+            -- the first line.
+            topline = 1
+          elseif row + props.height - 1 >= winheight then
+            -- If the scrollbar was dragged to the bottom of the window, always
+            -- show the bottom line.
+            topline = api.nvim_buf_line_count(bufnr)
+          end
+          set_topline(winid, topline)
+          if api.nvim_win_get_option(winid, 'scrollbind')
+              or api.nvim_win_get_option(winid, 'cursorbind') then
+            refresh_bars(false)
+            props = get_scrollview_props(winid)
+          end
+          props = move_scrollbar(props, row)
+          vim.cmd('redraw')
+          previous_row = row
         end
-        local topline = the_topline_lookup[row]
-        topline = math.max(1, topline)
-        if row == 1 then
-          -- If the scrollbar was dragged to the top of the window, always show
-          -- the first line.
-          topline = 1
-        elseif row + props.height - 1 >= winheight then
-          -- If the scrollbar was dragged to the bottom of the window, always
-          -- show the bottom line.
-          topline = api.nvim_buf_line_count(bufnr)
-        end
-        set_topline(winid, topline)
-        if api.nvim_win_get_option(winid, 'scrollbind')
-            or api.nvim_win_get_option(winid, 'cursorbind') then
-          refresh_bars(false)
-          props = get_scrollview_props(winid)
-        end
-        props = move_scrollbar(props, row)
-        vim.cmd('redraw')
       end
-      previous_row = row
       count = count + 1
       ::continue::
     end  -- end while
