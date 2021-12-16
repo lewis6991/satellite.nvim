@@ -1051,7 +1051,7 @@ local read_input_stream = function()
       -- window covering the tabline, mousepos.winid will be set to that
       -- floating window's winid. Otherwise, mousepos.winid would correspond to
       -- an ordinary window ID (seemingly for the window below the tabline).
-      if fn.win_screenpos(1) == {2, 1}
+      if fn.win_screenpos(1) == {2, 1}  -- Checks for presence of a tabline.
           and mousepos.screenrow == 1
           and is_ordinary_window(mousepos.winid) then
         mouse_winid = -2
