@@ -82,10 +82,10 @@ scrollview_base        |String| specifying where the scrollbar is anchored.
                        window edges, or `'buffer'`. Defaults to `'right'`.
 
                                            *scrollview_character*
-scrollview_character  |String| specifying a character to display on scrollbars.
-                      Defaults to `''`. Considered only at global scope.
-                      Scrollbar transparency (via |scrollview_winblend|) is not
-                      possible when a scrollbar character is used.
+scrollview_character   |String| specifying a character to display on scrollbars.
+                       Defaults to `''`. Considered only at global scope.
+                       Scrollbar transparency (via |scrollview_winblend|) is not
+                       possible when a scrollbar character is used.
 
                                            *scrollview_column*
 scrollview_column      |Number| specifying the scrollbar column (relative to
@@ -103,9 +103,9 @@ scrollview_excluded_filetypes              *scrollview_excluded_filetypes*
                        `[]`.
 
 scrollview_hide_on_intersect               *scrollview_hide_on_intersect*
-                      |Boolean| |Number| specifying whether each scrollbar becomes
-                      hidden (not shown) when it would otherwise intersect
-                      with a floating window. Defaults to `0`.
+                       |Boolean| |Number| specifying whether each scrollbar
+                       becomes hidden (not shown) when it would otherwise
+                       intersect with a floating window. Defaults to `0`.
 
                                            *scrollview_mode*
 scrollview_mode        |String| specifying what the scrollbar position and size
@@ -148,8 +148,8 @@ example.
 
 Scrollview Modes ~
                                            *scrollview-modes*
-The following modes are available for the |scrollview_mode| configuration setting
-(set as a |string|). Without closed |folds|, both modes work the same way.
+The following modes are available for the |scrollview_mode| configuration
+setting (set as a |string|). Without closed |folds|, both modes work the same way.
 
 Mode       Description
 ----       -----------
