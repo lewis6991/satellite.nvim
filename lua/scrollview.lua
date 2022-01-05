@@ -971,7 +971,7 @@ end
 local get_windows_options = function()
   local wins_options = {}
   for _, winid in ipairs(get_ordinary_windows()) do
-    wins_options[tostring(winid)] = fn.getwinvar(winid, '&')
+    wins_options[winid] = fn.getwinvar(winid, '&')
   end
   return wins_options
 end
