@@ -860,7 +860,7 @@ local get_toplines = function()
   for _, info in ipairs(fn.getwininfo()) do
     local winid = info.winid
     if info.tabnr == tabnr and is_ordinary_window(winid) then
-      result[tostring(winid)] = info.topline
+      result[winid] = info.topline
     end
   end
   return result
