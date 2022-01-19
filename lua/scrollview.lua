@@ -966,33 +966,6 @@ local restore = function(state, restore_toplines)
   api.nvim_set_option('eventignore', state.eventignore)
 end
 
--- Returns a dictionary that maps window ID to a dictionary of corresponding
--- window options.
-local get_windows_options = function()
-  local wins_options = {}
-  for _, winid in ipairs(get_ordinary_windows()) do
-    wins_options[winid] = fn.getwinvar(winid, '&')
-  end
-  return wins_options
-end
-
--- Restores windows options from a dictionary that maps window ID to a
--- dictionary of corresponding window options.
-local restore_windows_options = function(wins_options)
-  for winid, options in pairs(wins_options) do
-    if api.nvim_win_is_valid(winid) then
-      for key, value in pairs(options) do
-        -- getwinvar(..., '&...', ...) is used in place of nvim_win_get_option
-        -- to avoid Neovim Issue #13964, where invalid values can be returned
-        -- for global-local options (e.g., scrolloff).
-        if fn.getwinvar(winid, '&' .. key) ~= value then
-          fn.setwinvar(winid, '&' .. key, value)
-        end
-      end
-    end
-  end
-end
-
 -- Get input characters---including mouse clicks and drags---from the input
 -- stream. Characters are read until the input stream is empty. Returns a
 -- 2-tuple with a string representation of the characters, along with a list of
@@ -1402,7 +1375,6 @@ local handle_mouse = function(button)
   end
   local state = init()
   local restore_toplines = true
-  local wins_options = get_windows_options()
   pcall(function()
     -- Re-send the click, so its position can be obtained through
     -- read_input_stream().
@@ -1412,16 +1384,6 @@ local handle_mouse = function(button)
     -- from that mode.
     if in_command_line_window() then
       return
-    end
-    -- Temporarily change foldmethod=syntax to foldmethod=manual to prevent
-    -- lagging (Issue #20). This could result in a brief change to the text
-    -- displayed for closed folds, due to the 'foldtext' function using
-    -- specific text for syntax folds. This side-effect was deemed a preferable
-    -- tradeoff to lagging.
-    for winid, _ in pairs(wins_options) do
-      if api.nvim_win_get_option(winid, 'foldmethod') == 'syntax' then
-        set_window_option(winid, 'foldmethod', 'manual')
-      end
     end
     local count = 0
     local winid  -- The target window ID for a mouse scroll.
@@ -1607,7 +1569,6 @@ local handle_mouse = function(button)
       ::continue::
     end  -- end while
   end)  -- end pcall
-  restore_windows_options(wins_options)
   restore(state, restore_toplines)
 end
 
