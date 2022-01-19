@@ -356,7 +356,7 @@ end
 
 -- Returns the count of virtual lines between the specified start and end lines
 -- (both inclusive), in the current window. A closed fold counts as one virtual
--- line. The computation loops over lines.
+-- line. The computation loops over lines. The cursor is not moved.
 local virtual_line_count_linewise = function(start, _end)
   local count = 0
   local line = start
@@ -373,7 +373,8 @@ end
 
 -- Returns the count of virtual lines between the specified start and end lines
 -- (both inclusive), in the specified window. A closed fold counts as one
--- virtual line. The computation loops over lines. The cursor is not moved.
+-- virtual line. The computation loops over either lines or virtual spans, so
+-- the cursor may be moved.
 local virtual_line_count = function(winid, start, _end)
   local last_line = api.nvim_buf_line_count(api.nvim_win_get_buf(winid))
   if type(_end) == 'string' and _end == '$' then
@@ -463,7 +464,8 @@ end
 
 -- Returns an array that maps window rows to the topline that corresponds to a
 -- scrollbar at that row under virtual scrollview mode, in the current window.
--- The computation loops over lines.
+-- The computation primarily loops over lines, but may loop over virtual spans
+-- as part of calling 'virtual_line_count', so the cursor may be moved.
 local virtual_topline_lookup_linewise = function()
   local winheight = api.nvim_win_get_height(0)
   local last_line = fn.line('$')
@@ -512,8 +514,8 @@ local virtual_topline_lookup_linewise = function()
 end
 
 -- Returns an array that maps window rows to the topline that corresponds to a
--- scrollbar at that row under virtual scrollview mode. The cursor is not
--- moved.
+-- scrollbar at that row under virtual scrollview mode. The computation loops
+-- over either lines or virtual spans, so the cursor may be moved.
 local virtual_topline_lookup = function(winid)
   local result = with_win_workspace(winid, function()
     local last_line = api.nvim_buf_line_count(api.nvim_win_get_buf(winid))
