@@ -10,7 +10,7 @@ let s:line_count = nvim_buf_line_count(0)
 let s:vline_count_spanwise =
       \ s:lua_module.virtual_line_count_spanwise(1, s:line_count)
 let s:vline_count_linewise =
-      \ s:lua_module.virtual_line_count_linewise(1, s:line_count) + 1  " TODO: Remove " + 1"
+      \ s:lua_module.virtual_line_count_linewise(1, s:line_count)
 call assert_equal(s:line_count, s:vline_count_spanwise)
 call assert_equal(s:vline_count_spanwise, s:vline_count_linewise)
 let s:vtopline_lookup_spanwise =
