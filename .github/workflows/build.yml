@@ -16,14 +16,24 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v2
 
-    - name: Check Help Tags
-      run: |
-        # Check if the help tags file should be updated
-        vim -c 'helptags doc/' -c quit
-        test -z "$(git status --porcelain doc/)"
-
-    - name: Luacheck
+    - name: Dependencies
       run: |
         sudo apt-get update
         sudo apt-get install lua-check
-        luacheck .
+        # Manually installing Neovim is necessary until the repo version includes
+        # nvim>=0.5.
+        wget 'https://github.com/neovim/neovim/releases/download/v0.6.1/nvim.appimage'
+        test "$(sha256sum nvim.appimage | awk '{print $1}')" \
+          = ef9056e05ef6a4c1d0cdb8b21f79261703122c0fd31f23f782158d326fdadbf5
+        chmod u+x nvim.appimage
+        mkdir -p ~/bin
+        ln -s ${PWD}/nvim.appimage nvim
+
+    - name: Check Help Tags
+      run: |
+        # Check if the help tags file should be updated
+        nvim -c 'helptags doc/' -c quit
+        test -z "$(git status --porcelain doc/)"
+
+    - name: Luacheck
+      run: luacheck .
