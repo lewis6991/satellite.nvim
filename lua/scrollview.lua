@@ -1579,7 +1579,7 @@ end
 -- *************************************************
 
 return {
-  -- Functions called internally (by autocmds)
+  -- Functions called internally (by autocmds).
   refresh_bars_async = refresh_bars_async,
   remove_bars = remove_bars,
   remove_if_command_line_window = remove_if_command_line_window,
@@ -1590,4 +1590,10 @@ return {
   scrollview_disable = scrollview_disable,
   scrollview_refresh = scrollview_refresh,
   handle_mouse = handle_mouse,
+
+  -- Functions called by tests.
+  virtual_line_count_spanwise = virtual_line_count_spanwise,
+  virtual_line_count_linewise = virtual_line_count_linewise,
+  virtual_topline_lookup_spanwise = virtual_topline_lookup_spanwise,
+  virtual_topline_lookup_linewise = virtual_topline_lookup_linewise,
 }
