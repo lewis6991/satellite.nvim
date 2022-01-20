@@ -27,8 +27,7 @@ jobs:
           = ef9056e05ef6a4c1d0cdb8b21f79261703122c0fd31f23f782158d326fdadbf5
         chmod u+x nvim.appimage
         mkdir -p "${HOME}/bin"
-        ln -s ${PWD}/nvim.appimage nvim
-        echo "${HOME}/bin" >> $GITHUB_PATH
+        ln -s ${PWD}/nvim.appimage "${HOME}/bin/nvim"
 
     - name: Check Help Tags
       run: |
