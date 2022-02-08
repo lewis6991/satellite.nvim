@@ -5,6 +5,7 @@ local scrollview_enabled = false
 local scrollview_zindex = 40
 local scrollview_winblend = 50
 local scrollview_excluded_filetypes = {}
+local scrollview_current_only = false
 
 -- Since there is no text displayed in the buffers, the same buffers are used
 -- for multiple windows. This also prevents the buffer list from getting high
@@ -17,7 +18,7 @@ local bar_bufnr = -1
 local pending_async_refresh_count = 0
 
 -- A key for flagging windows that are pending async removal.
-local pending_async_removal_var = 'scrollview_pending_async_removal'
+local PENDING_ASYNC_REMOVAL_VAR = 'scrollview_pending_async_removal'
 
 -- *************************************************
 -- * Utils
@@ -114,37 +115,6 @@ local in_command_line_window = function()
   local buftype = vim.bo[bufnr].buftype
   local bufname = api.nvim_buf_get_name(bufnr)
   return buftype == 'nofile' and bufname == '[Command Line]'
-end
-
--- Returns the specified variable. There are two optional arguments, for
--- specifying precedence and a default value. Without specifying precedence,
--- highest precedence is given to window variables, then tab page variables,
--- then buffer variables, then global variables. Without specifying a default
--- value, 0 will be used.
-local get_variable = function(name, winnr, precedence, default)
-  if precedence == nil then precedence = 'wtbg' end
-  if default == nil then default = 0 end
-  for idx = 1, #precedence do
-    local c = precedence:sub(idx, idx)
-    if c == 'w' then
-      local winvars = fn.getwinvar(winnr, '')
-      if winvars[name] ~= nil then return winvars[name] end
-    elseif c == 't' then
-      local winid = fn.win_getid(winnr)
-      local tabnr = fn.getwininfo(winid)[1].tabnr
-      local tabvars = fn.gettabvar(tabnr, '')
-      if tabvars[name] ~= nil then return tabvars[name] end
-    elseif c == 'b' then
-      local bufnr = fn.winbufnr(winnr)
-      local bufvars = fn.getbufvar(bufnr, '')
-      if bufvars[name] ~= nil then return bufvars[name] end
-    elseif c == 'g' then
-      if vim.g[name] ~= nil then return vim.g[name] end
-    else
-      error('Unknown variable type ' .. c)
-    end
-  end
-  return default
 end
 
 -- Return top line and bottom line in window. For folds, the top line
@@ -411,7 +381,7 @@ local show_scrollbar = function(winid, bar_winid)
   vim.wo[bar_winid].foldcolumn = '0'  -- foldcolumn takes a string
   vim.wo[bar_winid].wrap = false
   api.nvim_win_set_var(bar_winid, 'scrollview_key', 'scrollview_val')
-  api.nvim_win_set_var(bar_winid, pending_async_removal_var, false)
+  api.nvim_win_set_var(bar_winid, PENDING_ASYNC_REMOVAL_VAR, false)
   api.nvim_win_set_var(bar_winid, 'scrollview_props', {
     parent_winid = winid,
     scrollview_winid = bar_winid,
@@ -724,7 +694,9 @@ end
 -- With no argument, remove all bars. Otherwise, remove the specified list of
 -- bars. Global state is initialized and restored.
 local remove_bars = function(target_wins)
-  if target_wins == nil then target_wins = get_scrollview_windows() end
+  if target_wins == nil then
+    target_wins = get_scrollview_windows()
+  end
   if bar_bufnr == -1 then return end
   local state = init()
   pcall(function()
@@ -761,7 +733,7 @@ local refresh_bars = function(async_removal)
     -- of windows for asynchronous removal (e.g., when CPU utilization is
     -- high).
     for _, winid in ipairs(get_scrollview_windows()) do
-      if to_bool(api.nvim_win_get_var(winid, pending_async_removal_var)) then
+      if to_bool(api.nvim_win_get_var(winid, PENDING_ASYNC_REMOVAL_VAR)) then
         close_scrollview_window(winid)
       end
     end
@@ -770,7 +742,7 @@ local refresh_bars = function(async_removal)
     -- the delay between removal and adding).
     local existing_wins = get_scrollview_windows()
     local target_wins = {}
-    if to_bool(get_variable('scrollview_current_only', fn.winnr(), 'tg')) then
+    if scrollview_current_only then
       table.insert(target_wins, api.nvim_get_current_win())
     else
       for _, winid in ipairs(get_ordinary_windows()) do
@@ -779,17 +751,14 @@ local refresh_bars = function(async_removal)
     end
     local start_reltime = fn.reltime()
     for _, winid in ipairs(target_wins) do
-      local existing_winid = -1
-      if not vim.tbl_isempty(existing_wins) then
-        -- Reuse an existing scrollbar floating window when available. This
-        -- prevents flickering when there are folds. This keeps the window IDs
-        -- smaller than they would be otherwise. The benefits of small window
-        -- IDs seems relatively less beneficial than small buffer numbers,
-        -- since they would ordinarily be used less as inputs to commands
-        -- (where smaller numbers are preferable for their fewer digits to
-        -- type).
-        existing_winid = existing_wins[#existing_wins]
-      end
+      -- Reuse an existing scrollbar floating window when available. This
+      -- prevents flickering when there are folds. This keeps the window IDs
+      -- smaller than they would be otherwise. The benefits of small window
+      -- IDs seems relatively less beneficial than small buffer numbers,
+      -- since they would ordinarily be used less as inputs to commands
+      -- (where smaller numbers are preferable for their fewer digits to
+      -- type).
+      local existing_winid = existing_wins[#existing_wins] or -1
       local bar_winid = show_scrollbar(winid, existing_winid)
       -- If an existing window was successfully reused, remove it from the
       -- existing window list.
@@ -818,7 +787,7 @@ local refresh_bars = function(async_removal)
       -- - remove_bars is used instead of close_scrollview_window for global
       --   state initialization and restoration.
       for _, winid in ipairs(existing_wins) do
-        api.nvim_win_set_var(winid, pending_async_removal_var, true)
+        api.nvim_win_set_var(winid, PENDING_ASYNC_REMOVAL_VAR, true)
       end
       vim.defer_fn(function()
         remove_bars(existing_wins)
@@ -1182,10 +1151,6 @@ local handle_mouse = function(button)
   restore(state, restore_toplines)
 end
 
--- *************************************************
--- * API
--- *************************************************
-
 return {
   -- Functions called internally (by autocmds).
   refresh_bars_async = refresh_bars_async,
@@ -1198,8 +1163,4 @@ return {
   scrollview_disable = scrollview_disable,
   scrollview_refresh = scrollview_refresh,
   handle_mouse = handle_mouse,
-
-  -- Functions called by tests.
-  virtual_line_count_linewise = virtual_line_count_linewise,
-  virtual_topline_lookup_linewise = virtual_topline_lookup_linewise,
 }
