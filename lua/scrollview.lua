@@ -14,6 +14,8 @@ local fn = vim.fn
 -- Internal flag for tracking scrollview state.
 local scrollview_enabled = false
 
+local scrollview_zindex = 40
+
 -- Since there is no text displayed in the buffers, the same buffers are used
 -- for multiple windows. This also prevents the buffer list from getting high
 -- from usage of the plugin.
@@ -466,25 +468,25 @@ local show_scrollbar = function(winid, bar_winid)
   end
   if bar_bufnr == -1 or not fn.bufexists(bar_bufnr) then
     bar_bufnr = api.nvim_create_buf(false, true)
-    api.nvim_buf_set_option(bar_bufnr, 'modifiable', false)
-    api.nvim_buf_set_option(bar_bufnr, 'filetype', 'scrollview')
-    api.nvim_buf_set_option(bar_bufnr, 'buftype', 'nofile')
-    api.nvim_buf_set_option(bar_bufnr, 'swapfile', false)
-    api.nvim_buf_set_option(bar_bufnr, 'bufhidden', 'hide')
-    api.nvim_buf_set_option(bar_bufnr, 'buflisted', false)
+    vim.bo[bar_bufnr].modifiable = false
+    vim.bo[bar_bufnr].filetype = 'scrollview'
+    vim.bo[bar_bufnr].buftype = 'nofile'
+    vim.bo[bar_bufnr].swapfile = false
+    vim.bo[bar_bufnr].bufhidden = 'hide'
+    vim.bo[bar_bufnr].buflisted = false
   end
   -- Make sure that a custom character is up-to-date and is repeated enough to
   -- cover the full height of the scrollbar.
   local bar_line_count = api.nvim_buf_line_count(bar_bufnr)
   if api.nvim_buf_get_lines(bar_bufnr, 0, 1, false)[1] ~= vim.g.scrollview_character
       or bar_position.height > bar_line_count then
-    api.nvim_buf_set_option(bar_bufnr, 'modifiable', true)
+    vim.bo[bar_bufnr].modifiable = true
     api.nvim_buf_set_lines(
       bar_bufnr, 0, bar_line_count, false,
       fn['repeat']({vim.g.scrollview_character}, bar_position.height))
-    api.nvim_buf_set_option(bar_bufnr, 'modifiable', false)
+    vim.bo[bar_bufnr].modifiable = false
   end
-  local zindex = get_variable('scrollview_zindex', winnr)
+
   local config = {
     win = winid,
     relative = 'win',
@@ -494,7 +496,7 @@ local show_scrollbar = function(winid, bar_winid)
     width = 1,
     row = bar_position.row - 1,
     col = bar_position.col - 1,
-    zindex = zindex
+    zindex = scrollview_zindex
   }
   if bar_winid == -1 then
     bar_winid = api.nvim_open_win(bar_bufnr, false, config)
@@ -509,19 +511,18 @@ local show_scrollbar = function(winid, bar_winid)
   local winhighlight = 'Normal:ScrollView,EndOfBuffer:ScrollView'
   set_window_option(bar_winid, 'winhighlight', winhighlight)
   local winblend = get_variable('scrollview_winblend', winnr)
-  set_window_option(bar_winid, 'winblend', winblend)
-  set_window_option(bar_winid, 'foldcolumn', '0')  -- foldcolumn takes a string
-  set_window_option(bar_winid, 'wrap', false)
+  vim.wo[bar_winid].winblend = winblend
+  vim.wo[bar_winid].foldcolumn = '0'  -- foldcolumn takes a string
+  vim.wo[bar_winid].wrap = false
   api.nvim_win_set_var(bar_winid, win_var, win_val)
   api.nvim_win_set_var(bar_winid, pending_async_removal_var, false)
-  local props = {
+  api.nvim_win_set_var(bar_winid, props_var, {
     parent_winid = winid,
     scrollview_winid = bar_winid,
     height = bar_position.height,
     row = bar_position.row,
     col = bar_position.col
-  }
-  api.nvim_win_set_var(bar_winid, props_var, props)
+  })
   return bar_winid
 end
 
@@ -586,8 +587,8 @@ end
 -- Sets global state that is assumed by the core functionality and returns a
 -- state that can be used for restoration.
 local init = function()
-  local eventignore = api.nvim_get_option('eventignore')
-  api.nvim_set_option('eventignore', 'all')
+  local eventignore = vim.o.eventignore
+  vim.o.eventignore = 'all'
   -- It's possible that window views can change as a result of moving the
   -- cursor across windows throughout nvim-scrollview processing (Issue #43).
   -- Toplines are saved so that the views can be restored in s:Restore.
@@ -603,22 +604,20 @@ local init = function()
   local state = {
     previous_winid = fn.win_getid(fn.winnr('#')),
     initial_winid = fn.win_getid(fn.winnr()),
-    belloff = api.nvim_get_option('belloff'),
+    belloff = vim.o.belloff,
     eventignore = eventignore,
-    winwidth = api.nvim_get_option('winwidth'),
-    winheight = api.nvim_get_option('winheight'),
+    winwidth = vim.o.winwidth,
+    winheight = vim.o.winheight,
     mode = fn.mode(),
     toplines = get_toplines()
   }
   -- Disable the bell (e.g., for invalid cursor movements, trying to navigate
   -- to a next fold, when no fold exists).
-  api.nvim_set_option('belloff', 'all')
+  vim.o.belloff = 'all'
   -- Minimize winwidth and winheight so that changing the current window
   -- doesn't unexpectedly cause window resizing.
-  api.nvim_set_option(
-    'winwidth', math.max(1, api.nvim_get_option('winminwidth')))
-  api.nvim_set_option(
-    'winheight', math.max(1, api.nvim_get_option('winminheight')))
+  vim.o.winwidth = math.max(1, vim.o.winminwidth)
+  vim.o.winheight = math.max(1, vim.o.winminheight)
   if is_select_mode(state.mode) then
     -- Temporarily switch from select-mode to visual-mode, so that 'normal!'
     -- commands can be executed properly.
@@ -637,7 +636,7 @@ local restore = function(state, restore_toplines)
   -- WARN: Since the current window is changed, 'eventignore' should not be
   -- restored until after.
   if restore_toplines == nil then restore_toplines = true end
-  local current_winid = fn.win_getid(fn.winnr())
+  local current_winid = api.nvim_get_current_win()
   pcall(function()
     local previous_winid = state.previous_winid
     if current_winid ~= state.initial_winid then
@@ -660,9 +659,10 @@ local restore = function(state, restore_toplines)
     end
   end
   -- Restore options.
-  api.nvim_set_option('belloff', state.belloff)
-  api.nvim_set_option('winwidth', state.winwidth)
-  api.nvim_set_option('winheight', state.winheight)
+  vim.o.belloff = state.belloff
+  vim.o.winwidth = state.winwidth
+  vim.o.winheight = state.winheight
+
   if restore_toplines then
     -- Scroll windows back to their original positions.
     for winid, topline in pairs(state.toplines) do
@@ -680,7 +680,7 @@ local restore = function(state, restore_toplines)
       end
     end
   end
-  api.nvim_set_option('eventignore', state.eventignore)
+  vim.o.eventignore = state.eventignore
 end
 
 -- Get input characters---including mouse clicks and drags---from the input
@@ -777,7 +777,7 @@ local set_topline = function(winid, linenr)
   api.nvim_win_call(winid, function()
     local init_line = fn.line('.')
     vim.cmd('keepjumps normal! ' .. linenr .. 'G')
-    local topline, _ = line_range(winid)
+    local topline = line_range(winid)
     -- Use virtual lines to figure out how much to scroll up. winline() doesn't
     -- accommodate wrapped lines.
     local virtual_line = virtual_line_count(winid, topline, fn.line('.'))
