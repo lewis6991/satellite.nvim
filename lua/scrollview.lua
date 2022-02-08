@@ -678,9 +678,7 @@ end
 -- With no argument, remove all bars. Otherwise, remove the specified list of
 -- bars. Global state is initialized and restored.
 local remove_bars = function(target_wins)
-  if target_wins == nil then
-    target_wins = get_scrollview_windows()
-  end
+  target_wins = target_wins or get_scrollview_windows()
   if bar_bufnr == -1 then return end
   local state = init()
   pcall(function()
@@ -962,7 +960,7 @@ local handle_mouse = function(button)
     local props
     -- Computing this prior to the first mouse event could distort the location
     -- since this could be an expensive operation (and the mouse could move).
-    local the_topline_lookup = nil
+    local the_topline_lookup
     while true do
       while true do
         idx = idx + 1
@@ -1106,8 +1104,7 @@ local handle_mouse = function(button)
           if the_topline_lookup == nil then
             the_topline_lookup = topline_lookup(winid)
           end
-          local topline = the_topline_lookup[row]
-          topline = math.max(1, topline)
+          local topline = math.max(1, the_topline_lookup[row])
           if row == 1 then
             -- If the scrollbar was dragged to the top of the window, always show
             -- the first line.
@@ -1118,8 +1115,7 @@ local handle_mouse = function(button)
             topline = api.nvim_buf_line_count(bufnr)
           end
           set_topline(winid, topline)
-          if api.nvim_win_get_option(winid, 'scrollbind')
-              or api.nvim_win_get_option(winid, 'cursorbind') then
+          if vim.wo[winid].scrollbind or vim.wo[winid].cursorbind then
             refresh_bars(false)
             props = get_scrollview_props(winid)
           end
