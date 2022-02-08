@@ -14,16 +14,6 @@ local scrollview_current_only = false
 -- bar_bufnr has the bufnr of the buffer created for a position bar.
 local bar_bufnr = -1
 
--- Keep count of pending async refreshes.
-local pending_async_refresh_count = 0
-
--- A key for flagging windows that are pending async removal.
-local PENDING_ASYNC_REMOVAL_VAR = 'scrollview_pending_async_removal'
-
--- *************************************************
--- * Utils
--- *************************************************
-
 -- Round to the nearest integer.
 -- WARN: .5 rounds to the right on the number line, including for negatives
 -- (which would not result in rounding up in magnitude).
@@ -114,8 +104,6 @@ end
 local line_range = function(winid)
   -- WARN: getwininfo(winid)[1].botline is not properly updated for some
   -- movements (Neovim Issue #13510), so this is implemeneted as a workaround.
-  -- This was originally handled by using an asynchronous context, but this was
-  -- not possible for refreshing bars during mouse drags.
   -- Using scrolloff=0 combined with H and L breaks diff mode. Scrolling is not
   -- possible and/or the window scrolls when it shouldn't. Temporarily turning
   -- off scrollbind and cursorbind accommodates, but the following is simpler.
@@ -365,7 +353,6 @@ local show_scrollbar = function(winid, bar_winid)
   vim.wo[bar_winid].foldcolumn = '0'  -- foldcolumn takes a string
   vim.wo[bar_winid].wrap = false
   api.nvim_win_set_var(bar_winid, 'scrollview_key', 'scrollview_val')
-  api.nvim_win_set_var(bar_winid, PENDING_ASYNC_REMOVAL_VAR, false)
   api.nvim_win_set_var(bar_winid, 'scrollview_props', {
     parent_winid = winid,
     scrollview_winid = bar_winid,
@@ -699,26 +686,14 @@ local remove_if_command_line_window = function()
   end
 end
 
--- Refreshes scrollbars. There is an optional argument that specifies whether
--- removing existing scrollbars is asynchronous (defaults to true). Global
--- state is initialized and restored.
-local refresh_bars = function(async_removal)
-  if async_removal == nil then async_removal = true end
+-- Refreshes scrollbars. Global state is initialized and restored.
+local refresh_bars = function()
   local state = init()
   -- Use a pcall block, so that unanticipated errors don't interfere. The
   -- worst case scenario is that bars won't be shown properly, which was
   -- deemed preferable to an obscure error message that can be interrupting.
   pcall(function()
     if in_command_line_window() then return end
-    -- Remove any scrollbars that are pending asynchronous removal. This
-    -- reduces the appearance of motion blur that results from the accumulation
-    -- of windows for asynchronous removal (e.g., when CPU utilization is
-    -- high).
-    for _, winid in ipairs(get_scrollview_windows()) do
-      if to_bool(api.nvim_win_get_var(winid, PENDING_ASYNC_REMOVAL_VAR)) then
-        close_scrollview_window(winid)
-      end
-    end
     -- Existing windows are determined before adding new windows, but removed
     -- later (they have to be removed after adding to prevent flickering from
     -- the delay between removal and adding).
@@ -758,22 +733,6 @@ local refresh_bars = function(async_removal)
       -- Do nothing. The following clauses are only applicable when there are
       -- existing windows. Skipping prevents the creation of an unnecessary
       -- timer.
-    elseif async_removal then
-      -- Remove bars asynchronously to prevent flickering (this may help when
-      -- there are folds and mode='virtual' in some cases). Even when
-      -- nvim_win_close is called synchronously after the code that adds the
-      -- other windows, the window removal still happens earlier in time, as
-      -- confirmed by using 'writedelay'. Even with asynchronous execution, the
-      -- call to vim.defer_fn must still occur after the code for the window
-      -- additions.
-      -- - remove_bars is used instead of close_scrollview_window for global
-      --   state initialization and restoration.
-      for _, winid in ipairs(existing_wins) do
-        api.nvim_win_set_var(winid, PENDING_ASYNC_REMOVAL_VAR, true)
-      end
-      vim.defer_fn(function()
-        remove_bars(existing_wins)
-      end, 0)
     else
       for _, winid in ipairs(existing_wins) do
         close_scrollview_window(winid)
@@ -783,41 +742,9 @@ local refresh_bars = function(async_removal)
   restore(state)
 end
 
--- This function refreshes the bars asynchronously. This works better than
--- updating synchronously in various scenarios where updating occurs in an
--- intermediate state of the editor (e.g., when closing a command-line window),
--- which can result in bars being placed where they shouldn't be.
--- WARN: For debugging, it's helpful to use synchronous refreshing, so that
--- e.g., echom works as expected.
-local refresh_bars_async = function()
-  pending_async_refresh_count = pending_async_refresh_count + 1
-  -- Use defer_fn twice so that refreshing happens after other processing. Issue #59.
-  vim.schedule(function()
-    vim.schedule(function()
-      pending_async_refresh_count = math.max(0, pending_async_refresh_count - 1)
-      if pending_async_refresh_count > 0 then
-        -- If there are asynchronous refreshes that will occur subsequently,
-        -- don't execute this one.
-        return
-      end
-      -- ScrollView may have already been disabled by time this callback executes
-      -- asynchronously.
-      if scrollview_enabled then
-        refresh_bars()
-      end
-    end)
-  end)
-end
-
 -- *************************************************
 -- * Main (entry points)
 -- *************************************************
-
--- INFO: Asynchronous refreshing was originally used to work around issues
--- (e.g., getwininfo(winid)[1].botline not updated yet in a synchronous
--- context). However, it's now primarily utilized because it makes the UI more
--- responsive and it permits redundant refreshes to be dropped (e.g., for mouse
--- wheel scrolling).
 
 local scrollview_enable = function()
   scrollview_enabled = true
@@ -852,36 +779,27 @@ local scrollview_enable = function()
       " === Scrollbar Refreshing ===
 
       " The following handles bar refreshing when changing the current window.
-      autocmd WinEnter,TermEnter * :lua require('scrollview').refresh_bars_async()
+      autocmd WinEnter,TermEnter * :lua require('scrollview').refresh_bars()
       " The following restores bars after leaving the command-line window.
       " Refreshing must be asynchronous, since the command line window is still
       " in an intermediate state when the CmdwinLeave event is triggered.
-      autocmd CmdwinLeave * :lua require('scrollview').refresh_bars_async()
+      autocmd CmdwinLeave * :lua require('scrollview').refresh_bars()
       " The following handles scrolling events, which could arise from various
       " actions, including resizing windows, movements (e.g., j, k), or
       " scrolling (e.g., <ctrl-e>, zz).
-      autocmd WinScrolled * :lua require('scrollview').refresh_bars_async()
+      autocmd WinScrolled * :lua require('scrollview').refresh_bars()
       " The following handles the case where text is pasted. TextChangedI is not
       " necessary since WinScrolled will be triggered if there is corresponding
       " scrolling.
-      autocmd TextChanged * :lua require('scrollview').refresh_bars_async()
-      " The following handles when :e is used to load a file. The asynchronous
-      " version handles a case where :e is used to reload an existing file, that
-      " is already scrolled. This avoids a scenario where the scrollbar is
-      " refreshed while the window is an intermediate state, resulting in the
-      " scrollbar moving to the top of the window.
-      autocmd BufWinEnter * :lua require('scrollview').refresh_bars_async()
+      autocmd TextChanged * :lua require('scrollview').refresh_bars()
+      " The following handles when :e is used to load a file.
+      autocmd BufWinEnter * :lua require('scrollview').refresh_bars()
       " The following is used so that bars are shown when cycling through tabs.
-      autocmd TabEnter * :lua require('scrollview').refresh_bars_async()
-      autocmd VimResized * :lua require('scrollview').refresh_bars_async()
+      autocmd TabEnter * :lua require('scrollview').refresh_bars()
+      autocmd VimResized * :lua require('scrollview').refresh_bars()
     augroup END
   ]])
-  -- The initial refresh is asynchronous, since :ScrollViewEnable can be used
-  -- in a context where Neovim is in an intermediate state. For example, for
-  -- ':bdelete | ScrollViewEnable', with synchronous processing, the 'topline'
-  -- and 'botline' in getwininfo's results correspond to the existing buffer
-  -- that :bdelete was called on.
-  refresh_bars_async()
+  refresh_bars()
 end
 
 local scrollview_disable = function()
@@ -914,13 +832,7 @@ end
 
 local scrollview_refresh = function()
   if scrollview_enabled then
-    -- This refresh is asynchronous to keep interactions responsive (e.g.,
-    -- mouse wheel scrolling, as redundant async refreshes are dropped). If
-    -- scenarios necessitate synchronous refreshes, the interface would have to
-    -- be updated (e.g., :ScrollViewRefresh --sync) to accommodate (as there is
-    -- currently only a single refresh command and a single refresh <plug>
-    -- mapping, both utilizing whatever is implemented here).
-    refresh_bars_async()
+    refresh_bars()
   end
 end
 
@@ -1023,7 +935,7 @@ local handle_mouse = function(button)
           -- 'feedkeys' is not called, since the full mouse interaction has
           -- already been processed. The current window (from prior to
           -- scrolling) is not changed.
-          refresh_bars(false)
+          refresh_bars()
         end
         return
       end
@@ -1064,7 +976,8 @@ local handle_mouse = function(button)
         -- ignore all mouse events until a mouseup. This approach was deemed
         -- preferable to refreshing scrollbars initially, as that could result
         -- in unintended clicking/dragging where there is no scrollbar.
-        refresh_bars(false)
+        refresh_bars()
+        -- Redraw to refresh the buffer if the scrollbar is being dragged
         vim.cmd('redraw')
         -- Don't restore toplines whenever a scrollbar was clicked. This
         -- prevents the window where a scrollbar is dragged from having its
@@ -1116,7 +1029,7 @@ local handle_mouse = function(button)
           end
           set_topline(winid, topline)
           if vim.wo[winid].scrollbind or vim.wo[winid].cursorbind then
-            refresh_bars(false)
+            refresh_bars()
             props = get_scrollview_props(winid)
           end
           props = move_scrollbar(props, row)
@@ -1133,7 +1046,7 @@ end
 
 return {
   -- Functions called internally (by autocmds).
-  refresh_bars_async = refresh_bars_async,
+  refresh_bars = refresh_bars,
   remove_bars = remove_bars,
   remove_if_command_line_window = remove_if_command_line_window,
 
