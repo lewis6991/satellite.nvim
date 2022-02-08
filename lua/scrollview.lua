@@ -107,48 +107,6 @@ local set_window_option = function(winid, key, value)
   fn.setwinvar(winid, '&' .. key, value)
 end
 
--- Creates a temporary floating window that can be used for computations
--- ---corresponding to the specified window---that require temporary cursor
--- movements (e.g., counting virtual lines, where all lines in a closed fold
--- are counted as a single line). This can be used instead of working in the
--- actual window, to prevent unintended side-effects that arise from moving the
--- cursor in the actual window, even when autocmd's are disabled with
--- eventignore=all and the cursor is restored (e.g., Issue #18: window
--- flickering when resizing with the mouse, Issue #19: cursorbind/scrollbind
--- out-of-sync).
-local with_win_workspace = function(winid, fun)
-  -- Make the target window active, so that its folds are inherited by the
-  -- created floating window (this is necessary when there are multiple windows
-  -- that have the same buffer, each window having different folds).
-  local workspace_winid = api.nvim_win_call(winid, function()
-    local bufnr = api.nvim_win_get_buf(winid)
-    return api.nvim_open_win(bufnr, false, {
-      relative = 'editor',
-      focusable = false,
-      width = math.max(1, api.nvim_win_get_width(winid)),
-      height = math.max(1, api.nvim_win_get_height(winid)),
-      row = 0,
-      col = 0
-    })
-  end)
-  -- Disable scrollbind and cursorbind on the workspace window so that diff
-  -- mode and other functionality that utilizes binding (e.g., :Gdiff, :Gblame)
-  -- can function properly.
-  set_window_option(workspace_winid, 'scrollbind', false)
-  set_window_option(workspace_winid, 'cursorbind', false)
-  -- Don't include the workspace window in a diff session. If included, closing
-  -- it could end the diff session (e.g., when there is one other window in the
-  -- session). Issue #57.
-  set_window_option(workspace_winid, 'diff', false)
-  local result
-  local success, err = pcall(function()
-    result = api.nvim_win_call(workspace_winid, fun)
-  end)
-  api.nvim_win_close(workspace_winid, true)
-  if not success then error(err) end
-  return result
-end
-
 local is_visual_mode = function(mode)
   return vim.tbl_contains({'v', 'V', t'<c-v>'}, mode)
 end
@@ -179,35 +137,16 @@ local get_ordinary_windows = function()
 end
 
 local in_command_line_window = function()
-  if fn.win_gettype() == 'command' then return true end
-  if fn.mode() == 'c' then return true end
+  if fn.win_gettype() == 'command' then
+    return true
+  end
+  if api.nvim_get_mode().mode == 'c' then
+    return true
+  end
   local bufnr = api.nvim_get_current_buf()
   local buftype = api.nvim_buf_get_option(bufnr, 'buftype')
-  local bufname = fn.bufname(bufnr)
+  local bufname = api.nvim_buf_get_name(bufnr)
   return buftype == 'nofile' and bufname == '[Command Line]'
-end
-
--- Returns the window column where the buffer's text begins. This may be
--- negative due to horizontal scrolling. This may be greater than one due to
--- the sign column and 'number' column.
-local buf_text_begins_col = function()
-  -- The calculation assumes lines don't wrap, so 'nowrap' is temporarily set.
-  local wrap = api.nvim_win_get_option(0, 'wrap')
-  set_window_option(0, 'wrap', false)
-  local result = fn.wincol() - fn.virtcol('.') + 1
-  set_window_option(0, 'wrap', wrap)
-  return result
-end
-
--- Returns the window column where the view of the buffer begins. This can be
--- greater than one due to the sign column and 'number' column.
-local buf_view_begins_col = function()
-  -- The calculation assumes lines don't wrap, so 'nowrap' is temporarily set.
-  local wrap = api.nvim_win_get_option(0, 'wrap')
-  set_window_option(0, 'wrap', false)
-  local result = fn.wincol() - fn.virtcol('.') + fn.winsaveview().leftcol + 1
-  set_window_option(0, 'wrap', wrap)
-  return result
 end
 
 -- Returns the specified variable. There are two optional arguments, for
@@ -241,15 +180,6 @@ local get_variable = function(name, winnr, precedence, default)
   return default
 end
 
--- Returns the scrollview mode. The function signature matches s:GetVariable,
--- without the 'name' argument.
-local scrollview_mode = function(winnr, precedence, default)
-  if to_bool(vim.g.scrollview_refresh_time_exceeded) then
-    return 'simple'
-  end
-  return get_variable('scrollview_mode', winnr, precedence, default)
-end
-
 -- Return top line and bottom line in window. For folds, the top line
 -- represents the start of the fold and the bottom line represents the end of
 -- the fold.
@@ -263,95 +193,11 @@ local line_range = function(winid)
   -- off scrollbind and cursorbind accommodates, but the following is simpler.
   return unpack(api.nvim_win_call(winid, function()
     local topline = fn.line('w0')
-    local botline = fn.line('w$')
     -- line('w$') returns 0 in silent Ex mode, but line('w0') is always greater
     -- than or equal to 1.
-    botline = math.max(botline, topline)
+    local botline = math.max(fn.line('w$'), topline)
     return {topline, botline}
   end))
-end
-
--- Advance the current window cursor to the start of the next virtual span,
--- returning the range of lines jumped over, and a boolean indicating whether
--- that range was in a closed fold. A virtual span is a contiguous range of
--- lines that are either 1) not in a closed fold or 2) in a closed fold. If
--- there is no next virtual span, the cursor is returned to the first line.
-local advance_virtual_span = function()
-  local start = fn.line('.')
-  local foldclosedend = fn.foldclosedend(start)
-  if foldclosedend ~= -1 then
-    -- The cursor started on a closed fold.
-    if foldclosedend == fn.line('$') then
-      vim.cmd('keepjumps normal! gg')
-    else
-      vim.cmd('keepjumps normal! j')
-    end
-    return start, foldclosedend, true
-  end
-  local lnum = start
-  while true do
-    vim.cmd('keepjumps normal! zj')
-    if lnum == fn.line('.') then
-      -- There are no more folds after the cursor. This is the last span.
-      vim.cmd('keepjumps normal! gg')
-      return start, fn.line('$'), false
-    end
-    lnum = fn.line('.')
-    local foldclosed = fn.foldclosed(lnum)
-    if foldclosed ~= -1 then
-      -- The cursor moved to a closed fold. The preceding line ends the prior
-      -- virtual span.
-      return start, lnum - 1, false
-    end
-  end
-end
-
--- Returns a boolean indicating whether the count of folds (closed folds count
--- as a single fold) between the specified start and end lines exceeds 'n', in
--- the current window. The cursor may be moved.
-local fold_count_exceeds = function(start, _end, n)
-  vim.cmd('keepjumps normal! ' .. start .. 'G')
-  if fn.foldclosed(start) ~= -1 then
-    n = n - 1
-  end
-  if n < 0 then
-    return true
-  end
-  -- Navigate down n folds.
-  if n > 0 then
-    vim.cmd('keepjumps normal! ' .. n .. 'zj')
-  end
-  local line1 = fn.line('.')
-  -- The fold count exceeds n if there is another fold to navigate to on a line
-  -- less than _end.
-  vim.cmd('keepjumps normal! zj')
-  local line2 = fn.line('.')
-  return line2 > line1 and line2 <= _end
-end
-
--- Returns the count of virtual lines between the specified start and end lines
--- (both inclusive), in the current window. A closed fold counts as one virtual
--- line. The computation loops over virtual spans. The cursor may be moved.
-local virtual_line_count_spanwise = function(start, _end)
-  start = math.max(1, start)
-  _end = math.min(fn.line('$'), _end)
-  local count = 0
-  if _end >= start then
-    vim.cmd('keepjumps normal! ' .. start .. 'G')
-    while true do
-      local range_start, range_end, fold = advance_virtual_span()
-      range_end = math.min(range_end, _end)
-      local delta = 1
-      if not fold then
-        delta = range_end - range_start + 1
-      end
-      count = count + delta
-      if range_end == _end or fn.line('.') == 1 then
-        break
-      end
-    end
-  end
-  return count
 end
 
 -- Returns the count of virtual lines between the specified start and end lines
@@ -376,90 +222,12 @@ end
 -- virtual line. The computation loops over either lines or virtual spans, so
 -- the cursor may be moved.
 local virtual_line_count = function(winid, start, _end)
-  local last_line = api.nvim_buf_line_count(api.nvim_win_get_buf(winid))
   if type(_end) == 'string' and _end == '$' then
-    _end = last_line
+    _end = api.nvim_buf_line_count(api.nvim_win_get_buf(winid))
   end
-  local count = with_win_workspace(winid, function()
-    -- On an AMD Ryzen 7 2700X, linewise computation takes about 3e-7 seconds
-    -- per line (this is an overestimate, as it assumes all folds are open, but
-    -- the time is reduced when there are closed folds, as lines would be
-    -- skipped). Spanwise computation takes about 5e-5 seconds per fold (closed
-    -- folds count as a single fold). Therefore the linewise computation is
-    -- worthwhile when the number of folds is greater than (3e-7 / 5e-5) * L =
-    -- .006L, where L is the number of lines.
-    if fold_count_exceeds(start, _end, math.floor(last_line * .006)) then
-      return virtual_line_count_linewise(start, _end)
-    else
-      return virtual_line_count_spanwise(start, _end)
-    end
+  return api.nvim_win_call(winid, function()
+    return virtual_line_count_linewise(start, _end)
   end)
-  return count
-end
-
--- Returns an array that maps window rows to the topline that corresponds to a
--- scrollbar at that row under virtual scrollview mode, in the current window.
--- The computation loops over virtual spans. The cursor may be moved.
-local virtual_topline_lookup_spanwise = function()
-  local winheight = api.nvim_win_get_height(0)
-  local result = {}  -- A list of line numbers
-  local winid = api.nvim_get_current_win()
-  local total_vlines = virtual_line_count(winid, 1, '$')
-  if total_vlines > 1 and winheight > 1 then
-    local line = 0
-    local virtual_line = 0
-    local prop = 0.0
-    local row = 1
-    local proportion = (row - 1) / (winheight - 1)
-    vim.cmd('keepjumps normal! gg')
-    while #result < winheight do
-      local range_start, range_end, fold = advance_virtual_span()
-      local line_delta = range_end - range_start + 1
-      local virtual_line_delta = 1
-      if not fold then
-        virtual_line_delta = line_delta
-      end
-      local prop_delta = virtual_line_delta / (total_vlines - 1)
-      while prop + prop_delta >= proportion and #result < winheight do
-        local ratio = (proportion - prop) / prop_delta
-        local topline = line + 1
-        if fold then
-          -- If ratio >= 0.5, add all lines in the fold, otherwise don't add
-          -- the fold.
-          if ratio >= 0.5 then
-            topline = topline + line_delta
-          end
-        else
-          topline = topline + round(ratio * line_delta)
-        end
-        table.insert(result, topline)
-        row = row + 1
-        proportion = (row - 1) / (winheight - 1)
-      end
-      -- A line number of 1 indicates that advance_virtual_span looped back to
-      -- the beginning of the document.
-      local looped = fn.line('.') == 1
-      if looped or #result >= winheight then
-        break
-      end
-      line = line + line_delta
-      virtual_line = virtual_line + virtual_line_delta
-      prop = virtual_line / (total_vlines - 1)
-    end
-  end
-  while #result < winheight do
-    table.insert(result, fn.line('$'))
-  end
-  for idx, line in ipairs(result) do
-    line = math.max(1, line)
-    line = math.min(fn.line('$'), line)
-    local foldclosed = fn.foldclosed(line)
-    if foldclosed ~= -1 then
-      line = foldclosed
-    end
-    result[idx] = line
-  end
-  return result
 end
 
 -- Returns an array that maps window rows to the topline that corresponds to a
@@ -517,67 +285,35 @@ end
 -- scrollbar at that row under virtual scrollview mode. The computation loops
 -- over either lines or virtual spans, so the cursor may be moved.
 local virtual_topline_lookup = function(winid)
-  local result = with_win_workspace(winid, function()
-    local last_line = api.nvim_buf_line_count(api.nvim_win_get_buf(winid))
-    -- On an AMD Ryzen 7 2700X, linewise computation takes about 1.6e-6 seconds
-    -- per line (this is an overestimate, as it assumes all folds are open, but
-    -- the time is reduced when there are closed folds, as lines would be
-    -- skipped). Spanwise computation takes about 6.5e-5 seconds per fold
-    -- (closed folds count as a single fold). Therefore the linewise
-    -- computation is worthwhile when the number of folds is greater than
-    -- (1.6e-6 / 6.5e-5) * L = .0246L, where L is the number of lines.
-    if fold_count_exceeds(1, last_line, math.floor(last_line * .0246)) then
-      return virtual_topline_lookup_linewise()
-    else
-      return virtual_topline_lookup_spanwise()
-    end
-  end)
-  return result
+  return api.nvim_win_call(winid, virtual_topline_lookup_linewise)
 end
 
 -- Returns an array that maps window rows to the topline that corresponds to a
 -- scrollbar at that row.
 local topline_lookup = function(winid)
-  local winnr = api.nvim_win_get_number(winid)
-  local mode = scrollview_mode(winnr)
   local topline_lookup = {}
-  if mode ~= 'simple' then
-    -- Handling for virtual mode or an unknown mode.
-    for _, x in ipairs(virtual_topline_lookup(winid)) do
-      table.insert(topline_lookup, x)
-    end
-  else
-    local bufnr = api.nvim_win_get_buf(winid)
-    local line_count = api.nvim_buf_line_count(bufnr)
-    local winheight = fn.winheight(winid)
-    for row = 1, winheight do
-      local proportion = (row - 1) / (winheight - 1)
-      local topline = round(proportion * (line_count - 1)) + 1
-      table.insert(topline_lookup, topline)
-    end
+  -- Handling for virtual mode or an unknown mode.
+  for _, x in ipairs(virtual_topline_lookup(winid)) do
+    table.insert(topline_lookup, x)
   end
   return topline_lookup
 end
 
 -- Calculates the bar position for the specified window. Returns a dictionary
 -- with a height, row, and col.
-local calculate_position = function(winnr)
-  local winid = fn.win_getid(winnr)
+local calculate_position = function(winid)
   local bufnr = api.nvim_win_get_buf(winid)
   local topline, botline = line_range(winid)
   local line_count = api.nvim_buf_line_count(bufnr)
   local effective_topline = topline
   local effective_line_count = line_count
-  local mode = scrollview_mode(winnr)
-  if mode ~= 'simple' then
-    -- For virtual mode or an unknown mode, update effective_topline and
-    -- effective_line_count to correspond to virtual lines, which account for
-    -- closed folds.
-    effective_topline = virtual_line_count(winid, 1, topline - 1) + 1
-    effective_line_count = virtual_line_count(winid, 1, '$')
-  end
-  local winheight = fn.winheight(winnr)
-  local winwidth = fn.winwidth(winnr)
+  -- For virtual mode or an unknown mode, update effective_topline and
+  -- effective_line_count to correspond to virtual lines, which account for
+  -- closed folds.
+  effective_topline = virtual_line_count(winid, 1, topline - 1) + 1
+  effective_line_count = virtual_line_count(winid, 1, '$')
+  local winheight = api.nvim_win_get_height(winid)
+  local winwidth = api.nvim_win_get_width(winid)
   -- top is the position for the top of the scrollbar, relative to the window,
   -- and 0-indexed.
   local top = 0
@@ -599,28 +335,11 @@ local calculate_position = function(winnr)
   if top + height > winheight then
     top = winheight - height
   end
-  -- left is the position for the left of the scrollbar, relative to the
-  -- window, and 0-indexed.
-  local left = 0
-  local column = get_variable('scrollview_column', winnr)
-  local base = get_variable('scrollview_base', winnr)
-  if base == 'left' then
-    left = left + column - 1
-  elseif base == 'right' then
-    left = left + winwidth - column
-  elseif base == 'buffer' then
-    local btbc = api.nvim_win_call(winid, buf_text_begins_col)
-    left = left + column - 1 + btbc - 1
-  else
-    -- For an unknown base, use the default position (right edge of window).
-    left = left + winwidth - 1
-  end
-  local result = {
+  return {
     height = height,
     row = top + 1,
-    col = left + 1
+    col = winwidth
   }
-  return result
 end
 
 local is_scrollview_window = function(winid)
@@ -716,7 +435,7 @@ local show_scrollbar = function(winid, bar_winid)
   if botline - topline + 1 == line_count then
     return -1
   end
-  local bar_position = calculate_position(winnr)
+  local bar_position = calculate_position(winid)
   -- Height has to be positive for the call to nvim_open_win. When opening a
   -- terminal, the topline and botline can be set such that height is negative
   -- when you're using scrollview document mode.
@@ -726,10 +445,6 @@ local show_scrollbar = function(winid, bar_winid)
   -- Don't show scrollbar when its column is beyond what's valid.
   local min_valid_col = 1
   local max_valid_col = winwidth
-  local base = get_variable('scrollview_base', winnr)
-  if base == 'buffer' then
-    min_valid_col = api.nvim_win_call(winid, buf_view_begins_col)
-  end
   if bar_position.col < min_valid_col then
     return -1
   end
@@ -1592,8 +1307,6 @@ return {
   handle_mouse = handle_mouse,
 
   -- Functions called by tests.
-  virtual_line_count_spanwise = virtual_line_count_spanwise,
   virtual_line_count_linewise = virtual_line_count_linewise,
-  virtual_topline_lookup_spanwise = virtual_topline_lookup_spanwise,
   virtual_topline_lookup_linewise = virtual_topline_lookup_linewise,
 }

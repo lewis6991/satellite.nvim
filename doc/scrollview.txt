@@ -76,11 +76,6 @@ scrollview_auto_workarounds                *scrollview_auto_workarounds*
                        to `1`. Considered only at global scope, when the plugin
                        is loaded.
 
-                                           *scrollview_base*
-scrollview_base        |String| specifying where the scrollbar is anchored.
-                       Possible values are `'left'` or `'right'` for corresponding
-                       window edges, or `'buffer'`. Defaults to `'right'`.
-
                                            *scrollview_character*
 scrollview_character   |String| specifying a character to display on scrollbars.
                        Defaults to `''`. Considered only at global scope.
@@ -106,11 +101,6 @@ scrollview_hide_on_intersect               *scrollview_hide_on_intersect*
                        |Boolean| |Number| specifying whether each scrollbar
                        becomes hidden (not shown) when it would otherwise
                        intersect with a floating window. Defaults to `0`.
-
-                                           *scrollview_mode*
-scrollview_mode        |String| specifying what the scrollbar position and size
-                       correspond to. See |scrollview-modes| for details on the
-                       available modes. Defaults to `'virtual'`.
 
                                            *scrollview_on_startup*
 scrollview_on_startup  |Boolean| |Number| specifying whether scrollbars are
