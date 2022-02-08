@@ -62,15 +62,6 @@ local to_bool = function(x)
   return false
 end
 
--- Create a shallow copy of a map-like table.
-local copy = function(table)
-  local result = {}
-  for key, val in pairs(table) do
-    result[key] = val
-  end
-  return result
-end
-
 -- *************************************************
 -- * Core
 -- *************************************************
@@ -138,23 +129,6 @@ local line_range = function(winid)
 end
 
 -- Returns the count of virtual lines between the specified start and end lines
--- (both inclusive), in the current window. A closed fold counts as one virtual
--- line. The computation loops over lines. The cursor is not moved.
-local virtual_line_count_linewise = function(start, _end)
-  local count = 0
-  local line = start
-  while line <= _end do
-    count = count + 1
-    local foldclosedend = fn.foldclosedend(line)
-    if foldclosedend ~= -1 then
-      line = foldclosedend
-    end
-    line = line + 1
-  end
-  return count
-end
-
--- Returns the count of virtual lines between the specified start and end lines
 -- (both inclusive), in the specified window. A closed fold counts as one
 -- virtual line. The computation loops over either lines or virtual spans, so
 -- the cursor may be moved.
@@ -163,7 +137,17 @@ local virtual_line_count = function(winid, start, _end)
     _end = api.nvim_buf_line_count(api.nvim_win_get_buf(winid))
   end
   return api.nvim_win_call(winid, function()
-    return virtual_line_count_linewise(start, _end)
+    local count = 0
+    local line = start
+    while line <= _end do
+      count = count + 1
+      local foldclosedend = fn.foldclosedend(line)
+      if foldclosedend ~= -1 then
+        line = foldclosedend
+      end
+      line = line + 1
+    end
+    return count
   end)
 end
 
@@ -173,9 +157,7 @@ end
 -- as part of calling 'virtual_line_count', so the cursor may be moved.
 local virtual_topline_lookup_linewise = function()
   local winid = api.nvim_get_current_win()
-  local bufnr = api.nvim_win_get_buf(winid)
   local winheight = api.nvim_win_get_height(winid)
-  local last_line = api.nvim_buf_line_count(bufnr)
   local result = {}  -- A list of line numbers
   local total_vlines = virtual_line_count(winid, 1, '$')
   if total_vlines > 1 and winheight > 1 then
@@ -184,6 +166,8 @@ local virtual_topline_lookup_linewise = function()
     local best = line
     local best_distance = math.huge
     local best_count = count
+    local bufnr = api.nvim_win_get_buf(winid)
+    local last_line = api.nvim_buf_line_count(bufnr)
     for row = 1, winheight do
       local proportion = (row - 1) / (winheight - 1)
       while line <= last_line do
@@ -397,7 +381,7 @@ end
 -- value, down in visual position) such that the full height of the scrollbar
 -- remains on screen. Returns the updated scrollbar properties.
 local move_scrollbar = function(props, row)
-  props = copy(props)
+  props = vim.deepcopy(props)
   local max_row = fn.winheight(props.parent_winid) - props.height + 1
   row = math.min(row, max_row)
   local options = {
