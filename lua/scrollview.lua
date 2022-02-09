@@ -14,17 +14,14 @@ local scrollview_current_only = false
 -- bar_bufnr has the bufnr of the buffer created for a position bar.
 local bar_bufnr = -1
 
+local sv_winids = {}
+
 -- Round to the nearest integer.
 -- WARN: .5 rounds to the right on the number line, including for negatives
 -- (which would not result in rounding up in magnitude).
 -- (e.g., round(3.5) == 3, round(-3.5) == -3 != -4)
 local round = function(x)
   return math.floor(x + 0.5)
-end
-
-local reltime_to_microseconds = function(reltime)
-  local reltimestr = fn.reltimestr(reltime)
-  return tonumber(table.concat(vim.split(reltimestr, '%.'), ''))
 end
 
 -- Replace termcodes.
@@ -60,10 +57,6 @@ local is_visual_mode = function(mode)
   return vim.tbl_contains({'v', 'V', t'<c-v>'}, mode)
 end
 
-local is_select_mode = function(mode)
-  return vim.tbl_contains({'s', 'S', t'<c-s>'}, mode)
-end
-
 -- Returns true for ordinary windows (not floating and not external), and false
 -- otherwise.
 local is_ordinary_window = function(winid)
@@ -76,8 +69,7 @@ end
 -- Returns a list of window IDs for the ordinary windows.
 local get_ordinary_windows = function()
   local winids = {}
-  for winnr = 1, fn.winnr('$') do
-    local winid = fn.win_getid(winnr)
+  for _, winid in ipairs(api.nvim_list_wins()) do
     if is_ordinary_window(winid) then
       table.insert(winids, winid)
     end
@@ -251,12 +243,16 @@ local calculate_position = function(winid)
 end
 
 local is_scrollview_window = function(winid)
-  if is_ordinary_window(winid) then return false end
+  if is_ordinary_window(winid) then
+    return false
+  end
   local has_attr = false
   pcall(function()
     has_attr = api.nvim_win_get_var(winid, 'scrollview_key') == 'scrollview_val'
   end)
-  if not has_attr then return false end
+  if not has_attr then
+    return false
+  end
   local bufnr = api.nvim_win_get_buf(winid)
   return bufnr == bar_bufnr
 end
@@ -338,10 +334,11 @@ local show_scrollbar = function(winid, bar_winid)
     col = bar_position.col - 1,
     zindex = scrollview_zindex
   }
-  if bar_winid == -1 then
-    bar_winid = api.nvim_open_win(bar_bufnr, false, config)
-  else
+  if bar_winid then
     api.nvim_win_set_config(bar_winid, config)
+  else
+    bar_winid = api.nvim_open_win(bar_bufnr, false, config)
+    sv_winids[#sv_winids+1] = bar_winid
   end
   -- Scroll to top so that the custom character spans full scrollbar height.
   vim.cmd('keepjumps call nvim_win_set_cursor(' .. bar_winid .. ', [1, 0])')
@@ -385,8 +382,7 @@ end
 
 local get_scrollview_windows = function()
   local result = {}
-  for winnr = 1, fn.winnr('$') do
-    local winid = fn.win_getid(winnr)
+  for _, winid in ipairs(api.nvim_list_wins()) do
     if is_scrollview_window(winid) then
       table.insert(result, winid)
     end
@@ -404,120 +400,10 @@ local close_scrollview_window = function(winid)
   if not is_scrollview_window(winid) then
     return
   end
-  vim.cmd('silent! noautocmd call nvim_win_close(' .. winid .. ', 1)')
-end
-
--- Returns a dictionary mapping winid to topline for the ordinary windows in
--- the current tab.
-local get_toplines = function()
-  local result = {}
-  local tabnr = fn.tabpagenr()
-  for _, info in ipairs(fn.getwininfo()) do
-    local winid = info.winid
-    if info.tabnr == tabnr and is_ordinary_window(winid) then
-      result[winid] = info.topline
-    end
-  end
-  return result
-end
-
--- Sets global state that is assumed by the core functionality and returns a
--- state that can be used for restoration.
-local init = function()
   local eventignore = vim.o.eventignore
   vim.o.eventignore = 'all'
-  -- It's possible that window views can change as a result of moving the
-  -- cursor across windows throughout nvim-scrollview processing (Issue #43).
-  -- Toplines are saved so that the views can be restored in s:Restore.
-  -- winsaveview/winrestview would be insufficient to restore views (vim Issue
-  -- #8654).
-  -- XXX: Because window views can change, scrollbars could be positioned
-  -- slightly incorrectly when that happens since they would correspond to the
-  -- (temporarily) shifted view. A possible workaround could be to 1)
-  -- temporarily set scrolloff to 0 (both global and local scrolloff options)
-  -- for the duration of processing, or 2) update nvim-scrollview so that it
-  -- uses win_execute for all functionality and never has to change windows,
-  -- preventing the shifted views from occurring.
-  local state = {
-    previous_winid = fn.win_getid(fn.winnr('#')),
-    initial_winid = fn.win_getid(fn.winnr()),
-    belloff = vim.o.belloff,
-    eventignore = eventignore,
-    winwidth = vim.o.winwidth,
-    winheight = vim.o.winheight,
-    mode = fn.mode(),
-    toplines = get_toplines()
-  }
-  -- Disable the bell (e.g., for invalid cursor movements, trying to navigate
-  -- to a next fold, when no fold exists).
-  vim.o.belloff = 'all'
-  -- Minimize winwidth and winheight so that changing the current window
-  -- doesn't unexpectedly cause window resizing.
-  vim.o.winwidth = math.max(1, vim.o.winminwidth)
-  vim.o.winheight = math.max(1, vim.o.winminheight)
-  if is_select_mode(state.mode) then
-    -- Temporarily switch from select-mode to visual-mode, so that 'normal!'
-    -- commands can be executed properly.
-    vim.cmd('normal! ' .. t'<c-g>')
-  end
-  return state
-end
-
-local restore = function(state, restore_toplines)
-  -- Restore the previous window so that <c-w>p and winnr('#') function as
-  -- expected, and so that plugins that utilize previous windows (e.g., CtrlP)
-  -- function properly. If the current window is the same as the initial
-  -- window, set the same previous window. If the current window differs from
-  -- the initial window, use the initial window for setting the previous
-  -- window.
-  -- WARN: Since the current window is changed, 'eventignore' should not be
-  -- restored until after.
-  if restore_toplines == nil then restore_toplines = true end
-  local current_winid = api.nvim_get_current_win()
-  pcall(function()
-    local previous_winid = state.previous_winid
-    if current_winid ~= state.initial_winid then
-      previous_winid = state.initial_winid
-    end
-    local previous_winnr = api.nvim_win_get_number(previous_winid)
-    if fn.winnr('#') ~= previous_winnr then
-      api.nvim_set_current_win(previous_winid)
-      api.nvim_set_current_win(current_winid)
-    end
-  end)
-  -- Switch back to select mode where applicable.
-  if current_winid == state.initial_winid then
-    if is_select_mode(state.mode) then
-      if is_visual_mode(fn.mode()) then
-        vim.cmd('normal! ' .. t'<c-g>')
-      else  -- luacheck: ignore 542 (an empty if branch)
-        -- WARN: this scenario should not arise, and is not handled.
-      end
-    end
-  end
-  -- Restore options.
-  vim.o.belloff = state.belloff
-  vim.o.winwidth = state.winwidth
-  vim.o.winheight = state.winheight
-
-  if restore_toplines then
-    -- Scroll windows back to their original positions.
-    for winid, topline in pairs(state.toplines) do
-      -- The number of scrolls is limited as a precaution against entering an
-      -- infinite loop.
-      local countdown = topline - fn.getwininfo(winid)[1].topline
-      while countdown > 0 and fn.getwininfo(winid)[1].topline < topline do
-        -- Can't use set_topline, since that function changes the current
-        -- window, and would result in the same problem that is intended to be
-        -- solved here.
-        api.nvim_win_call(winid, function()
-          vim.cmd('keepjumps normal! ' .. t'<c-e>')
-        end)
-        countdown = countdown - 1
-      end
-    end
-  end
-  vim.o.eventignore = state.eventignore
+  api.nvim_win_close(winid, true)
+  vim.o.eventignore = eventignore
 end
 
 -- Get input characters---including mouse clicks and drags---from the input
@@ -653,9 +539,9 @@ end
 -- Returns scrollview properties for the specified window. An empty dictionary
 -- is returned if there is no corresponding scrollbar.
 local get_scrollview_props = function(winid)
-  for _, swinid in ipairs(get_scrollview_windows()) do
+  for _, swinid in ipairs(api.nvim_list_wins()) do
     local props = vim.w[swinid].scrollview_props
-    if props.parent_winid == winid then
+    if props and props.parent_winid == winid then
       return props
     end
   end
@@ -665,15 +551,13 @@ end
 -- With no argument, remove all bars. Otherwise, remove the specified list of
 -- bars. Global state is initialized and restored.
 local remove_bars = function(target_wins)
-  target_wins = target_wins or get_scrollview_windows()
-  if bar_bufnr == -1 then return end
-  local state = init()
-  pcall(function()
-    for _, winid in ipairs(target_wins) do
-      close_scrollview_window(winid)
-    end
-  end)
-  restore(state)
+  if bar_bufnr == -1 then
+    return
+  end
+  target_wins = target_wins or api.nvim_list_wins()
+  for _, winid in ipairs(target_wins) do
+    close_scrollview_window(winid)
+  end
 end
 
 -- Remove scrollbars if InCommandLineWindow is true. This fails when called
@@ -688,58 +572,44 @@ end
 
 -- Refreshes scrollbars. Global state is initialized and restored.
 local refresh_bars = function()
-  local state = init()
-  -- Use a pcall block, so that unanticipated errors don't interfere. The
-  -- worst case scenario is that bars won't be shown properly, which was
-  -- deemed preferable to an obscure error message that can be interrupting.
-  pcall(function()
-    if in_command_line_window() then return end
-    -- Existing windows are determined before adding new windows, but removed
-    -- later (they have to be removed after adding to prevent flickering from
-    -- the delay between removal and adding).
-    local existing_wins = get_scrollview_windows()
-    local target_wins = {}
-    if scrollview_current_only then
-      table.insert(target_wins, api.nvim_get_current_win())
-    else
-      for _, winid in ipairs(get_ordinary_windows()) do
-        table.insert(target_wins, winid)
-      end
+  if in_command_line_window() then
+    return
+  end
+
+  -- Existing windows are determined before adding new windows, but removed
+  -- later (they have to be removed after adding to prevent flickering from
+  -- the delay between removal and adding).
+  local existing_wins = get_scrollview_windows()
+  local target_wins
+
+  if scrollview_current_only then
+    target_wins = { api.nvim_get_current_win() }
+  else
+    target_wins = {}
+    for _, winid in ipairs(get_ordinary_windows()) do
+      table.insert(target_wins, winid)
     end
-    local start_reltime = fn.reltime()
-    for _, winid in ipairs(target_wins) do
-      -- Reuse an existing scrollbar floating window when available. This
-      -- prevents flickering when there are folds. This keeps the window IDs
-      -- smaller than they would be otherwise. The benefits of small window
-      -- IDs seems relatively less beneficial than small buffer numbers,
-      -- since they would ordinarily be used less as inputs to commands
-      -- (where smaller numbers are preferable for their fewer digits to
-      -- type).
-      local existing_winid = existing_wins[#existing_wins] or -1
-      local bar_winid = show_scrollbar(winid, existing_winid)
-      -- If an existing window was successfully reused, remove it from the
-      -- existing window list.
-      if bar_winid ~= -1 and existing_winid ~= -1 then
-        table.remove(existing_wins)
-      end
+  end
+
+  for _, winid in ipairs(target_wins) do
+    -- Reuse an existing scrollbar floating window when available. This
+    -- prevents flickering when there are folds. This keeps the window IDs
+    -- smaller than they would be otherwise. The benefits of small window
+    -- IDs seems relatively less beneficial than small buffer numbers,
+    -- since they would ordinarily be used less as inputs to commands
+    -- (where smaller numbers are preferable for their fewer digits to
+    -- type).
+    local existing_winid = existing_wins[#existing_wins]
+    local bar_winid = show_scrollbar(winid, existing_winid)
+    -- If an existing window was successfully reused, remove it from the
+    -- existing window list.
+    if bar_winid ~= -1 and existing_winid ~= -1 then
+      table.remove(existing_wins)
     end
-    -- The elapsed microseconds for showing scrollbars.
-    local elapsed_micro = reltime_to_microseconds(fn.reltime(start_reltime))
-    if vim.g.scrollview_refresh_time > -1
-        and elapsed_micro > vim.g.scrollview_refresh_time * 1000 then
-      vim.g.scrollview_refresh_time_exceeded = 1
-    end
-    if vim.tbl_isempty(existing_wins) then  -- luacheck: ignore 542 (empty if)
-      -- Do nothing. The following clauses are only applicable when there are
-      -- existing windows. Skipping prevents the creation of an unnecessary
-      -- timer.
-    else
-      for _, winid in ipairs(existing_wins) do
-        close_scrollview_window(winid)
-      end
-    end
-  end)
-  restore(state)
+  end
+  for _, winid in ipairs(existing_wins) do
+    close_scrollview_window(winid)
+  end
 end
 
 -- *************************************************
@@ -804,7 +674,6 @@ end
 
 local scrollview_disable = function()
   local winid = api.nvim_get_current_win()
-  local state = init()
   pcall(function()
     if in_command_line_window() then
       vim.cmd([[
@@ -820,14 +689,9 @@ local scrollview_disable = function()
         autocmd!
       augroup END
     ]])
-    -- Remove scrollbars from all tabs.
-    for _, tabnr in ipairs(api.nvim_list_tabpages()) do
-      api.nvim_set_current_tabpage(tabnr)
-      pcall(remove_bars)
-    end
+    remove_bars()
   end)
   api.nvim_set_current_win(winid)
-  restore(state)
 end
 
 local scrollview_refresh = function()
@@ -849,8 +713,6 @@ local handle_mouse = function(button)
     fn.feedkeys(mousedown, 'ni')
     return
   end
-  local state = init()
-  local restore_toplines = true
   pcall(function()
     -- Re-send the click, so its position can be obtained through
     -- read_input_stream().
@@ -985,7 +847,6 @@ local handle_mouse = function(button)
         -- restoring windows that may have had their windows shifted during the
         -- course of scrollbar clicking/dragging, to prevent jumpiness in the
         -- display.
-        restore_toplines = false
         props = get_scrollview_props(mouse_winid)
         if vim.tbl_isempty(props) or mouse_row < props.row
             or mouse_row >= props.row + props.height then
@@ -1041,7 +902,6 @@ local handle_mouse = function(button)
       ::continue::
     end  -- end while
   end)  -- end pcall
-  restore(state, restore_toplines)
 end
 
 return {
