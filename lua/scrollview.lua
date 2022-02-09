@@ -12,7 +12,7 @@ local scrollview_current_only = false
 -- from usage of the plugin.
 
 -- bar_bufnr has the bufnr of the buffer created for a position bar.
-local bar_bufnr = -1
+local bar_bufnr
 
 local sv_winids = {}
 
@@ -29,31 +29,8 @@ local t = function(str)
   return api.nvim_replace_termcodes(str, true, true, true)
 end
 
--- Get value from a map-like table, using the specified default.
-local tbl_get = function(table, key, default)
-  local result = table[key]
-  if result == nil then
-    result = default
-  end
-  return result
-end
-
--- Returns true for boolean true and any non-zero number, otherwise returns
--- false.
-local to_bool = function(x)
-  if type(x) == 'boolean' then
-    return x
-  elseif type(x) == 'number' then
-    return x ~= 0
-  end
-  return false
-end
-
--- *************************************************
--- * Core
--- *************************************************
-
-local is_visual_mode = function(mode)
+local is_visual_mode = function()
+  local mode = fn.mode()
   return vim.tbl_contains({'v', 'V', t'<c-v>'}, mode)
 end
 
@@ -61,8 +38,8 @@ end
 -- otherwise.
 local is_ordinary_window = function(winid)
   local config = api.nvim_win_get_config(winid)
-  local not_external = not tbl_get(config, 'external', false)
-  local not_floating = tbl_get(config, 'relative', '') == ''
+  local not_external = not config.external
+  local not_floating = config.relative == ''
   return not_external and not_floating
 end
 
@@ -93,7 +70,7 @@ end
 -- Return top line and bottom line in window. For folds, the top line
 -- represents the start of the fold and the bottom line represents the end of
 -- the fold.
-local line_range = function(winid)
+local visible_line_range = function(winid)
   -- WARN: getwininfo(winid)[1].botline is not properly updated for some
   -- movements (Neovim Issue #13510), so this is implemeneted as a workaround.
   -- Using scrolloff=0 combined with H and L breaks diff mode. Scrolling is not
@@ -112,14 +89,14 @@ end
 -- (both inclusive), in the specified window. A closed fold counts as one
 -- virtual line. The computation loops over either lines or virtual spans, so
 -- the cursor may be moved.
-local virtual_line_count = function(winid, start, _end)
-  if type(_end) == 'string' and _end == '$' then
-    _end = api.nvim_buf_line_count(api.nvim_win_get_buf(winid))
+local virtual_line_count = function(winid, start, vend)
+  if not vend then
+    vend = api.nvim_buf_line_count(api.nvim_win_get_buf(winid))
   end
   return api.nvim_win_call(winid, function()
     local count = 0
     local line = start
-    while line <= _end do
+    while line <= vend do
       count = count + 1
       local foldclosedend = fn.foldclosedend(line)
       if foldclosedend ~= -1 then
@@ -135,11 +112,11 @@ end
 -- scrollbar at that row under virtual scrollview mode, in the current window.
 -- The computation primarily loops over lines, but may loop over virtual spans
 -- as part of calling 'virtual_line_count', so the cursor may be moved.
-local virtual_topline_lookup_linewise = function()
+local virtual_topline_lookup = function()
   local winid = api.nvim_get_current_win()
   local winheight = api.nvim_win_get_height(winid)
   local result = {}  -- A list of line numbers
-  local total_vlines = virtual_line_count(winid, 1, '$')
+  local total_vlines = virtual_line_count(winid, 1)
   if total_vlines > 1 and winheight > 1 then
     local count = 1  -- The count of virtual lines
     local line = 1
@@ -183,37 +160,18 @@ local virtual_topline_lookup_linewise = function()
   return result
 end
 
--- Returns an array that maps window rows to the topline that corresponds to a
--- scrollbar at that row under virtual scrollview mode. The computation loops
--- over either lines or virtual spans, so the cursor may be moved.
-local virtual_topline_lookup = function(winid)
-  return api.nvim_win_call(winid, virtual_topline_lookup_linewise)
-end
-
--- Returns an array that maps window rows to the topline that corresponds to a
--- scrollbar at that row.
-local topline_lookup = function(winid)
-  local topline_lookup = {}
-  -- Handling for virtual mode or an unknown mode.
-  for _, x in ipairs(virtual_topline_lookup(winid)) do
-    table.insert(topline_lookup, x)
-  end
-  return topline_lookup
-end
-
--- Calculates the bar position for the specified window. Returns a dictionary
--- with a height, row, and col.
+-- Calculates the bar position for the specified window.
+-- Returns height and row
 local calculate_position = function(winid)
   local bufnr = api.nvim_win_get_buf(winid)
-  local topline, botline = line_range(winid)
+  local topline, botline = visible_line_range(winid)
   local line_count = api.nvim_buf_line_count(bufnr)
   -- For virtual mode or an unknown mode, update effective_topline and
   -- effective_line_count to correspond to virtual lines, which account for
   -- closed folds.
   local effective_topline = virtual_line_count(winid, 1, topline - 1) + 1
-  local effective_line_count = virtual_line_count(winid, 1, '$')
+  local effective_line_count = virtual_line_count(winid, 1)
   local winheight = api.nvim_win_get_height(winid)
-  local winwidth = api.nvim_win_get_width(winid)
   -- top is the position for the top of the scrollbar, relative to the window,
   -- and 0-indexed.
   local top = 0
@@ -235,91 +193,66 @@ local calculate_position = function(winid)
   if top + height > winheight then
     top = winheight - height
   end
-  return {
-    height = height,
-    row = top + 1,
-    col = winwidth
-  }
-end
-
-local is_scrollview_window = function(winid)
-  if is_ordinary_window(winid) then
-    return false
-  end
-  local has_attr = false
-  pcall(function()
-    has_attr = api.nvim_win_get_var(winid, 'scrollview_key') == 'scrollview_val'
-  end)
-  if not has_attr then
-    return false
-  end
-  local bufnr = api.nvim_win_get_buf(winid)
-  return bufnr == bar_bufnr
+  return height, top + 1
 end
 
 -- Show a scrollbar for the specified 'winid' window ID, using the specified
 -- 'bar_winid' floating window ID (a new floating window will be created if
 -- this is -1). Returns -1 if the bar is not shown, and the floating window ID
 -- otherwise.
-local show_scrollbar = function(winid, bar_winid)
-  local winnr = api.nvim_win_get_number(winid)
+local show_scrollbar = function(winid)
   local bufnr = api.nvim_win_get_buf(winid)
-  local buf_filetype = api.nvim_buf_get_option(bufnr, 'filetype')
-  local winheight = fn.winheight(winnr)
-  local winwidth = fn.winwidth(winnr)
-  local wininfo = fn.getwininfo(winid)[1]
+  local buf_filetype = vim.bo[bufnr].filetype
+
   -- Skip if the filetype is on the list of exclusions.
   if vim.tbl_contains(scrollview_excluded_filetypes, buf_filetype) then
-    return -1
+    return
   end
+
+  local wininfo = fn.getwininfo(winid)[1]
+
   -- Don't show in terminal mode, since the bar won't be properly updated for
   -- insertions.
-  if to_bool(wininfo.terminal) then
-    return -1
+  if wininfo.terminal ~= 0 then
+    return
   end
+
+  local winheight = api.nvim_win_get_height(winid)
+  local winwidth = api.nvim_win_get_width(winid)
   if winheight == 0 or winwidth == 0 then
-    return -1
+    return
   end
+
   local line_count = api.nvim_buf_line_count(bufnr)
   -- Don't show the position bar when all lines are on screen.
-  local topline, botline = line_range(winid)
+  local topline, botline = visible_line_range(winid)
   if botline - topline + 1 == line_count then
-    return -1
+    return
   end
-  local bar_position = calculate_position(winid)
-  -- Height has to be positive for the call to nvim_open_win. When opening a
-  -- terminal, the topline and botline can be set such that height is negative
-  -- when you're using scrollview document mode.
-  if bar_position.height <= 0 then
-    return -1
-  end
-  -- Don't show scrollbar when its column is beyond what's valid.
-  local min_valid_col = 1
-  local max_valid_col = winwidth
-  if bar_position.col < min_valid_col then
-    return -1
-  end
-  if bar_position.col > max_valid_col then
-    return -1
-  end
-  if bar_bufnr == -1 or not fn.bufexists(bar_bufnr) then
+  local height, row = calculate_position(winid)
+  if not bar_bufnr or not fn.bufexists(bar_bufnr) then
     bar_bufnr = api.nvim_create_buf(false, true)
-    vim.bo[bar_bufnr].modifiable = false
-    vim.bo[bar_bufnr].filetype = 'scrollview'
-    vim.bo[bar_bufnr].buftype = 'nofile'
-    vim.bo[bar_bufnr].swapfile = false
-    vim.bo[bar_bufnr].bufhidden = 'hide'
-    vim.bo[bar_bufnr].buflisted = false
+    for op, val in pairs{
+      modifiable = false,
+      buftype = 'nofile',
+      swapfile = false,
+      bufhidden = 'hide',
+      buflisted = false,
+    } do
+      vim.bo[bar_bufnr][op] = val
+    end
   end
   -- Make sure that a custom character is up-to-date and is repeated enough to
   -- cover the full height of the scrollbar.
   local bar_line_count = api.nvim_buf_line_count(bar_bufnr)
   if api.nvim_buf_get_lines(bar_bufnr, 0, 1, false)[1] ~= vim.g.scrollview_character
-      or bar_position.height > bar_line_count then
+      or height > bar_line_count then
     vim.bo[bar_bufnr].modifiable = true
-    api.nvim_buf_set_lines(
-      bar_bufnr, 0, bar_line_count, false,
-      fn['repeat']({vim.g.scrollview_character}, bar_position.height))
+    local lines = {}
+    for i = 1, height do
+      lines[i] = vim.g.scrollview_character
+    end
+    api.nvim_buf_set_lines(bar_bufnr, 0, bar_line_count, false, lines)
     vim.bo[bar_bufnr].modifiable = false
   end
 
@@ -328,82 +261,72 @@ local show_scrollbar = function(winid, bar_winid)
     relative = 'win',
     focusable = false,
     style = 'minimal',
-    height = bar_position.height,
+    height = height,
     width = 1,
-    row = bar_position.row - 1,
-    col = bar_position.col - 1,
-    zindex = scrollview_zindex
+    row = row - 1,
+    col = winwidth - 1,
+    zindex = scrollview_zindex,
   }
+
+  local bar_winid = sv_winids[winid]
+  if bar_winid and not api.nvim_win_is_valid(bar_winid) then
+    api.nvim_win_close(bar_winid, true)
+    sv_winids[winid] = nil
+    bar_winid = nil
+  end
+
   if bar_winid then
     api.nvim_win_set_config(bar_winid, config)
   else
+    config.noautocmd = true
     bar_winid = api.nvim_open_win(bar_bufnr, false, config)
-    sv_winids[#sv_winids+1] = bar_winid
+    -- It's not sufficient to just specify Normal highlighting. With just that, a
+    -- color scheme's specification of EndOfBuffer would be used to color the
+    -- bottom of the scrollbar.
+    vim.wo[bar_winid].winhighlight = 'Normal:ScrollView,EndOfBuffer:ScrollView'
+    vim.wo[bar_winid].winblend = scrollview_winblend
+    vim.wo[bar_winid].foldcolumn = '0'  -- foldcolumn takes a string
+    vim.wo[bar_winid].wrap = false
+
+    sv_winids[winid] = bar_winid
   end
-  -- Scroll to top so that the custom character spans full scrollbar height.
-  vim.cmd('keepjumps call nvim_win_set_cursor(' .. bar_winid .. ', [1, 0])')
-  -- It's not sufficient to just specify Normal highlighting. With just that, a
-  -- color scheme's specification of EndOfBuffer would be used to color the
-  -- bottom of the scrollbar.
-  vim.wo[bar_winid].winhighlight = 'Normal:ScrollView,EndOfBuffer:ScrollView'
-  vim.wo[bar_winid].winblend = scrollview_winblend
-  vim.wo[bar_winid].foldcolumn = '0'  -- foldcolumn takes a string
-  vim.wo[bar_winid].wrap = false
-  api.nvim_win_set_var(bar_winid, 'scrollview_key', 'scrollview_val')
-  api.nvim_win_set_var(bar_winid, 'scrollview_props', {
-    parent_winid = winid,
-    scrollview_winid = bar_winid,
-    height = bar_position.height,
-    row = bar_position.row,
-    col = bar_position.col
-  })
-  return bar_winid
+
+  return true
 end
 
--- Given a scrollbar properties dictionary and a target window row, the
--- corresponding scrollbar is moved to that row. The row is adjusted (up in
--- value, down in visual position) such that the full height of the scrollbar
--- remains on screen. Returns the updated scrollbar properties.
-local move_scrollbar = function(props, row)
-  props = vim.deepcopy(props)
-  local max_row = fn.winheight(props.parent_winid) - props.height + 1
+-- Given a target window row, the corresponding scrollbar is moved to that row.
+-- The row is adjusted (up in value, down in visual position) such that the full
+-- height of the scrollbar remains on screen.
+local move_scrollbar = function(winid, row)
+  local bar_winid = sv_winids[winid]
+  local max_row = api.nvim_win_get_height(winid) - api.nvim_win_get_height(bar_winid) + 1
   row = math.min(row, max_row)
-  local options = {
-    win = props.parent_winid,
+
+  api.nvim_win_set_config(bar_winid, {
+    win = winid,
     relative = 'win',
     row = row - 1,
-    col = props.col - 1
-  }
-  api.nvim_win_set_config(props.scrollview_winid, options)
-  props.row = row
-  api.nvim_win_set_var(props.scrollview_winid, 'scrollview_props', props)
-  return props
+    col = api.nvim_win_get_width(winid)
+  })
+  vim.cmd('redraw')
 end
 
-local get_scrollview_windows = function()
-  local result = {}
-  for _, winid in ipairs(api.nvim_list_wins()) do
-    if is_scrollview_window(winid) then
-      table.insert(result, winid)
-    end
-  end
-  return result
+local function noautocmd(f)
+  local eventignore = vim.o.eventignore
+  vim.o.eventignore = 'all'
+  f()
+  vim.o.eventignore = eventignore
 end
 
 local close_scrollview_window = function(winid)
-  -- The floating window may have been closed (e.g., :only/<ctrl-w>o, or
-  -- intentionally deleted prior to the removal callback in order to reduce
-  -- motion blur).
-  if not api.nvim_win_is_valid(winid) then
+  local bar_winid = sv_winids[winid]
+  if not api.nvim_win_is_valid(bar_winid) then
     return
   end
-  if not is_scrollview_window(winid) then
-    return
-  end
-  local eventignore = vim.o.eventignore
-  vim.o.eventignore = 'all'
-  api.nvim_win_close(winid, true)
-  vim.o.eventignore = eventignore
+  noautocmd(function()
+    api.nvim_win_close(bar_winid, true)
+  end)
+  sv_winids[winid] = nil
 end
 
 -- Get input characters---including mouse clicks and drags---from the input
@@ -426,9 +349,10 @@ local read_input_stream = function()
   local str_idx = 1  -- in bytes, 1-indexed
   while true do
     local char
-    if not pcall(function()
+    local ok = pcall(function()
       char = fn.getchar()
-    end) then
+    end)
+    if not ok then
       -- E.g., <c-c>
       char = t'<esc>'
     end
@@ -449,7 +373,7 @@ local read_input_stream = function()
     -- Check v:mouse_winid to see if there was a mouse event. Even for clicks
     -- on the command line, where getmousepos().winid could be zero,
     -- v:mousewinid is non-zero.
-    if vim.v.mouse_winid ~= 0 and to_bool(fn.exists('*getmousepos')) then
+    if vim.v.mouse_winid ~= 0 and fn.exists('*getmousepos') ~= 0 then
       mouse_winid = vim.v.mouse_winid
       local mousepos = fn.getmousepos()
       mouse_row = mousepos.winrow
@@ -500,63 +424,59 @@ local set_topline = function(winid, linenr)
   api.nvim_win_call(winid, function()
     local init_line = fn.line('.')
     vim.cmd('keepjumps normal! ' .. linenr .. 'G')
-    local topline = line_range(winid)
+    local topline = visible_line_range(winid)
     -- Use virtual lines to figure out how much to scroll up. winline() doesn't
     -- accommodate wrapped lines.
     local virtual_line = virtual_line_count(winid, topline, fn.line('.'))
     if virtual_line > 1 then
       vim.cmd('keepjumps normal! ' .. (virtual_line - 1) .. t'<c-e>')
     end
-    -- Make sure 'topline' is correct, as a precaution.
-    topline = nil  -- luacheck: no unused
-    local _, botline = line_range(winid)
+    local _, botline = visible_line_range(winid)
     if botline == fn.line('$') then
       -- If the last buffer line is on-screen, position that line at the bottom
       -- of the window.
       vim.cmd('keepjumps normal! Gzb')
     end
+
     -- Position the cursor as if all scrolling was conducted with <ctrl-e> and/or
     -- <ctrl-y>. H and L are used to get topline and botline instead of
     -- getwininfo, to prevent jumping to a line that could result in a scroll if
     -- scrolloff>0.
     vim.cmd('keepjumps normal! H')
     local effective_top = fn.line('.')
-    vim.cmd('keepjumps normal! L')
-    local effective_bottom = fn.line('.')
     if init_line < effective_top then
       -- User scrolled down.
-      vim.cmd('keepjumps normal! H')
-    elseif init_line > effective_bottom then
-      -- User scrolled up.
-      vim.cmd('keepjumps normal! L')
-    else
-      -- The initial line is still on-screen.
-      vim.cmd('keepjumps normal! ' .. init_line .. 'G')
+      return
     end
+
+    vim.cmd('keepjumps normal! L')
+    local effective_bottom = fn.line('.')
+    if init_line > effective_bottom then
+      -- User scrolled up.
+      return
+    end
+
+    -- The initial line is still on-screen.
+    vim.cmd('keepjumps normal! ' .. init_line .. 'G')
   end)
 end
 
 -- Returns scrollview properties for the specified window. An empty dictionary
 -- is returned if there is no corresponding scrollbar.
 local get_scrollview_props = function(winid)
-  for _, swinid in ipairs(api.nvim_list_wins()) do
-    local props = vim.w[swinid].scrollview_props
-    if props and props.parent_winid == winid then
-      return props
-    end
-  end
-  return {}
+  local config = api.nvim_win_get_config(sv_winids[winid])
+  return {
+    height = config.height,
+    row = config.row[false],
+    col = config.col[false]
+  }
 end
 
 -- With no argument, remove all bars. Otherwise, remove the specified list of
 -- bars. Global state is initialized and restored.
-local remove_bars = function(target_wins)
-  if bar_bufnr == -1 then
-    return
-  end
-  target_wins = target_wins or api.nvim_list_wins()
-  for _, winid in ipairs(target_wins) do
-    close_scrollview_window(winid)
+local remove_bars = function()
+  for id, _ in pairs(sv_winids) do
+    close_scrollview_window(id)
   end
 end
 
@@ -576,10 +496,6 @@ local refresh_bars = function()
     return
   end
 
-  -- Existing windows are determined before adding new windows, but removed
-  -- later (they have to be removed after adding to prevent flickering from
-  -- the delay between removal and adding).
-  local existing_wins = get_scrollview_windows()
   local target_wins
 
   if scrollview_current_only then
@@ -591,24 +507,18 @@ local refresh_bars = function()
     end
   end
 
+  local current_wins = {}
   for _, winid in ipairs(target_wins) do
-    -- Reuse an existing scrollbar floating window when available. This
-    -- prevents flickering when there are folds. This keeps the window IDs
-    -- smaller than they would be otherwise. The benefits of small window
-    -- IDs seems relatively less beneficial than small buffer numbers,
-    -- since they would ordinarily be used less as inputs to commands
-    -- (where smaller numbers are preferable for their fewer digits to
-    -- type).
-    local existing_winid = existing_wins[#existing_wins]
-    local bar_winid = show_scrollbar(winid, existing_winid)
-    -- If an existing window was successfully reused, remove it from the
-    -- existing window list.
-    if bar_winid ~= -1 and existing_winid ~= -1 then
-      table.remove(existing_wins)
+    if show_scrollbar(winid) then
+      current_wins[#current_wins+1] = sv_winids[winid]
     end
   end
-  for _, winid in ipairs(existing_wins) do
-    close_scrollview_window(winid)
+
+  -- Close any remaining bars
+  for winid, swinid in pairs(sv_winids) do
+    if not vim.tbl_contains(current_wins, swinid) then
+      close_scrollview_window(winid)
+    end
   end
 end
 
@@ -673,25 +583,21 @@ local scrollview_enable = function()
 end
 
 local scrollview_disable = function()
-  local winid = api.nvim_get_current_win()
-  pcall(function()
-    if in_command_line_window() then
-      vim.cmd([[
-        echohl ErrorMsg
-        echo 'nvim-scrollview: Cannot disable from command-line window'
-        echohl None
-      ]])
-      return
-    end
-    scrollview_enabled = false
+  if in_command_line_window() then
     vim.cmd([[
-      augroup scrollview
-        autocmd!
-      augroup END
+      echohl ErrorMsg
+      echo 'nvim-scrollview: Cannot disable from command-line window'
+      echohl None
     ]])
-    remove_bars()
-  end)
-  api.nvim_set_current_win(winid)
+    return
+  end
+  scrollview_enabled = false
+  vim.cmd([[
+    augroup scrollview
+      autocmd!
+    augroup END
+  ]])
+  remove_bars()
 end
 
 local scrollview_refresh = function()
@@ -713,71 +619,68 @@ local handle_mouse = function(button)
     fn.feedkeys(mousedown, 'ni')
     return
   end
-  pcall(function()
-    -- Re-send the click, so its position can be obtained through
-    -- read_input_stream().
-    fn.feedkeys(mousedown, 'ni')
-    -- Mouse handling is not relevant in the command line window since
-    -- scrollbars are not shown. Additionally, the overlay cannot be closed
-    -- from that mode.
-    if in_command_line_window() then
+  -- Re-send the click, so its position can be obtained through
+  -- read_input_stream().
+  fn.feedkeys(mousedown, 'ni')
+  -- Mouse handling is not relevant in the command line window since
+  -- scrollbars are not shown. Additionally, the overlay cannot be closed
+  -- from that mode.
+  if in_command_line_window() then
+    return
+  end
+  local count = 0
+  local winid  -- The target window ID for a mouse scroll.
+  local bufnr  -- The target buffer number.
+  local scrollbar_offset
+  local previous_row
+  local idx = 1
+  local string, chars_props = '', {}
+  local str_idx, char, mouse_winid, mouse_row, mouse_col
+  local props
+  -- Computing this prior to the first mouse event could distort the location
+  -- since this could be an expensive operation (and the mouse could move).
+  local the_topline_lookup
+  while true do
+    while true do
+      idx = idx + 1
+      if idx > #chars_props then
+        idx = 1
+        string, chars_props = read_input_stream()
+      end
+      local char_props = chars_props[idx]
+      str_idx = char_props.str_idx
+      char = char_props.char
+      mouse_winid = char_props.mouse_winid
+      mouse_row = char_props.mouse_row
+      mouse_col = char_props.mouse_col
+      -- Break unless it's a mouse drag followed by another mouse drag, so
+      -- that the first drag is skipped.
+      if mouse_winid == 0
+          or vim.tbl_contains({mousedown, mouseup}, char) then
+        break
+      end
+      if idx >= #char_props then break end
+      local next = chars_props[idx + 1]
+      if next.mouse_winid == 0
+          or vim.tbl_contains({mousedown, mouseup}, next.char) then
+        break
+      end
+    end
+    if char == t'<esc>' then
+      fn.feedkeys(string.sub(string, str_idx + #char), 'ni')
       return
     end
-    local count = 0
-    local winid  -- The target window ID for a mouse scroll.
-    local bufnr  -- The target buffer number.
-    local scrollbar_offset
-    local previous_row
-    local idx = 1
-    local string, chars_props = '', {}
-    local str_idx, char, mouse_winid, mouse_row, mouse_col
-    local props
-    -- Computing this prior to the first mouse event could distort the location
-    -- since this could be an expensive operation (and the mouse could move).
-    local the_topline_lookup
-    while true do
-      while true do
-        idx = idx + 1
-        if idx > #chars_props then
-          idx = 1
-          string, chars_props = read_input_stream()
-        end
-        local char_props = chars_props[idx]
-        str_idx = char_props.str_idx
-        char = char_props.char
-        mouse_winid = char_props.mouse_winid
-        mouse_row = char_props.mouse_row
-        mouse_col = char_props.mouse_col
-        -- Break unless it's a mouse drag followed by another mouse drag, so
-        -- that the first drag is skipped.
-        if mouse_winid == 0
-            or vim.tbl_contains({mousedown, mouseup}, char) then
-          break
-        end
-        if idx >= #char_props then break end
-        local next = chars_props[idx + 1]
-        if next.mouse_winid == 0
-            or vim.tbl_contains({mousedown, mouseup}, next.char) then
-          break
-        end
-      end
-      if char == t'<esc>' then
-        fn.feedkeys(string.sub(string, str_idx + #char), 'ni')
-        return
-      end
-      -- In select-mode, mouse usage results in the mode intermediately
-      -- switching to visual mode, accompanied by a call to this function.
-      -- After the initial mouse event, the next getchar() character is
-      -- <80><f5>X. This is "Used for switching Select mode back on after a
-      -- mapping or menu" (https://github.com/vim/vim/blob/
-      -- c54f347d63bcca97ead673d01ac6b59914bb04e5/src/keymap.h#L84-L88,
-      -- https://github.com/vim/vim/blob/
-      -- c54f347d63bcca97ead673d01ac6b59914bb04e5/src/getchar.c#L2660-L2672)
-      -- Ignore this character after scrolling has started.
-      -- NOTE: "\x80\xf5X" (hex) ==# "\200\365X" (octal)
-      if char == '\x80\xf5X' and count > 0 then
-        goto continue
-      end
+    -- In select-mode, mouse usage results in the mode intermediately
+    -- switching to visual mode, accompanied by a call to this function.
+    -- After the initial mouse event, the next getchar() character is
+    -- <80><f5>X. This is "Used for switching Select mode back on after a
+    -- mapping or menu" (https://github.com/vim/vim/blob/
+    -- c54f347d63bcca97ead673d01ac6b59914bb04e5/src/keymap.h#L84-L88,
+    -- https://github.com/vim/vim/blob/
+    -- c54f347d63bcca97ead673d01ac6b59914bb04e5/src/getchar.c#L2660-L2672)
+    -- Ignore this character after scrolling has started.
+    -- NOTE: "\x80\xf5X" (hex) ==# "\200\365X" (octal)
+    if not (char == '\x80\xf5X' and count > 0) then
       if mouse_winid == 0 then
         -- There was no mouse event.
         fn.feedkeys(string.sub(string, str_idx), 'ni')
@@ -854,7 +757,7 @@ local handle_mouse = function(button)
           return
         end
         -- By this point, the click on a scrollbar was successful.
-        if is_visual_mode(fn.mode()) then
+        if is_visual_mode() then
           -- Exit visual mode.
           vim.cmd('normal! ' .. t'<esc>')
         end
@@ -875,10 +778,7 @@ local handle_mouse = function(button)
         row = math.max(1, row)
         -- Only update scrollbar if the row changed.
         if previous_row ~= row then
-          if the_topline_lookup == nil then
-            the_topline_lookup = topline_lookup(winid)
-          end
-          local topline = math.max(1, the_topline_lookup[row])
+          local topline
           if row == 1 then
             -- If the scrollbar was dragged to the top of the window, always show
             -- the first line.
@@ -887,21 +787,24 @@ local handle_mouse = function(button)
             -- If the scrollbar was dragged to the bottom of the window, always
             -- show the bottom line.
             topline = api.nvim_buf_line_count(bufnr)
+          else
+            if not the_topline_lookup then
+              the_topline_lookup = api.nvim_win_call(winid, virtual_topline_lookup)
+            end
+            topline = math.max(1, the_topline_lookup[row])
           end
           set_topline(winid, topline)
           if vim.wo[winid].scrollbind or vim.wo[winid].cursorbind then
             refresh_bars()
             props = get_scrollview_props(winid)
           end
-          props = move_scrollbar(props, row)
-          vim.cmd('redraw')
+          move_scrollbar(mouse_winid, row)
           previous_row = row
         end
       end
       count = count + 1
-      ::continue::
     end  -- end while
-  end)  -- end pcall
+  end  -- end while
 end
 
 return {
