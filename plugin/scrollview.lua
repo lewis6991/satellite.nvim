@@ -1,1 +1,1 @@
-require('scrollview').scrollview_enable()
+require('scrollview').setup()

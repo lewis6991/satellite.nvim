@@ -23,23 +23,23 @@ local sv_winids = {}
 -- WARN: .5 rounds to the right on the number line, including for negatives
 -- (which would not result in rounding up in magnitude).
 -- (e.g., round(3.5) == 3, round(-3.5) == -3 != -4)
-local round = function(x)
+local function round(x)
   return math.floor(x + 0.5)
 end
 
 -- Replace termcodes.
-local t = function(str)
+local function t(str)
   return api.nvim_replace_termcodes(str, true, true, true)
 end
 
-local is_visual_mode = function()
+local function is_visual_mode()
   local mode = fn.mode()
   return vim.tbl_contains({'v', 'V', t'<c-v>'}, mode)
 end
 
 -- Returns true for ordinary windows (not floating and not external), and false
 -- otherwise.
-local is_ordinary_window = function(winid)
+local function is_ordinary_window(winid)
   local config = api.nvim_win_get_config(winid)
   local not_external = not config.external
   local not_floating = config.relative == ''
@@ -47,7 +47,7 @@ local is_ordinary_window = function(winid)
 end
 
 -- Returns a list of window IDs for the ordinary windows.
-local get_ordinary_windows = function()
+local function get_ordinary_windows()
   local winids = {}
   for _, winid in ipairs(api.nvim_list_wins()) do
     if is_ordinary_window(winid) then
@@ -60,7 +60,7 @@ end
 -- Return top line and bottom line in window. For folds, the top line
 -- represents the start of the fold and the bottom line represents the end of
 -- the fold.
-local visible_line_range = function(winid)
+local function visible_line_range(winid)
   -- WARN: getwininfo(winid)[1].botline is not properly updated for some
   -- movements (Neovim Issue #13510), so this is implemeneted as a workaround.
   -- Using scrolloff=0 combined with H and L breaks diff mode. Scrolling is not
@@ -79,7 +79,7 @@ end
 -- (both inclusive), in the specified window. A closed fold counts as one
 -- virtual line. The computation loops over either lines or virtual spans, so
 -- the cursor may be moved.
-local virtual_line_count = function(winid, start, vend)
+local function virtual_line_count(winid, start, vend)
   if not vend then
     vend = api.nvim_buf_line_count(api.nvim_win_get_buf(winid))
   end
@@ -102,7 +102,7 @@ end
 -- scrollbar at that row under virtual scrollview mode, in the current window.
 -- The computation primarily loops over lines, but may loop over virtual spans
 -- as part of calling 'virtual_line_count', so the cursor may be moved.
-local virtual_topline_lookup = function()
+local function virtual_topline_lookup()
   local winid = api.nvim_get_current_win()
   local winheight = api.nvim_win_get_height(winid)
   local result = {}  -- A list of line numbers
@@ -152,7 +152,7 @@ end
 
 -- Calculates the bar position for the specified window.
 -- Returns height and row
-local calculate_position = function(winid)
+local function calculate_position(winid)
   local bufnr = api.nvim_win_get_buf(winid)
   local topline, botline = visible_line_range(winid)
   local line_count = api.nvim_buf_line_count(bufnr)
@@ -190,7 +190,7 @@ end
 -- 'bar_winid' floating window ID (a new floating window will be created if
 -- this is -1). Returns -1 if the bar is not shown, and the floating window ID
 -- otherwise.
-local show_scrollbar = function(winid)
+local function show_scrollbar(winid)
   local bufnr = api.nvim_win_get_buf(winid)
   local buf_filetype = vim.bo[bufnr].filetype
 
@@ -287,7 +287,7 @@ end
 -- Given a target window row, the corresponding scrollbar is moved to that row.
 -- The row is adjusted (up in value, down in visual position) such that the full
 -- height of the scrollbar remains on screen.
-local move_scrollbar = function(winid, row)
+local function move_scrollbar(winid, row)
   local bar_winid = sv_winids[winid]
   local max_row = api.nvim_win_get_height(winid) - api.nvim_win_get_height(bar_winid) + 1
   row = math.min(row, max_row)
@@ -308,7 +308,7 @@ local function noautocmd(f)
   vim.o.eventignore = eventignore
 end
 
-local close_scrollview_window = function(winid)
+local function close_scrollview_window(winid)
   local bar_winid = sv_winids[winid]
   if not api.nvim_win_is_valid(bar_winid) then
     return
@@ -333,7 +333,7 @@ end
 -- available. The mouse_winid is set to -1 when a mouse event was on the
 -- command line. The mouse_winid is set to -2 when a mouse event was on the
 -- tabline.
-local read_input_stream = function()
+local function read_input_stream()
   local chars = {}
   local chars_props = {}
   local str_idx = 1  -- in bytes, 1-indexed
@@ -407,7 +407,7 @@ local read_input_stream = function()
 end
 
 -- Scrolls the window so that the specified line number is at the top.
-local set_topline = function(winid, linenr)
+local function set_topline(winid, linenr)
   -- WARN: Unlike other functions that move the cursor (e.g., VirtualLineCount,
   -- VirtualProportionLine), a window workspace should not be used, as the
   -- cursor and viewport changes here are intended to persist.
@@ -453,7 +453,7 @@ end
 
 -- Returns scrollview properties for the specified window. An empty dictionary
 -- is returned if there is no corresponding scrollbar.
-local get_scrollview_props = function(winid)
+local function get_scrollview_props(winid)
   local config = api.nvim_win_get_config(sv_winids[winid])
   return {
     height = config.height,
@@ -498,7 +498,7 @@ function M.refresh_bars()
   end
 end
 
-function M.scrollview_enable()
+local function enable()
   scrollview_enabled = true
   vim.cmd([[
     augroup scrollview
@@ -545,7 +545,7 @@ function M.scrollview_enable()
   M.refresh_bars()
 end
 
-function M.scrollview_disable()
+local function disable()
   scrollview_enabled = false
   vim.cmd([[
     augroup scrollview
@@ -555,19 +555,15 @@ function M.scrollview_disable()
   M.remove_bars()
 end
 
-function M.scrollview_refresh()
+local function refresh()
   if scrollview_enabled then
     M.refresh_bars()
   end
 end
 
--- 'button' can be 'left', 'middle', 'right', 'x1', or 'x2'.
-function M.handle_mouse(button)
-  if not vim.tbl_contains({'left', 'middle', 'right', 'x1', 'x2'}, button) then
-    error('Unsupported button: ' .. button)
-  end
-  local mousedown = t('<' .. button .. 'mouse>')
-  local mouseup = t('<' .. button .. 'release>')
+local function handle_leftmouse()
+  local mousedown = t('<leftmouse>')
+  local mouseup = t('<leftrelease>')
   -- Re-send the click, so its position can be obtained through
   -- read_input_stream().
   fn.feedkeys(mousedown, 'ni')
@@ -659,11 +655,6 @@ function M.handle_mouse(button)
           return
         end
         props = get_scrollview_props(mouse_winid)
-        if vim.tbl_isempty(props) then
-          -- There was no scrollbar in the window where a click occurred.
-          fn.feedkeys(string.sub(string, str_idx), 'ni')
-          return
-        end
         -- Add 1 cell horizonal padding for grabbing the scrollbar. Don't do
         -- this when the padding would extend past the window, as it will
         -- interfere with dragging the vertical separator to resize the window.
@@ -769,57 +760,33 @@ function M.zf_operator(type)
   else
     -- Unsupported
   end
-  M.scrollview_refresh()
+  refresh()
 end
 
-local function setup()
-  for _, seq in ipairs{
-    '<c-w>H', '<c-w>J', '<c-w>K', '<c-w>L', '<c-w>r', '<c-w><c-r>', '<c-w>R'
-  } do
-    vim.keymap.set({'n', 'v'}, seq, seq..'<cmd>ScrollViewRefresh<cr>', {unique = true})
-  end
-
-  -- === Mouse wheel scrolling syncronization workarounds ===
-  for _, seq in ipairs{'<scrollwheelup>', '<scrollwheeldown>'} do
-    vim.keymap.set({'n', 'v', 'i', 't'}, seq, seq..'<cmd>ScrollViewRefresh<cr>', {unique = true})
-  end
+local function apply_keymaps()
+  local keymap = vim.keymap.set
 
   -- === Fold command synchronization workarounds ===
   -- zf takes a motion in normal mode, so it requires a g@ mapping.
-  -- silent! nnoremap <unique> zf <cmd>set operatorfunc=<sid>ZfOperator<cr>g@
-  vim.keymap.set('n', 'zf', '<cmd>set operatorfunc=v:lua:package.loaded.scrollview.zf_operator<cr>g@', {unique = true})
+  keymap('n', 'zf', '<cmd>set operatorfunc=v:lua:package.loaded.scrollview.zf_operator<cr>g@', {unique = true})
 
   for _, seq in ipairs{
-          'zF', 'zd', 'zD', 'zE', 'zo', 'zO', 'zc', 'zC', 'za', 'zA', 'zv',
-          'zx', 'zX', 'zm', 'zM', 'zr', 'zR', 'zn', 'zN', 'zi' } do
-    vim.keymap.set({'n', 'v'}, seq, seq..'<cmd>ScrollViewRefresh<cr>', {unique = true})
-  end
-
-  -- <plug> mappings for mouse functionality.
-  -- E.g., <plug>(ScrollViewLeftMouse)
-
-  for plug_name, button in pairs{
-        ScrollViewLeftMouse   = 'left',
-        ScrollViewMiddleMouse = 'middle',
-        ScrollViewRightMouse  = 'right',
-        ScrollViewX1Mouse     = 'x1',
-        ScrollViewX2Mouse     = 'x2',
+    'zF', 'zd', 'zD', 'zE', 'zo', 'zO', 'zc', 'zC', 'za', 'zA', 'zv',
+    'zx', 'zX', 'zm', 'zM', 'zr', 'zR', 'zn', 'zN', 'zi'
   } do
-    local lhs = fn.printf('<plug>(%s)', plug_name)
-    local rhs = fn.printf('<cmd>lua require("scrollview").handle_mouse("%s")<cr>', button)
-    vim.keymap.set({'n', 'v', 'o', 'i'}, lhs, rhs)
+    keymap({'n', 'v'}, seq, seq..'<cmd>ScrollViewRefresh<cr>', {unique = true})
   end
 
-  -- Create a <leftmouse> mapping only if one does not already exist.
-  -- For example, a mapping may already exist if the user uses swapped buttons
-  -- from $VIMRUNTIME/pack/dist/opt/swapmouse/plugin/swapmouse.vim. Handling
-  -- for that scenario would require modifications (e.g., possibly by updating
-  -- the non-initial feedkeys calls in scrollview#HandleMouse to remap keys).
-  vim.keymap.set({'n', 'v', 'i'}, '<leftmouse>', '<plug>(ScrollViewLeftMouse)')
+  keymap({'n', 'v', 'o', 'i'}, '<leftmouse>', handle_leftmouse)
 
-  api.nvim_add_user_command('ScrollViewRefresh', M.scrollview_refresh, {bar = true, force = true})
-  api.nvim_add_user_command('ScrollViewEnable' , M.scrollview_enable , {bar = true, force = true})
-  api.nvim_add_user_command('ScrollViewDisable', M.scrollview_disable, {bar = true, force = true})
+end
+
+function M.setup()
+  apply_keymaps()
+
+  api.nvim_add_user_command('ScrollViewRefresh', refresh, {bar = true, force = true})
+  api.nvim_add_user_command('ScrollViewEnable' , enable , {bar = true, force = true})
+  api.nvim_add_user_command('ScrollViewDisable', disable, {bar = true, force = true})
 
   -- The default highlight group is specified below.
   -- Change this default by defining or linking an alternative highlight group.
@@ -828,8 +795,8 @@ local function setup()
   -- E.g., the following will use custom highlight colors.
   --   :highlight ScrollView ctermbg=159 guibg=LightCyan
   api.nvim_set_hl(0, 'ScrollView', {default = true, link = 'Visual' })
-end
 
-setup()
+  enable()
+end
 
 return M
