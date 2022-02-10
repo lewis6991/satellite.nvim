@@ -6,6 +6,9 @@ local scrollview_zindex = 40
 local scrollview_winblend = 50
 local scrollview_excluded_filetypes = {}
 local scrollview_current_only = false
+local scrollview_character = ''
+
+local M = {}
 
 -- Since there is no text displayed in the buffers, the same buffers are used
 -- for multiple windows. This also prevents the buffer list from getting high
@@ -232,12 +235,12 @@ local show_scrollbar = function(winid)
   -- Make sure that a custom character is up-to-date and is repeated enough to
   -- cover the full height of the scrollbar.
   local bar_line_count = api.nvim_buf_line_count(bar_bufnr)
-  if api.nvim_buf_get_lines(bar_bufnr, 0, 1, false)[1] ~= vim.g.scrollview_character
+  if api.nvim_buf_get_lines(bar_bufnr, 0, 1, false)[1] ~= scrollview_character
       or height > bar_line_count then
     vim.bo[bar_bufnr].modifiable = true
     local lines = {}
     for i = 1, height do
-      lines[i] = vim.g.scrollview_character
+      lines[i] = scrollview_character
     end
     api.nvim_buf_set_lines(bar_bufnr, 0, bar_line_count, false, lines)
     vim.bo[bar_bufnr].modifiable = false
@@ -461,14 +464,14 @@ end
 
 -- With no argument, remove all bars. Otherwise, remove the specified list of
 -- bars. Global state is initialized and restored.
-local remove_bars = function()
+function M.remove_bars()
   for id, _ in pairs(sv_winids) do
     close_scrollview_window(id)
   end
 end
 
 -- Refreshes scrollbars. Global state is initialized and restored.
-local refresh_bars = function()
+function M.refresh_bars()
   local target_wins
 
   if scrollview_current_only then
@@ -495,11 +498,7 @@ local refresh_bars = function()
   end
 end
 
--- *************************************************
--- * Main (entry points)
--- *************************************************
-
-local scrollview_enable = function()
+function M.scrollview_enable()
   scrollview_enabled = true
   vim.cmd([[
     augroup scrollview
@@ -543,41 +542,40 @@ local scrollview_enable = function()
       autocmd VimResized * :lua require('scrollview').refresh_bars()
     augroup END
   ]])
-  refresh_bars()
+  M.refresh_bars()
 end
 
-local scrollview_disable = function()
+function M.scrollview_disable()
   scrollview_enabled = false
   vim.cmd([[
     augroup scrollview
       autocmd!
     augroup END
   ]])
-  remove_bars()
+  M.remove_bars()
 end
 
-local scrollview_refresh = function()
+function M.scrollview_refresh()
   if scrollview_enabled then
-    refresh_bars()
+    M.refresh_bars()
   end
 end
 
 -- 'button' can be 'left', 'middle', 'right', 'x1', or 'x2'.
-local handle_mouse = function(button)
+function M.handle_mouse(button)
   if not vim.tbl_contains({'left', 'middle', 'right', 'x1', 'x2'}, button) then
     error('Unsupported button: ' .. button)
   end
   local mousedown = t('<' .. button .. 'mouse>')
   local mouseup = t('<' .. button .. 'release>')
-  if not scrollview_enabled then
-    -- nvim-scrollview is disabled. Process the click as it would ordinarily be
-    -- processed, by re-sending the click and returning.
-    fn.feedkeys(mousedown, 'ni')
-    return
-  end
   -- Re-send the click, so its position can be obtained through
   -- read_input_stream().
   fn.feedkeys(mousedown, 'ni')
+  if not scrollview_enabled then
+    -- nvim-scrollview is disabled. Process the click as it would ordinarily be
+    -- processed
+    return
+  end
   local count = 0
   local winid  -- The target window ID for a mouse scroll.
   local bufnr  -- The target buffer number.
@@ -650,7 +648,7 @@ local handle_mouse = function(button)
           -- 'feedkeys' is not called, since the full mouse interaction has
           -- already been processed. The current window (from prior to
           -- scrolling) is not changed.
-          refresh_bars()
+          M.refresh_bars()
         end
         return
       end
@@ -691,7 +689,7 @@ local handle_mouse = function(button)
         -- ignore all mouse events until a mouseup. This approach was deemed
         -- preferable to refreshing scrollbars initially, as that could result
         -- in unintended clicking/dragging where there is no scrollbar.
-        refresh_bars()
+        M.refresh_bars()
         -- Redraw to refresh the buffer if the scrollbar is being dragged
         vim.cmd('redraw')
         -- Don't restore toplines whenever a scrollbar was clicked. This
@@ -745,7 +743,7 @@ local handle_mouse = function(button)
           end
           set_topline(winid, topline)
           if vim.wo[winid].scrollbind or vim.wo[winid].cursorbind then
-            refresh_bars()
+            M.refresh_bars()
             props = get_scrollview_props(winid)
           end
           move_scrollbar(mouse_winid, row)
@@ -757,15 +755,81 @@ local handle_mouse = function(button)
   end  -- end while
 end
 
-return {
-  -- Functions called internally (by autocmds).
-  refresh_bars = refresh_bars,
-  remove_bars = remove_bars,
+-- An 'operatorfunc' for g@ that executes zf and then refreshes scrollbars.
+function M.zf_operator(type)
+  -- Handling for 'char' is needed since e.g., using linewise mark jumping
+  -- results in the cursor moving to the beginning of the line for zfl, which
+  -- should not move the cursor. Separate handling for 'line' is needed since
+  -- e.g., with 'char' handling, zfG won't include the last line in the fold if
+  -- the cursor gets positioned on the first character.
+  if type == 'char' then
+    vim.cmd"silent normal! `[zf`]"
+  elseif type == 'line' then
+    vim.cmd"silent normal! '[zf']"
+  else
+    -- Unsupported
+  end
+  M.scrollview_refresh()
+end
 
-  -- Functions called by commands and mappings defined in
-  -- plugin/scrollview.vim.
-  scrollview_enable = scrollview_enable,
-  scrollview_disable = scrollview_disable,
-  scrollview_refresh = scrollview_refresh,
-  handle_mouse = handle_mouse,
-}
+local function setup()
+  for _, seq in ipairs{
+    '<c-w>H', '<c-w>J', '<c-w>K', '<c-w>L', '<c-w>r', '<c-w><c-r>', '<c-w>R'
+  } do
+    vim.keymap.set({'n', 'v'}, seq, seq..'<cmd>ScrollViewRefresh<cr>', {unique = true})
+  end
+
+  -- === Mouse wheel scrolling syncronization workarounds ===
+  for _, seq in ipairs{'<scrollwheelup>', '<scrollwheeldown>'} do
+    vim.keymap.set({'n', 'v', 'i', 't'}, seq, seq..'<cmd>ScrollViewRefresh<cr>', {unique = true})
+  end
+
+  -- === Fold command synchronization workarounds ===
+  -- zf takes a motion in normal mode, so it requires a g@ mapping.
+  -- silent! nnoremap <unique> zf <cmd>set operatorfunc=<sid>ZfOperator<cr>g@
+  vim.keymap.set('n', 'zf', '<cmd>set operatorfunc=v:lua:package.loaded.scrollview.zf_operator<cr>g@', {unique = true})
+
+  for _, seq in ipairs{
+          'zF', 'zd', 'zD', 'zE', 'zo', 'zO', 'zc', 'zC', 'za', 'zA', 'zv',
+          'zx', 'zX', 'zm', 'zM', 'zr', 'zR', 'zn', 'zN', 'zi' } do
+    vim.keymap.set({'n', 'v'}, seq, seq..'<cmd>ScrollViewRefresh<cr>', {unique = true})
+  end
+
+  -- <plug> mappings for mouse functionality.
+  -- E.g., <plug>(ScrollViewLeftMouse)
+
+  for plug_name, button in pairs{
+        ScrollViewLeftMouse   = 'left',
+        ScrollViewMiddleMouse = 'middle',
+        ScrollViewRightMouse  = 'right',
+        ScrollViewX1Mouse     = 'x1',
+        ScrollViewX2Mouse     = 'x2',
+  } do
+    local lhs = fn.printf('<plug>(%s)', plug_name)
+    local rhs = fn.printf('<cmd>lua require("scrollview").handle_mouse("%s")<cr>', button)
+    vim.keymap.set({'n', 'v', 'o', 'i'}, lhs, rhs)
+  end
+
+  -- Create a <leftmouse> mapping only if one does not already exist.
+  -- For example, a mapping may already exist if the user uses swapped buttons
+  -- from $VIMRUNTIME/pack/dist/opt/swapmouse/plugin/swapmouse.vim. Handling
+  -- for that scenario would require modifications (e.g., possibly by updating
+  -- the non-initial feedkeys calls in scrollview#HandleMouse to remap keys).
+  vim.keymap.set({'n', 'v', 'i'}, '<leftmouse>', '<plug>(ScrollViewLeftMouse)')
+
+  api.nvim_add_user_command('ScrollViewRefresh', M.scrollview_refresh, {bar = true, force = true})
+  api.nvim_add_user_command('ScrollViewEnable' , M.scrollview_enable , {bar = true, force = true})
+  api.nvim_add_user_command('ScrollViewDisable', M.scrollview_disable, {bar = true, force = true})
+
+  -- The default highlight group is specified below.
+  -- Change this default by defining or linking an alternative highlight group.
+  -- E.g., the following will use the Pmenu highlight.
+  --   :highlight link ScrollView Pmenu
+  -- E.g., the following will use custom highlight colors.
+  --   :highlight ScrollView ctermbg=159 guibg=LightCyan
+  api.nvim_set_hl(0, 'ScrollView', {default = true, link = 'Visual' })
+end
+
+setup()
+
+return M
