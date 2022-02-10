@@ -54,19 +54,6 @@ local get_ordinary_windows = function()
   return winids
 end
 
-local in_command_line_window = function()
-  if fn.win_gettype() == 'command' then
-    return true
-  end
-  if api.nvim_get_mode().mode == 'c' then
-    return true
-  end
-  local bufnr = api.nvim_get_current_buf()
-  local buftype = vim.bo[bufnr].buftype
-  local bufname = api.nvim_buf_get_name(bufnr)
-  return buftype == 'nofile' and bufname == '[Command Line]'
-end
-
 -- Return top line and bottom line in window. For folds, the top line
 -- represents the start of the fold and the bottom line represents the end of
 -- the fold.
@@ -480,22 +467,8 @@ local remove_bars = function()
   end
 end
 
--- Remove scrollbars if InCommandLineWindow is true. This fails when called
--- from the CmdwinEnter event (some functionality, like nvim_win_close, cannot
--- be used from the command line window), but works during the transition to
--- the command line window (from the WinEnter event).
-local remove_if_command_line_window = function()
-  if in_command_line_window() then
-    pcall(remove_bars)
-  end
-end
-
 -- Refreshes scrollbars. Global state is initialized and restored.
 local refresh_bars = function()
-  if in_command_line_window() then
-    return
-  end
-
   local target_wins
 
   if scrollview_current_only then
@@ -533,15 +506,6 @@ local scrollview_enable = function()
       autocmd!
       " === Scrollbar Removal ===
 
-      " For the duration of command-line window usage, there should be no bars.
-      " Without this, bars can possibly overlap the command line window. This
-      " can be problematic particularly when there is a vertical split with the
-      " left window's bar on the bottom of the screen, where it would overlap
-      " with the center of the command line window. It was not possible to use
-      " CmdwinEnter, since the removal has to occur prior to that event. Rather,
-      " this is triggered by the WinEnter event, just prior to the relevant
-      " funcionality becoming unavailable.
-      autocmd WinEnter * :lua require('scrollview').remove_if_command_line_window()
       " The following error can arise when the last window in a tab is going to
       " be closed, but there are still open floating windows, and at least one
       " other tab.
@@ -583,14 +547,6 @@ local scrollview_enable = function()
 end
 
 local scrollview_disable = function()
-  if in_command_line_window() then
-    vim.cmd([[
-      echohl ErrorMsg
-      echo 'nvim-scrollview: Cannot disable from command-line window'
-      echohl None
-    ]])
-    return
-  end
   scrollview_enabled = false
   vim.cmd([[
     augroup scrollview
@@ -622,12 +578,6 @@ local handle_mouse = function(button)
   -- Re-send the click, so its position can be obtained through
   -- read_input_stream().
   fn.feedkeys(mousedown, 'ni')
-  -- Mouse handling is not relevant in the command line window since
-  -- scrollbars are not shown. Additionally, the overlay cannot be closed
-  -- from that mode.
-  if in_command_line_window() then
-    return
-  end
   local count = 0
   local winid  -- The target window ID for a mouse scroll.
   local bufnr  -- The target buffer number.
@@ -811,7 +761,6 @@ return {
   -- Functions called internally (by autocmds).
   refresh_bars = refresh_bars,
   remove_bars = remove_bars,
-  remove_if_command_line_window = remove_if_command_line_window,
 
   -- Functions called by commands and mappings defined in
   -- plugin/scrollview.vim.
