@@ -16,17 +16,11 @@ The plugin is customizable (see |scrollview-configuration|).
 ============================================================================
 1. Requirements                            *scrollview-requirements*
 
-* `nvim>=0.5`
 * Scrollbar mouse dragging requires mouse support (see |'mouse'|) and
-  `nvim>=0.6`.
+  `nvim>=0.7`.
 
 ============================================================================
-2. Installation                            *scrollview-installation*
-
-Use |packages| or one of the various package managers.
-
-============================================================================
-3. Usage                                   *scrollview-usage*
+2. Usage                                   *scrollview-usage*
 
 * |nvim-scrollview| works automatically, displaying interactive scrollbars.
 
@@ -38,24 +32,8 @@ Use |packages| or one of the various package managers.
   when the scrollbars are out-of-sync, which can occur e.g., as a result of
   some window arrangement actions (see |scrollview-issues|).
 
-                                           *scrollview-mappings*
-The following |<Plug>| mappings are defined for convenience.
-
-* `<Plug>(ScrollViewDisable)`
-* `<Plug>(ScrollViewEnable)`
-* `<Plug>(ScrollViewRefresh)`
-
-The following (experimental) |<Plug>| mappings are defined for customizing
-mouse functionality (see |scrollview-mouse-customization|).
-
-* `<Plug>(ScrollViewLeftMouse)`
-* `<Plug>(ScrollViewMiddleMouse)`
-* `<Plug>(ScrollViewRightMouse)`
-* `<Plug>(ScrollViewX1Mouse)`
-* `<Plug>(ScrollViewX2Mouse)`
-
 ============================================================================
-4. Configuration                           *scrollview-configuration*
+3. Configuration                           *scrollview-configuration*
 
 The following variables can be used to customize the behavior of
 |nvim-scrollview|. Variables can be set at the 1) window, 2) tab, 3) buffer,
@@ -63,29 +41,12 @@ and/or 4) global scope, with that order of precedence (i.e., window variables
 have the highest precedence, and global variables have the lowest).
 
 Configuration Variables ~
-                                           *scrollview_auto_mouse*
-scrollview_auto_mouse  |Boolean| |Number| specifying whether a mapping is
-                       automatically created for mouse support (without
-                       clobbering). Defaults to `1`. Considered only at global
-                       scope, when the plugin is loaded.
-
-scrollview_auto_workarounds                *scrollview_auto_workarounds*
-                       |Boolean| |Number| specifying whether select workarounds
-                       are automatically applied for known |scrollview-issues|
-                       (without clobbering existing customizations). Defaults
-                       to `1`. Considered only at global scope, when the plugin
-                       is loaded.
 
                                            *scrollview_character*
 scrollview_character   |String| specifying a character to display on scrollbars.
                        Defaults to `''`. Considered only at global scope.
                        Scrollbar transparency (via |scrollview_winblend|) is not
                        possible when a scrollbar character is used.
-
-                                           *scrollview_column*
-scrollview_column      |Number| specifying the scrollbar column (relative to
-                       |scrollview_base|). Defaults to `2`. Must be an integer
-                       greater than or equal to `1`.
 
 scrollview_current_only                    *scrollview_current_only*
                        |Boolean| |Number| specifying whether scrollbars should
@@ -96,24 +57,6 @@ scrollview_excluded_filetypes              *scrollview_excluded_filetypes*
                        |List| of |String|s specifying optional file types for
                        which scrollbars should not be displayed. Defaults to
                        `[]`.
-
-scrollview_hide_on_intersect               *scrollview_hide_on_intersect*
-                       |Boolean| |Number| specifying whether each scrollbar
-                       becomes hidden (not shown) when it would otherwise
-                       intersect with a floating window. Defaults to `0`.
-
-                                           *scrollview_on_startup*
-scrollview_on_startup  |Boolean| |Number| specifying whether scrollbars are
-                       enabled on startup. Defaults to `1`. Considered only at
-                       global scope, when the plugin is loaded.
-
-scrollview_refresh_time                    *scrollview_refresh_time*
-                       |Number| specifying the refresh limit. When scrollbar
-                       refreshing takes more than this many milliseconds,
-                       subsequent refreshing will use `simple` |scrollview_mode|.
-                       Defaults to `100`. A value of `-1` corresponds to no limit.
-                       Considered only at global scope. To reset the mode
-                       behavior, set `g:scrollview_refresh_time_exceeded` to `0`.
 
                                            *scrollview_winblend*
 scrollview_winblend    |Number| specifying the level of transparency for
@@ -132,30 +75,7 @@ example.
     let g:scrollview_excluded_filetypes = ['nerdtree']
     let g:scrollview_current_only = 1
     let g:scrollview_winblend = 75
-    " Position the scrollbar at the 80th character of the buffer
-    let g:scrollview_base = 'buffer'
-    let g:scrollview_column = 80
 
-Scrollview Modes ~
-                                           *scrollview-modes*
-The following modes are available for the |scrollview_mode| configuration
-setting (set as a |string|). Without closed |folds|, both modes work the same way.
-
-Mode       Description
-----       -----------
-`simple`     The scrollbar top position reflects the window's top line number
-           relative to the document's line count. The scrollbar height
-           reflects the size of the window relative to the document's line
-           count. Dragging the scrollbars with the mouse may result in
-           unresponsive scrolling when there are closed folds.
-
-`virtual`    The scrollbar position and height are calculated similarly to the
-           `simple` mode, but line numbers and the document line count are
-           implicitly updated to virtual counterparts that account for closed
-           folds. The scrollbar top position reflects the window's top virtual
-           line number relative to the document's virtual line count. The
-           scrollbar height reflects the size of the window relative to the
-           document's virtual line count.
 
 Color Customization ~
                                            *scrollview-color-customization*
@@ -209,7 +129,7 @@ Mappings can be used to manually create mappings for mouse support.
     imap <x2mouse> <plug>(ScrollViewX2Mouse)
 
 ============================================================================
-5. Issues                                  *scrollview-issues*
+4. Issues                                  *scrollview-issues*
 
 Synchronization Issues ~
                                            *scrollview-synchronization-issues*
