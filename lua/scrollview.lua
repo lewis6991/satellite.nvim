@@ -454,6 +454,9 @@ end
 -- Returns scrollview properties for the specified window. An empty dictionary
 -- is returned if there is no corresponding scrollbar.
 local function get_scrollview_props(winid)
+  if not sv_winids[winid] then
+    return
+  end
   local config = api.nvim_win_get_config(sv_winids[winid])
   return {
     height = config.height,
@@ -655,6 +658,9 @@ local function handle_leftmouse()
           return
         end
         props = get_scrollview_props(mouse_winid)
+        if not props then
+          return
+        end
         -- Add 1 cell horizonal padding for grabbing the scrollbar. Don't do
         -- this when the padding would extend past the window, as it will
         -- interfere with dragging the vertical separator to resize the window.
@@ -690,7 +696,7 @@ local function handle_leftmouse()
         -- course of scrollbar clicking/dragging, to prevent jumpiness in the
         -- display.
         props = get_scrollview_props(mouse_winid)
-        if vim.tbl_isempty(props) or mouse_row < props.row
+        if not props or mouse_row < props.row
             or mouse_row >= props.row + props.height then
           while fn.getchar() ~= mouseup do end
           return
@@ -736,6 +742,9 @@ local function handle_leftmouse()
           if vim.wo[winid].scrollbind or vim.wo[winid].cursorbind then
             M.refresh_bars()
             props = get_scrollview_props(winid)
+            if not props then
+              return
+            end
           end
           move_scrollbar(mouse_winid, row)
           previous_row = row
