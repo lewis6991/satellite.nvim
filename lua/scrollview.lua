@@ -259,11 +259,6 @@ local function show_scrollbar(winid)
   }
 
   local bar_winid = sv_winids[winid]
-  if bar_winid and not api.nvim_win_is_valid(bar_winid) then
-    api.nvim_win_close(bar_winid, true)
-    sv_winids[winid] = nil
-    bar_winid = nil
-  end
 
   if bar_winid then
     api.nvim_win_set_config(bar_winid, config)
