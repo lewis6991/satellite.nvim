@@ -260,7 +260,7 @@ local function show_scrollbar(winid)
 
   local bar_winid = sv_winids[winid]
 
-  if bar_winid then
+  if bar_winid and api.nvim_win_is_valid(bar_winid) then
     api.nvim_win_set_config(bar_winid, config)
   else
     config.noautocmd = true
