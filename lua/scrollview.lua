@@ -284,6 +284,10 @@ end
 -- height of the scrollbar remains on screen.
 local function move_scrollbar(winid, row)
   local bar_winid = sv_winids[winid]
+  if not bar_winid then
+    -- Can happen if mouse is dragged over other floating windows
+    return
+  end
   local max_row = api.nvim_win_get_height(winid) - api.nvim_win_get_height(bar_winid) + 1
   row = math.min(row, max_row)
 
