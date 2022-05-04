@@ -7,14 +7,6 @@ local scrollview_winblend = 50
 local scrollview_excluded_filetypes = {}
 local scrollview_current_only = false
 
-local diagnostic_hls = {
-  [vim.diagnostic.severity.ERROR] = 'DiagnosticError',
-  [vim.diagnostic.severity.WARN]  = 'DiagnosticWarn',
-  [vim.diagnostic.severity.INFO]  = 'DiagnosticInfo',
-  [vim.diagnostic.severity.HINT]  = 'DiagnosticHint',
-}
-
-
 local M = {}
 
 -- Since there is no text displayed in the buffers, the same buffers are used
@@ -210,23 +202,6 @@ end
 
 local ns = api.nvim_create_namespace('scrollview')
 
-local function diagnostic_handler(winid)
-  local marks = {}
-  local diags = vim.diagnostic.get(api.nvim_win_get_buf(winid))
-  for _, diag in ipairs(diags) do
-    marks[#marks+1] = {
-      lnum = diag.lnum,
-      symbol = '-',
-      highlight = diagnostic_hls[diag.severity]
-    }
-  end
-  return marks
-end
-
-local handlers = {
-  diagnostics = diagnostic_handler
-}
-
 local function render_bar(bbufnr, winid, row, height, winheight)
   local lines = {}
   for i = 1, winheight do
@@ -242,8 +217,10 @@ local function render_bar(bbufnr, winid, row, height, winheight)
     })
   end
 
-  for _, handler in pairs(handlers) do
-    local marks = handler(winid)
+  -- Run handlers
+  local bufnr = api.nvim_win_get_buf(winid)
+  for _, handler in pairs(require('scrollview.handlers').handlers) do
+    local marks = handler(bufnr)
     for _, m in ipairs(marks) do
       local pos = lnum_to_barpos(winid, m.lnum)
       api.nvim_buf_set_extmark(bbufnr, ns, pos-1, 0, {
@@ -565,8 +542,6 @@ local function enable()
 
   local gid = api.nvim_create_augroup('scrollview', {})
 
-  api.nvim_create_autocmd('DiagnosticChanged', { group = gid, callback = M.refresh_bars })
-
   -- The following error can arise when the last window in a tab is going to
   -- be closed, but there are still open floating windows, and at least one
   -- other tab.
@@ -861,6 +836,7 @@ local function apply_keymaps()
 end
 
 function M.setup()
+  require('scrollview.handlers.diagnostic')
   apply_keymaps()
 
   api.nvim_create_user_command('ScrollViewRefresh', refresh, {bar = true, force = true})
