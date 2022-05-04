@@ -562,60 +562,63 @@ end
 
 local function enable()
   scrollview_enabled = true
-  vim.cmd([[
-    augroup scrollview
-      autocmd!
-      " === Scrollbar Removal ===
 
-      " The following error can arise when the last window in a tab is going to
-      " be closed, but there are still open floating windows, and at least one
-      " other tab.
-      "   > "E5601: Cannot close window, only floating window would remain"
-      " Neovim Issue #11440 is open to address this. As of 2020/12/12, this
-      " issue is a 0.6 milestone.
-      " The autocmd below removes bars subsequent to :quit, :wq, or :qall (and
-      " also ZZ and ZQ), to avoid the error. However, the error will still arise
-      " when <ctrl-w>c or :close are used. To avoid the error in those cases,
-      " <ctrl-w>o can be used to first close the floating windows, or
-      " alternatively :tabclose can be used (or one of the alternatives handled
-      " with the autocmd, like ZQ).
-      autocmd QuitPre * :lua require('scrollview').remove_bars()
+  local gid = api.nvim_create_augroup('scrollview', {})
 
-      " === Scrollbar Refreshing ===
+  api.nvim_create_autocmd('DiagnosticChanged', { group = gid, callback = M.refresh_bars })
 
-      " The following handles bar refreshing when changing the current window.
-      autocmd WinEnter,TermEnter * :lua require('scrollview').refresh_bars()
-      " The following restores bars after leaving the command-line window.
-      " Refreshing must be asynchronous, since the command line window is still
-      " in an intermediate state when the CmdwinLeave event is triggered.
-      autocmd CmdwinLeave * :lua require('scrollview').refresh_bars()
-      " The following handles scrolling events, which could arise from various
-      " actions, including resizing windows, movements (e.g., j, k), or
-      " scrolling (e.g., <ctrl-e>, zz).
-      autocmd WinScrolled * :lua require('scrollview').refresh_bars()
-      " The following handles the case where text is pasted. TextChangedI is not
-      " necessary since WinScrolled will be triggered if there is corresponding
-      " scrolling.
-      autocmd TextChanged * :lua require('scrollview').refresh_bars()
-      " The following handles when :e is used to load a file.
-      autocmd BufWinEnter * :lua require('scrollview').refresh_bars()
-      " The following is used so that bars are shown when cycling through tabs.
-      autocmd TabEnter * :lua require('scrollview').refresh_bars()
-      autocmd VimResized * :lua require('scrollview').refresh_bars()
+  -- The following error can arise when the last window in a tab is going to
+  -- be closed, but there are still open floating windows, and at least one
+  -- other tab.
+  --   > "E5601: Cannot close window, only floating window would remain"
+  -- Neovim Issue #11440 is open to address this. As of 2020/12/12, this
+  -- issue is a 0.6 milestone.
+  -- The autocmd below removes bars subsequent to :quit, :wq, or :qall (and
+  -- also ZZ and ZQ), to avoid the error. However, the error will still arise
+  -- when <ctrl-w>c or :close are used. To avoid the error in those cases,
+  -- <ctrl-w>o can be used to first close the floating windows, or
+  -- alternatively :tabclose can be used (or one of the alternatives handled
+  -- with the autocmd, like ZQ).
+  api.nvim_create_autocmd('QuitPre', { group = gid, callback = M.remove_bars })
 
-      autocmd DiagnosticChanged * lua require('scrollview').refresh_bars()
-    augroup END
-  ]])
+  -- === Scrollbar Refreshing ===
+  api.nvim_create_autocmd({
+    -- The following handles bar refreshing when changing the current window.
+    'WinEnter', 'TermEnter',
+
+    -- The following restores bars after leaving the command-line window.
+    -- Refreshing must be asynchronous, since the command line window is still
+    -- in an intermediate state when the CmdwinLeave event is triggered.
+    'CmdwinLeave',
+
+    -- The following handles scrolling events, which could arise from various
+    -- actions, including resizing windows, movements (e.g., j, k), or
+    -- scrolling (e.g., <ctrl-e>, zz).
+    'WinScrolled',
+
+    -- The following handles the case where text is pasted. TextChangedI is not
+    -- necessary since WinScrolled will be triggered if there is corresponding
+    -- scrolling.
+    'TextChanged',
+
+    -- The following handles when :e is used to load a file.
+    'BufWinEnter',
+
+    -- The following is used so that bars are shown when cycling through tabs.
+    'TabEnter',
+
+    'VimResized'
+  }, {
+    group = gid,
+    callback = M.refresh_bars
+  })
+
   M.refresh_bars()
 end
 
 local function disable()
   scrollview_enabled = false
-  vim.cmd([[
-    augroup scrollview
-      autocmd!
-    augroup END
-  ]])
+  api.nvim_create_augroup('scrollview', {})
   M.remove_bars()
 end
 
