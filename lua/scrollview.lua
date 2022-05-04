@@ -778,7 +778,10 @@ local function apply_keymaps()
     'zF', 'zd', 'zD', 'zE', 'zo', 'zO', 'zc', 'zC', 'za', 'zA', 'zv',
     'zx', 'zX', 'zm', 'zM', 'zr', 'zR', 'zn', 'zN', 'zi'
   } do
-    keymap({'n', 'v'}, seq, seq..'<cmd>ScrollViewRefresh<cr>', {unique = true})
+    keymap({'n', 'v'}, seq, function()
+      refresh()
+      return seq
+    end, {unique = true, expr=true})
   end
 
   keymap({'n', 'v', 'o', 'i'}, '<leftmouse>', handle_leftmouse)
