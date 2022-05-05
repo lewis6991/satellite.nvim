@@ -18,7 +18,7 @@ require('scrollview.handlers').register('diagnostics', function(bufnr)
   local diags = vim.diagnostic.get(bufnr)
   for _, diag in ipairs(diags) do
     marks[#marks+1] = {
-      lnum = diag.lnum,
+      lnum = diag.lnum + 1,
       symbol = '─',
       highlight = diagnostic_hls[diag.severity]
     }
