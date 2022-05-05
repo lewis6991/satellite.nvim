@@ -223,11 +223,15 @@ local function render_bar(bbufnr, winid, row, height, winheight)
     local marks = handler(bufnr)
     for _, m in ipairs(marks) do
       local pos = lnum_to_barpos(winid, m.lnum)
-      api.nvim_buf_set_extmark(bbufnr, ns, pos-1, 0, {
+      local ok, err = pcall(api.nvim_buf_set_extmark, bbufnr, ns, pos-1, 0, {
         virt_text = {{m.symbol, m.highlight}},
         virt_text_pos = 'overlay',
         hl_mode = 'combine'
       })
+      if not ok then
+        print('ROW: '..(pos-1))
+        print(err)
+      end
     end
   end
 
@@ -535,6 +539,8 @@ function M.refresh_bars()
       close_scrollview_window(winid)
     end
   end
+
+  vim.cmd'redraw'
 end
 
 local function enable()
@@ -837,6 +843,8 @@ end
 
 function M.setup()
   require('scrollview.handlers.diagnostic')
+  require('scrollview.handlers.search')
+
   apply_keymaps()
 
   api.nvim_create_user_command('ScrollViewRefresh', refresh, {bar = true, force = true})
