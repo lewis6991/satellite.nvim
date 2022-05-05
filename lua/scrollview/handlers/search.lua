@@ -108,7 +108,7 @@ require('scrollview.handlers').register('search', function(bufnr)
   for _, lnum in ipairs(matches) do
     marks[#marks+1] = {
       lnum = lnum,
-      symbol = '─',
+      symbol = {'-', '=', '≡'},
       highlight = lnum == cursor_lnum and 'SearchCurrent' or 'SearchSV'
     }
   end

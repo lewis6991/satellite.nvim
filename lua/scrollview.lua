@@ -264,11 +264,24 @@ local function render_bar(bbufnr, winid, row, height, winheight)
   for name, handler in pairs(require('scrollview.handlers').handlers) do
     local handler_config = user_config.handlers[name]
     if not handler_config or handler_config.enable then
+      local positions = {}
       local marks = handler.callback(bufnr)
       for _, m in ipairs(marks) do
         local pos = lnum_to_barpos(winid, m.lnum)
+        positions[pos] = (positions[pos] or 0) + 1
+        local symbol
+        if type(m.symbol) == 'string' then
+          symbol = m.symbol
+        else
+          local len = #m.symbol
+          local count = positions[pos]
+          if count > len then
+            count = len
+          end
+          symbol = m.symbol[count]
+        end
         local ok, err = pcall(api.nvim_buf_set_extmark, bbufnr, ns, pos-1, 0, {
-          virt_text = {{m.symbol, m.highlight}},
+          virt_text = {{symbol, m.highlight}},
           virt_text_pos = 'overlay',
           hl_mode = 'combine'
         })
