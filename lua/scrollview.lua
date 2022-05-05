@@ -1,11 +1,53 @@
 local api = vim.api
 local fn = vim.fn
 
+local BUILTIN_HANDLERS = {
+  'search',
+  'diagnostic',
+  'gitsigns'
+}
+
+---@class DiagnosticConfig
+---@field enable boolean
+
+---@class GitsignsConfig
+---@field enable boolean
+
+---@class SearchConfig
+---@field enable boolean
+
+---@class HandlerConfigs
+---@field diagnostic DiagnosticConfig
+---@field gitsigns GitsignsConfig
+---@field search SearchConfig
+
+---@class Config
+---@field handlers HandlerConfigs
+---@field current_only boolean
+---@field winblend integer
+---@field zindex integer
+---@field excluded_filetypes string[]
+
+---@type Config
+local user_config = {
+  handlers = {
+    search = {
+      enable = true,
+    },
+    diagnostic = {
+      enable = true,
+    },
+    gitsigns = {
+      enable = true,
+    },
+  },
+  current_only = false,
+  winblend = 50,
+  zindex = 40,
+  excluded_filetypes = {},
+}
+
 local scrollview_enabled = false
-local scrollview_zindex = 40
-local scrollview_winblend = 50
-local scrollview_excluded_filetypes = {}
-local scrollview_current_only = false
 
 local M = {}
 
@@ -219,18 +261,21 @@ local function render_bar(bbufnr, winid, row, height, winheight)
 
   -- Run handlers
   local bufnr = api.nvim_win_get_buf(winid)
-  for _, handler in pairs(require('scrollview.handlers').handlers) do
-    local marks = handler.callback(bufnr)
-    for _, m in ipairs(marks) do
-      local pos = lnum_to_barpos(winid, m.lnum)
-      local ok, err = pcall(api.nvim_buf_set_extmark, bbufnr, ns, pos-1, 0, {
-        virt_text = {{m.symbol, m.highlight}},
-        virt_text_pos = 'overlay',
-        hl_mode = 'combine'
-      })
-      if not ok then
-        print(string.format('%s ROW: %d', handler.name, pos-1))
-        print(err)
+  for name, handler in pairs(require('scrollview.handlers').handlers) do
+    local handler_config = user_config.handlers[name]
+    if not handler_config or handler_config.enable then
+      local marks = handler.callback(bufnr)
+      for _, m in ipairs(marks) do
+        local pos = lnum_to_barpos(winid, m.lnum)
+        local ok, err = pcall(api.nvim_buf_set_extmark, bbufnr, ns, pos-1, 0, {
+          virt_text = {{m.symbol, m.highlight}},
+          virt_text_pos = 'overlay',
+          hl_mode = 'combine'
+        })
+        if not ok then
+          print(string.format('%s ROW: %d', handler.name, pos-1))
+          print(err)
+        end
       end
     end
   end
@@ -246,7 +291,7 @@ local function show_scrollbar(winid)
   local buf_filetype = vim.bo[bufnr].filetype
 
   -- Skip if the filetype is on the list of exclusions.
-  if vim.tbl_contains(scrollview_excluded_filetypes, buf_filetype) then
+  if vim.tbl_contains(user_config.excluded_filetypes, buf_filetype) then
     return
   end
 
@@ -294,7 +339,7 @@ local function show_scrollbar(winid)
     width = 1,
     row = 0,
     col = winwidth - 1,
-    zindex = scrollview_zindex,
+    zindex = user_config.zindex,
   }
 
   render_bar(bar_bufnr, winid, row, height, winheight)
@@ -310,7 +355,7 @@ local function show_scrollbar(winid)
     -- color scheme's specification of EndOfBuffer would be used to color the
     -- bottom of the scrollbar.
     -- vim.wo[bar_winid].winhighlight = 'Normal:ScrollView,EndOfBuffer:ScrollView'
-    vim.wo[bar_winid].winblend = scrollview_winblend
+    vim.wo[bar_winid].winblend = user_config.winblend
     vim.wo[bar_winid].foldcolumn = '0'  -- foldcolumn takes a string
     vim.wo[bar_winid].wrap = false
 
@@ -517,7 +562,7 @@ end
 function M.refresh_bars()
   local target_wins
 
-  if scrollview_current_only then
+  if user_config.current_only then
     target_wins = { api.nvim_get_current_win() }
   else
     target_wins = {}
@@ -841,10 +886,15 @@ local function apply_keymaps()
 
 end
 
-function M.setup()
-  require('scrollview.handlers.diagnostic')
-  require('scrollview.handlers.search')
-  require('scrollview.handlers.gitsigns')
+function M.setup(config)
+  user_config = vim.tbl_extend('force', user_config, config or {})
+
+  -- Load builtin handlers
+  for _, name in ipairs(BUILTIN_HANDLERS) do
+    if user_config.handlers[name].enable then
+      require('scrollview.handlers.'..name)
+    end
+  end
 
   apply_keymaps()
 
