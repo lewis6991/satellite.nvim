@@ -45,6 +45,7 @@ local user_config = {
   winblend = 50,
   zindex = 40,
   excluded_filetypes = {},
+  width = 2,
 }
 
 local scrollview_enabled = false
@@ -244,18 +245,32 @@ end
 
 local ns = api.nvim_create_namespace('scrollview')
 
+local function get_symbol(count, s)
+  if type(s) == 'string' then
+    return s
+  end
+  local len = #s
+  if count > len then
+    count = len
+  end
+  return s[count]
+end
+
 local function render_bar(bbufnr, winid, row, height, winheight)
   local lines = {}
   for i = 1, winheight do
-    lines[i] = ''
+    lines[i] = string.rep(' ', user_config.width)
   end
 
   api.nvim_buf_set_lines(bbufnr, 0, -1, true, lines)
 
+  local col = user_config.width == 2 and 1 or 0
+
   for i = row, row+height do
-    api.nvim_buf_set_extmark(bbufnr, ns, i-1, 0, {
-      virt_text = {{' ', 'ScrollView'}},
+    pcall(api.nvim_buf_set_extmark, bbufnr, ns, i-1, col, {
+      virt_text = { {' ', 'ScrollView'} },
       virt_text_pos = 'overlay',
+      priority = 1,
     })
   end
 
@@ -269,21 +284,15 @@ local function render_bar(bbufnr, winid, row, height, winheight)
       for _, m in ipairs(marks) do
         local pos = lnum_to_barpos(winid, m.lnum)
         positions[pos] = (positions[pos] or 0) + 1
-        local symbol
-        if type(m.symbol) == 'string' then
-          symbol = m.symbol
-        else
-          local len = #m.symbol
-          local count = positions[pos]
-          if count > len then
-            count = len
-          end
-          symbol = m.symbol[count]
-        end
-        local ok, err = pcall(api.nvim_buf_set_extmark, bbufnr, ns, pos-1, 0, {
+        local symbol = get_symbol(positions[pos], m.symbol)
+
+        local mcol = user_config.width == 2 and (m.col or 1) or 0
+
+        local ok, err = pcall(api.nvim_buf_set_extmark, bbufnr, ns, pos-1, mcol, {
           virt_text = {{symbol, m.highlight}},
           virt_text_pos = 'overlay',
-          hl_mode = 'combine'
+          hl_mode = 'combine',
+          priority = positions[pos]
         })
         if not ok then
           print(string.format('%s ROW: %d', handler.name, pos-1))
@@ -349,9 +358,9 @@ local function show_scrollbar(winid)
     focusable = false,
     style = 'minimal',
     height = winheight,
-    width = 1,
+    width = user_config.width,
     row = 0,
-    col = winwidth - 1,
+    col = winwidth - user_config.width,
     zindex = user_config.zindex,
   }
 
@@ -367,7 +376,7 @@ local function show_scrollbar(winid)
     -- It's not sufficient to just specify Normal highlighting. With just that, a
     -- color scheme's specification of EndOfBuffer would be used to color the
     -- bottom of the scrollbar.
-    -- vim.wo[bar_winid].winhighlight = 'Normal:ScrollView,EndOfBuffer:ScrollView'
+    vim.wo[bar_winid].winhighlight = 'Normal:Normal'
     vim.wo[bar_winid].winblend = user_config.winblend
     vim.wo[bar_winid].foldcolumn = '0'  -- foldcolumn takes a string
     vim.wo[bar_winid].wrap = false

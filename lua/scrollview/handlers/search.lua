@@ -37,10 +37,18 @@ local function update_matches(bufnr, pattern)
     local lines = api.nvim_buf_get_lines(bufnr, 0, -1, true)
 
     for lnum, line in ipairs(lines) do
-      local col = fn.match(line, pattern)
-      if col ~= -1 then
-        matches[#matches+1] = lnum
-      end
+
+      local count = 1
+      repeat
+        local col = fn.match(line, pattern, 0, count)
+        if col ~= -1 then
+          matches[#matches+1] = lnum
+        end
+        if count > 6 then
+          break
+        end
+        count = count + 1
+      until col == -1
     end
   end
 
@@ -108,8 +116,9 @@ require('scrollview.handlers').register('search', function(bufnr)
   for _, lnum in ipairs(matches) do
     marks[#marks+1] = {
       lnum = lnum,
-      symbol = {'-', '=', '≡'},
-      highlight = lnum == cursor_lnum and 'SearchCurrent' or 'SearchSV'
+      -- symbol = {'-', '=', '≡'},
+      symbol = {'⠂', '⠅', '⠇', '⠗', '⠟', '⠿'},
+      highlight = lnum == cursor_lnum and 'SearchCurrent' or 'SearchSV',
     }
   end
   return marks

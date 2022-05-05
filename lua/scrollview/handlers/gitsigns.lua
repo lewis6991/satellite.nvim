@@ -20,13 +20,14 @@ require('scrollview.handlers').register('gitsigns', function(bufnr)
   local hunks = require'gitsigns'.get_hunks(bufnr)
   for _, hunk in ipairs(hunks or {}) do
     for i = hunk.added.start, hunk.added.start+ math.max(0, hunk.added.count - 1) do
-      local hl = hunk.type == 'add'    and 'GitSignsAddInline' or
+      local hl = hunk.type == 'add'    and 'GitSignsAdd' or
                  hunk.type == 'delete' and 'GitSignsDelete' or
-                                           'GitSignsChangeInline'
+                                           'GitSignsChange'
       marks[#marks+1] = {
         lnum = math.max(1, i),
-        symbol = hunk.type == 'delete' and '-' or ' ',
-        highlight = hl
+        symbol = hunk.type == 'delete' and '-' or '│',
+        highlight = hl,
+        col = 0,
       }
     end
   end
