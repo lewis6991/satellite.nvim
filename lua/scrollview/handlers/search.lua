@@ -1,6 +1,8 @@
 local api = vim.api
 local fn = vim.fn
 
+local util = require'scrollview.util'
+
 ---@class CacheElem
 ---@field changedtick integer
 ---@field pattern string
@@ -8,19 +10,6 @@ local fn = vim.fn
 
 ---@type table<integer, CacheElem>
 local cache = {}
-
-local function debounce_trailing(f, ms)
-  local timer = vim.loop.new_timer()
-  return function(...)
-    local argv = {...}
-    timer:start(ms or 100, 0, function()
-      vim.schedule(function()
-        timer:stop()
-        f(unpack(argv))
-      end)
-    end)
-  end
-end
 
 local function is_search_mode()
   if vim.o.incsearch
@@ -80,7 +69,7 @@ local group = api.nvim_create_augroup('scrollview_search', {})
 api.nvim_create_autocmd('CmdlineChanged', {
   group = group,
   -- Debounce as this is triggered very often
-  callback = debounce_trailing(update)
+  callback = util.debounce_trailing(update)
 })
 
 api.nvim_create_autocmd({'CmdlineEnter', 'CmdlineLeave'}, {

@@ -229,7 +229,7 @@ local function render_bar(bbufnr, winid, row, height, winheight)
         hl_mode = 'combine'
       })
       if not ok then
-        print(string.format('%d ROW: %d', handler.name, pos-1))
+        print(string.format('%s ROW: %d', handler.name, pos-1))
         print(err)
       end
     end
@@ -844,6 +844,7 @@ end
 function M.setup()
   require('scrollview.handlers.diagnostic')
   require('scrollview.handlers.search')
+  require('scrollview.handlers.gitsigns')
 
   apply_keymaps()
 
