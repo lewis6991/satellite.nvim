@@ -117,6 +117,17 @@ local function visible_line_range(winid)
   end))
 end
 
+local function defaulttable()
+  return setmetatable({}, {
+    __index = function(tbl, k)
+      tbl[k] = defaulttable()
+      return tbl[k]
+    end
+  })
+end
+
+local virtual_line_count_cache = defaulttable()
+
 -- Returns the count of virtual lines between the specified start and end lines
 -- (both inclusive), in the specified window. A closed fold counts as one
 -- virtual line. The computation loops over either lines or virtual spans, so
@@ -125,6 +136,12 @@ local function virtual_line_count(winid, start, vend)
   if not vend then
     vend = api.nvim_buf_line_count(api.nvim_win_get_buf(winid))
   end
+
+  local cached = rawget(virtual_line_count_cache[winid][start], vend)
+  if cached then
+    return cached
+  end
+
   return api.nvim_win_call(winid, function()
     local count = 0
     local line = start
@@ -136,6 +153,7 @@ local function virtual_line_count(winid, start, vend)
       end
       line = line + 1
     end
+    virtual_line_count_cache[winid][start][vend] = count
     return count
   end)
 end
@@ -225,11 +243,8 @@ local function calculate_position(winid)
 end
 
 local function lnum_to_barpos(winid, lnum)
-  -- For virtual mode or an unknown mode, update effective_topline and
-  -- effective_line_count to correspond to virtual lines, which account for
-  -- closed folds.
-  local effective_row = virtual_line_count(winid, 1, lnum)
   local effective_line_count = virtual_line_count(winid, 1)
+  local effective_row = virtual_line_count(winid, 1, lnum)
   local winheight = api.nvim_win_get_height(winid)
   -- top is the position for the top of the scrollbar, relative to the window,
   -- and 0-indexed.
@@ -662,6 +677,14 @@ local function enable()
     callback = M.refresh_bars
   })
 
+  api.nvim_create_autocmd({'TextChangedI', 'TextChangedI'}, {
+    group = gid,
+    callback = function()
+      local cwin = api.nvim_get_current_win()
+      virtual_line_count_cache[cwin] = nil
+    end
+  })
+
   M.refresh_bars()
 end
 
@@ -900,6 +923,8 @@ local function apply_keymaps()
     'zx', 'zX', 'zm', 'zM', 'zr', 'zR', 'zn', 'zN', 'zi'
   } do
     keymap({'n', 'v'}, seq, function()
+      local cwin = api.nvim_get_current_win()
+      virtual_line_count_cache[cwin] = nil
       vim.schedule(refresh)
       return seq
     end, {unique = true, expr=true})
