@@ -105,9 +105,6 @@ end
 local function visible_line_range(winid)
   -- WARN: getwininfo(winid)[1].botline is not properly updated for some
   -- movements (Neovim Issue #13510), so this is implemeneted as a workaround.
-  -- Using scrolloff=0 combined with H and L breaks diff mode. Scrolling is not
-  -- possible and/or the window scrolls when it shouldn't. Temporarily turning
-  -- off scrollbind and cursorbind accommodates, but the following is simpler.
   return unpack(api.nvim_win_call(winid, function()
     local topline = fn.line('w0')
     -- line('w$') returns 0 in silent Ex mode, but line('w0') is always greater
@@ -210,52 +207,11 @@ local function virtual_topline_lookup()
   return result
 end
 
--- Calculates the bar position for the specified window.
--- Returns height and row
-local function calculate_position(winid)
-  local bufnr = api.nvim_win_get_buf(winid)
-  local topline, botline = visible_line_range(winid)
-  local line_count = api.nvim_buf_line_count(bufnr)
-  -- For virtual mode or an unknown mode, update effective_topline and
-  -- effective_line_count to correspond to virtual lines, which account for
-  -- closed folds.
-  local effective_topline = virtual_line_count(winid, 1, topline- 1) + 1
-  local effective_line_count = virtual_line_count(winid, 1)
-  local winheight = api.nvim_win_get_height(winid)
-  -- top is the position for the top of the scrollbar, relative to the window,
-  -- and 0-indexed.
-  local top = (effective_topline - 1) / (effective_line_count - 1)
-  top = round((winheight - 1) * top)
-
-  local height = winheight / effective_line_count
-  height = math.ceil(height * winheight)
-  height = math.max(1, height)
-
-  -- Make sure bar properly reflects bottom of document.
-  if botline == line_count then
-    top = winheight - height
-  end
-  -- Make sure bar never overlaps status line.
-  if top + height > winheight then
-    top = winheight - height
-  end
-  return height, top + 1
-end
-
-local function lnum_to_barpos(winid, lnum)
-  local effective_line_count = virtual_line_count(winid, 1)
-  local effective_row = virtual_line_count(winid, 1, lnum)
-  local winheight = api.nvim_win_get_height(winid)
-  -- top is the position for the top of the scrollbar, relative to the window,
-  -- and 0-indexed.
-  local row = (effective_row - 1) / (effective_line_count - 1)
-  row = round((winheight - 1) * row)
-
-  local height = winheight / effective_line_count
-  height = math.ceil(height * winheight)
-  height = math.max(1, height)
-
-  return row + 1
+local function row_to_barpos(winid, row)
+  local vlinecount0 = virtual_line_count(winid, 1) - 1
+  local vrow = virtual_line_count(winid, 1, row)
+  local winheight0 = api.nvim_win_get_height(winid) - 1
+  return round(winheight0 * vrow / vlinecount0)
 end
 
 local ns = api.nvim_create_namespace('scrollview')
@@ -297,13 +253,13 @@ local function render_bar(bbufnr, winid, row, height, winheight)
     if not handler_config or handler_config.enable then
       local positions = {}
       for _, m in ipairs(handler.callback(bufnr)) do
-        local pos = lnum_to_barpos(winid, m.lnum)
+        local pos = row_to_barpos(winid, m.lnum-1)
         positions[pos] = (positions[pos] or 0) + 1
         local symbol = get_symbol(positions[pos], m.symbol)
 
         local mcol = user_config.width == 2 and (m.col or 1) or 0
 
-        local ok, err = pcall(api.nvim_buf_set_extmark, bbufnr, handler.ns, pos-1, mcol, {
+        local ok, err = pcall(api.nvim_buf_set_extmark, bbufnr, handler.ns, pos, mcol, {
           id = pos,
           virt_text = {{symbol, m.highlight}},
           virt_text_pos = 'overlay',
@@ -311,7 +267,7 @@ local function render_bar(bbufnr, winid, row, height, winheight)
           priority = positions[pos]
         })
         if not ok then
-          print(string.format('%s ROW: %d', handler.name, pos-1))
+          print(string.format('%s ROW: %d', handler.name, pos))
           print(err)
         end
       end
@@ -354,7 +310,11 @@ local function show_scrollbar(winid)
     return
   end
 
-  local height, row = calculate_position(winid)
+  local toprow = row_to_barpos(winid, topline - 1)
+  local botrow = row_to_barpos(winid, botline - 1)
+
+  local height = botrow - toprow
+
   if not bar_bufnr or not fn.bufexists(bar_bufnr) then
     bar_bufnr = api.nvim_create_buf(false, true)
     for op, val in pairs{
@@ -380,7 +340,7 @@ local function show_scrollbar(winid)
     zindex = user_config.zindex,
   }
 
-  render_bar(bar_bufnr, winid, row, height, winheight)
+  render_bar(bar_bufnr, winid, toprow+1, height, winheight)
 
   local bar_winid = sv_winids[winid]
 
@@ -401,7 +361,7 @@ local function show_scrollbar(winid)
   end
 
   vim.w[bar_winid].height = height
-  vim.w[bar_winid].row = row
+  vim.w[bar_winid].row = toprow
 
   return true
 end
