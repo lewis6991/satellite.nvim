@@ -450,7 +450,7 @@ local function read_input_stream()
     -- Check v:mouse_winid to see if there was a mouse event. Even for clicks
     -- on the command line, where getmousepos().winid could be zero,
     -- v:mousewinid is non-zero.
-    if vim.v.mouse_winid ~= 0 and fn.exists('*getmousepos') ~= 0 then
+    if vim.v.mouse_winid ~= 0 then
       mouse_winid = vim.v.mouse_winid
       local mousepos = fn.getmousepos()
       mouse_row = mousepos.winrow
@@ -465,7 +465,8 @@ local function read_input_stream()
       -- window covering the tabline, mousepos.winid will be set to that
       -- floating window's winid. Otherwise, mousepos.winid would correspond to
       -- an ordinary window ID (seemingly for the window below the tabline).
-      if fn.win_screenpos(1) == {2, 1}  -- Checks for presence of a tabline.
+      local screenpos = fn.win_screenpos(1)
+      if screenpos[1] == 2 and screenpos[2] == 1  -- Checks for presence of a tabline.
           and mousepos.screenrow == 1
           and is_ordinary_window(mousepos.winid) then
         mouse_winid = -2
