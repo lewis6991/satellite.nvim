@@ -85,17 +85,24 @@ api.nvim_create_autocmd({'CmdlineEnter', 'CmdlineLeave'}, {
   callback = update
 })
 
+
 -- Clear matches and refresh when :nohl is run
-api.nvim_create_autocmd({'CmdlineLeave'}, {
-  group = group,
-  callback = function()
-    if fn.getcmdtype() == ':'
-        and vim.startswith(fn.getcmdline(), 'nohl') then
-      update_matches(api.nvim_get_current_buf(), '')
-      require('scrollview').refresh_bars()
+local function on_cmd(cmd, f)
+  api.nvim_create_autocmd({'CmdlineLeave'}, {
+    group = group,
+    callback = function()
+      if fn.getcmdtype() == ':'
+        and vim.startswith(fn.getcmdline(), cmd) then
+        f()
+      end
     end
-  end
-})
+  })
+end
+
+on_cmd('nohl', function()
+  update_matches(api.nvim_get_current_buf(), '')
+  require('scrollview').refresh_bars()
+end)
 
 -- Refresh when activating search nav mappings
 for _, seq in ipairs{'n', 'N', '&', '*'} do
