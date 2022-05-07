@@ -56,9 +56,6 @@ local M = {}
 -- for multiple windows. This also prevents the buffer list from getting high
 -- from usage of the plugin.
 
--- bar_bufnr has the bufnr of the buffer created for a position bar.
-local bar_bufnr
-
 local sv_winids = {}
 
 -- Round to the nearest integer.
@@ -233,12 +230,14 @@ local function render_bar(bbufnr, winid, row, height, winheight)
     lines[i] = string.rep(' ', user_config.width)
   end
 
+  vim.bo[bbufnr].modifiable = true
   api.nvim_buf_set_lines(bbufnr, 0, -1, true, lines)
+  vim.bo[bbufnr].modifiable = false
 
   local col = user_config.width == 2 and 1 or 0
 
   for i = row, row+height do
-    pcall(api.nvim_buf_set_extmark, bbufnr, ns, i-1, col, {
+    pcall(api.nvim_buf_set_extmark, bbufnr, ns, i, col, {
       virt_text = { {' ', 'ScrollView'} },
       virt_text_pos = 'overlay',
       priority = 1,
@@ -276,6 +275,27 @@ local function render_bar(bbufnr, winid, row, height, winheight)
 
 end
 
+local function create_view(config)
+  local bufnr = api.nvim_create_buf(false, true)
+  vim.bo[bufnr].modifiable = false
+  vim.bo[bufnr].buftype = 'nofile'
+  vim.bo[bufnr].swapfile = false
+  vim.bo[bufnr].bufhidden = 'delete'
+  vim.bo[bufnr].buflisted = false
+
+  local winid = api.nvim_open_win(bufnr, false, config)
+
+  -- It's not sufficient to just specify Normal highlighting. With just that, a
+  -- color scheme's specification of EndOfBuffer would be used to color the
+  -- bottom of the scrollbar.
+  vim.wo[winid].winhighlight = 'Normal:Normal'
+  vim.wo[winid].winblend = user_config.winblend
+  vim.wo[winid].foldcolumn = '0'
+  vim.wo[winid].wrap = false
+
+  return bufnr, winid
+end
+
 -- Show a scrollbar for the specified 'winid' window ID, using the specified
 -- 'bar_winid' floating window ID (a new floating window will be created if
 -- this is -1). Returns -1 if the bar is not shown, and the floating window ID
@@ -304,64 +324,50 @@ local function show_scrollbar(winid)
   end
 
   local line_count = api.nvim_buf_line_count(bufnr)
+
   -- Don't show the position bar when all lines are on screen.
   local topline, botline = visible_line_range(winid)
   if botline - topline + 1 == line_count then
     return
   end
 
+  -- Invalidate
+  virtual_line_count_cache[winid] = nil
+
   local toprow = row_to_barpos(winid, topline - 1)
   local botrow = row_to_barpos(winid, botline - 1)
 
   local height = botrow - toprow
 
-  if not bar_bufnr or not fn.bufexists(bar_bufnr) then
-    bar_bufnr = api.nvim_create_buf(false, true)
-    for op, val in pairs{
-      -- modifiable = false,
-      buftype = 'nofile',
-      swapfile = false,
-      bufhidden = 'hide',
-      buflisted = false,
-    } do
-      vim.bo[bar_bufnr][op] = val
-    end
-  end
-
   local config = {
     win = winid,
     relative = 'win',
-    focusable = false,
     style = 'minimal',
+    focusable = false,
+    zindex = user_config.zindex,
     height = winheight,
     width = user_config.width,
     row = 0,
     col = winwidth - user_config.width,
-    zindex = user_config.zindex,
   }
 
-  render_bar(bar_bufnr, winid, toprow+1, height, winheight)
-
   local bar_winid = sv_winids[winid]
+  local bar_bufnr
 
   if bar_winid and api.nvim_win_is_valid(bar_winid) then
     api.nvim_win_set_config(bar_winid, config)
+    bar_bufnr = api.nvim_win_get_buf(bar_winid)
   else
     config.noautocmd = true
-    bar_winid = api.nvim_open_win(bar_bufnr, false, config)
-    -- It's not sufficient to just specify Normal highlighting. With just that, a
-    -- color scheme's specification of EndOfBuffer would be used to color the
-    -- bottom of the scrollbar.
-    vim.wo[bar_winid].winhighlight = 'Normal:Normal'
-    vim.wo[bar_winid].winblend = user_config.winblend
-    vim.wo[bar_winid].foldcolumn = '0'  -- foldcolumn takes a string
-    vim.wo[bar_winid].wrap = false
-
+    bar_bufnr, bar_winid = create_view(config)
     sv_winids[winid] = bar_winid
   end
 
+  render_bar(bar_bufnr, winid, toprow, height, winheight)
+
   vim.w[bar_winid].height = height
   vim.w[bar_winid].row = toprow
+  vim.w[bar_winid].col = config.col
 
   return true
 end
@@ -389,7 +395,7 @@ local function noautocmd(f)
   vim.o.eventignore = eventignore
 end
 
-local function close_scrollview_window(winid)
+local function close_view_for_win(winid)
   local bar_winid = sv_winids[winid]
   if not api.nvim_win_is_valid(bar_winid) then
     return
@@ -534,38 +540,34 @@ end
 
 -- Returns scrollview properties for the specified window. An empty dictionary
 -- is returned if there is no corresponding scrollbar.
-local function get_scrollview_props(winid)
+local function get_props(winid)
   local bar_winid = sv_winids[winid]
   if not bar_winid then
     return
   end
 
-  local config = api.nvim_win_get_config(bar_winid)
   return {
     height = vim.w[bar_winid].height,
     row = vim.w[bar_winid].row,
-    col = config.col[false]
+    col = vim.w[bar_winid].col,
   }
 end
 
--- With no argument, remove all bars. Otherwise, remove the specified list of
--- bars. Global state is initialized and restored.
 function M.remove_bars()
   for id, _ in pairs(sv_winids) do
-    close_scrollview_window(id)
+    close_view_for_win(id)
   end
 end
 
 -- Refreshes scrollbars. Global state is initialized and restored.
 function M.refresh_bars()
   local target_wins
-
   if user_config.current_only then
     target_wins = { api.nvim_get_current_win() }
   else
     target_wins = {}
     for _, winid in ipairs(get_ordinary_windows()) do
-      table.insert(target_wins, winid)
+      target_wins[#target_wins+1] = winid
     end
   end
 
@@ -579,7 +581,7 @@ function M.refresh_bars()
   -- Close any remaining bars
   for winid, swinid in pairs(sv_winids) do
     if not vim.tbl_contains(current_wins, swinid) then
-      close_scrollview_window(winid)
+      close_view_for_win(winid)
     end
   end
 
@@ -635,14 +637,6 @@ local function enable()
   }, {
     group = gid,
     callback = M.refresh_bars
-  })
-
-  api.nvim_create_autocmd({'TextChangedI', 'TextChangedI'}, {
-    group = gid,
-    callback = function()
-      local cwin = api.nvim_get_current_win()
-      virtual_line_count_cache[cwin] = nil
-    end
   })
 
   M.refresh_bars()
@@ -758,7 +752,7 @@ local function handle_leftmouse()
           return
         end
 
-        local props = get_scrollview_props(mouse_winid)
+        local props = get_props(mouse_winid)
         if not props then
           return
         end
@@ -789,7 +783,7 @@ local function handle_leftmouse()
         -- restoring windows that may have had their windows shifted during the
         -- course of scrollbar clicking/dragging, to prevent jumpiness in the
         -- display.
-        props = get_scrollview_props(mouse_winid)
+        props = get_props(mouse_winid)
         if not props then
           return
         end
@@ -818,12 +812,11 @@ local function handle_leftmouse()
         local winrow = fn.getwininfo(winid)[1].winrow
         local window_offset = mouse_winrow - winrow
         local row = mouse_row + window_offset + scrollbar_offset
-        local props = get_scrollview_props(winid)
+        local props = get_props(winid)
         if not props then
           return
         end
-        row = math.min(row, winheight - props.height + 1)
-        row = math.max(1, row)
+        row = math.max(1, math.min(row, winheight - props.height + 1))
         -- Only update scrollbar if the row changed.
         if previous_row ~= row then
           local topline
@@ -883,8 +876,6 @@ local function apply_keymaps()
     'zx', 'zX', 'zm', 'zM', 'zr', 'zR', 'zn', 'zN', 'zi'
   } do
     keymap({'n', 'v'}, seq, function()
-      local cwin = api.nvim_get_current_win()
-      virtual_line_count_cache[cwin] = nil
       vim.schedule(refresh)
       return seq
     end, {unique = true, expr=true})
