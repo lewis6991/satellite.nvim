@@ -21,6 +21,9 @@ local function is_search_mode()
   return false
 end
 
+local MAX_THRESHOLD1 = 500
+local MAX_THRESHOLD2 = 1000
+
 ---@param bufnr integer
 ---@param pattern? string
 ---@return integer[]
@@ -44,11 +47,15 @@ local function update_matches(bufnr, pattern)
         if col ~= -1 then
           matches[#matches+1] = lnum
         end
-        if count > 6 or #matches > 1000 then
+        local max_count = #matches < MAX_THRESHOLD1 and 6 or 1
+        if count > max_count then
           break
         end
         count = count + 1
       until col == -1
+      if #matches > MAX_THRESHOLD2 then
+        break
+      end
     end
   end
 
