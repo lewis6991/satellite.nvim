@@ -259,7 +259,7 @@ local function render_bar(bbufnr, winid, row, height, winheight)
         local mcol = user_config.width == 2 and (m.col or 1) or 0
 
         local ok, err = pcall(api.nvim_buf_set_extmark, bbufnr, handler.ns, pos, mcol, {
-          id = pos,
+          id = pos+1,
           virt_text = {{symbol, m.highlight}},
           virt_text_pos = 'overlay',
           hl_mode = 'combine',
@@ -296,6 +296,18 @@ local function create_view(config)
   return bufnr, winid
 end
 
+local function in_cmdline_win(winid)
+  winid = winid or api.nvim_get_current_win()
+  if not api.nvim_win_is_valid(winid) then
+    return false
+  end
+  if fn.win_gettype(winid) == 'command' then
+    return true
+  end
+  local bufnr = api.nvim_win_get_buf(winid)
+  return api.nvim_buf_get_name(bufnr) == '[Command Line]'
+end
+
 -- Show a scrollbar for the specified 'winid' window ID, using the specified
 -- 'bar_winid' floating window ID (a new floating window will be created if
 -- this is -1). Returns -1 if the bar is not shown, and the floating window ID
@@ -314,6 +326,10 @@ local function show_scrollbar(winid)
   -- Don't show in terminal mode, since the bar won't be properly updated for
   -- insertions.
   if wininfo.terminal ~= 0 then
+    return
+  end
+
+  if in_cmdline_win(winid) then
     return
   end
 
@@ -398,6 +414,9 @@ end
 local function close_view_for_win(winid)
   local bar_winid = sv_winids[winid]
   if not api.nvim_win_is_valid(bar_winid) then
+    return
+  end
+  if in_cmdline_win(winid) then
     return
   end
   noautocmd(function()
@@ -607,6 +626,25 @@ local function enable()
   -- alternatively :tabclose can be used (or one of the alternatives handled
   -- with the autocmd, like ZQ).
   api.nvim_create_autocmd('QuitPre', { group = gid, callback = M.remove_bars })
+
+  -- For the duration of command-line window usage, there should be no bars.
+  -- Without this, bars can possibly overlap the command line window. This
+  -- can be problematic particularly when there is a vertical split with the
+  -- left window's bar on the bottom of the screen, where it would overlap
+  -- with the center of the command line window. It was not possible to use
+  -- CmdwinEnter, since the removal has to occur prior to that event. Rather,
+  -- this is triggered by the WinEnter event, just prior to the relevant
+  -- funcionality becoming unavailable.
+  --
+  -- Remove scrollbars if in cmdlnie. This fails when called from the
+  -- CmdwinEnter event (some functionality, like nvim_win_close, cannot be
+  -- used from the command line window), but works during the transition to
+  -- the command line window (from the WinEnter event).
+  api.nvim_create_autocmd('WinEnter', {group = gid, callback = function()
+    if in_cmdline_win() then
+      M.remove_bars()
+    end
+  end})
 
   -- === Scrollbar Refreshing ===
   api.nvim_create_autocmd({
