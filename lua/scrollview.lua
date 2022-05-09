@@ -341,6 +341,10 @@ local function show_scrollbar(winid)
 
   local line_count = api.nvim_buf_line_count(bufnr)
 
+  if line_count == 0 then
+    return
+  end
+
   -- Don't show the position bar when all lines are on screen.
   local topline, botline = visible_line_range(winid)
   if botline - topline + 1 == line_count then
@@ -604,8 +608,6 @@ function M.refresh_bars()
       close_view_for_win(winid)
     end
   end
-
-  vim.cmd'redraw'
 end
 
 local function enable()
