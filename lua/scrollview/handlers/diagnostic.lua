@@ -19,8 +19,8 @@ require('scrollview.handlers').register('diagnostics', function(bufnr)
   for _, diag in ipairs(diags) do
     marks[#marks+1] = {
       lnum = diag.lnum + 1,
-      -- symbol = {'─', '═'},
-      symbol = {'⠂', '⠅', '⠇', '⠗', '⠟', '⠿'},
+      symbol = {'-', '=', '≡'},
+      -- symbol = {'⠂', '⠅', '⠇', '⠗', '⠟', '⠿'},
       highlight = diagnostic_hls[diag.severity]
     }
   end

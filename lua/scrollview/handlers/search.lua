@@ -44,7 +44,7 @@ local function update_matches(bufnr, pattern)
         if col ~= -1 then
           matches[#matches+1] = lnum
         end
-        if count > 6 then
+        if count > 6 or #matches > 1000 then
           break
         end
         count = count + 1
@@ -125,8 +125,16 @@ require('scrollview.handlers').register('search', function(bufnr)
       lnum = lnum,
       -- symbol = {'-', '=', '≡'},
       symbol = {'⠂', '⠅', '⠇', '⠗', '⠟', '⠿'},
-      highlight = lnum == cursor_lnum and 'SearchCurrent' or 'SearchSV',
+      highlight = 'SearchSV',
     }
+    if lnum == cursor_lnum then
+      marks[#marks+1] = {
+        lnum      = lnum,
+        symbol    = ' ',
+        highlight = 'SearchCurrent',
+        unique    = true,
+      }
+    end
   end
   return marks
 end)

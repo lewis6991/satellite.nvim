@@ -85,17 +85,6 @@ local function is_ordinary_window(winid)
   return not_external and not_floating
 end
 
--- Returns a list of window IDs for the ordinary windows.
-local function get_ordinary_windows()
-  local ret = {}
-  for _, winid in ipairs(api.nvim_list_wins()) do
-    if is_ordinary_window(winid) then
-      table.insert(ret, winid)
-    end
-  end
-  return ret
-end
-
 -- Return top line and bottom line in window. For folds, the top line
 -- represents the start of the fold and the bottom line represents the end of
 -- the fold.
@@ -259,7 +248,7 @@ local function render_bar(bbufnr, winid, row, height, winheight)
         local mcol = user_config.width == 2 and (m.col or 1) or 0
 
         local ok, err = pcall(api.nvim_buf_set_extmark, bbufnr, handler.ns, pos, mcol, {
-          id = pos+1,
+          id = not m.unique and pos+1 or nil,
           virt_text = {{symbol, m.highlight}},
           virt_text_pos = 'overlay',
           hl_mode = 'combine',
@@ -583,20 +572,26 @@ function M.remove_bars()
   end
 end
 
--- Refreshes scrollbars. Global state is initialized and restored.
-function M.refresh_bars()
+local function get_target_windows()
   local target_wins
   if user_config.current_only then
     target_wins = { api.nvim_get_current_win() }
   else
     target_wins = {}
-    for _, winid in ipairs(get_ordinary_windows()) do
-      target_wins[#target_wins+1] = winid
+    local current_tab = api.nvim_get_current_tabpage()
+    for _, winid in ipairs(api.nvim_list_wins()) do
+      if is_ordinary_window(winid) and api.nvim_win_get_tabpage(winid) == current_tab then
+        target_wins[#target_wins+1] = winid
+      end
     end
   end
+  return target_wins
+end
 
+-- Refreshes scrollbars. Global state is initialized and restored.
+function M.refresh_bars()
   local current_wins = {}
-  for _, winid in ipairs(target_wins) do
+  for _, winid in ipairs(get_target_windows()) do
     if show_scrollbar(winid) then
       current_wins[#current_wins+1] = winids[winid]
     end
