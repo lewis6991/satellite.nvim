@@ -48,7 +48,7 @@ local user_config = {
   width = 2,
 }
 
-local scrollview_enabled = false
+local view_enabled = false
 
 local M = {}
 
@@ -56,7 +56,7 @@ local M = {}
 -- for multiple windows. This also prevents the buffer list from getting high
 -- from usage of the plugin.
 
-local sv_winids = {}
+local winids = {}
 
 -- Round to the nearest integer.
 -- WARN: .5 rounds to the right on the number line, including for negatives
@@ -80,20 +80,20 @@ end
 -- otherwise.
 local function is_ordinary_window(winid)
   local config = api.nvim_win_get_config(winid)
-  local not_external = not config.external
-  local not_floating = config.relative == ''
+  local not_external = not config['external']
+  local not_floating = config['relative'] == ''
   return not_external and not_floating
 end
 
 -- Returns a list of window IDs for the ordinary windows.
 local function get_ordinary_windows()
-  local winids = {}
+  local ret = {}
   for _, winid in ipairs(api.nvim_list_wins()) do
     if is_ordinary_window(winid) then
-      table.insert(winids, winid)
+      table.insert(ret, winid)
     end
   end
-  return winids
+  return ret
 end
 
 -- Return top line and bottom line in window. For folds, the top line
@@ -371,7 +371,7 @@ local function show_scrollbar(winid)
     col = winwidth - user_config.width,
   }
 
-  local bar_winid = sv_winids[winid]
+  local bar_winid = winids[winid]
   local bar_bufnr
 
   if bar_winid and api.nvim_win_is_valid(bar_winid) then
@@ -380,7 +380,7 @@ local function show_scrollbar(winid)
   else
     config.noautocmd = true
     bar_bufnr, bar_winid = create_view(config)
-    sv_winids[winid] = bar_winid
+    winids[winid] = bar_winid
   end
 
   render_bar(bar_bufnr, winid, toprow, height, winheight)
@@ -396,7 +396,7 @@ end
 -- The row is adjusted (up in value, down in visual position) such that the full
 -- height of the scrollbar remains on screen.
 local function move_scrollbar(winid, row)
-  local bar_winid = sv_winids[winid]
+  local bar_winid = winids[winid]
   if not bar_winid then
     -- Can happen if mouse is dragged over other floating windows
     return
@@ -416,7 +416,7 @@ local function noautocmd(f)
 end
 
 local function close_view_for_win(winid)
-  local bar_winid = sv_winids[winid]
+  local bar_winid = winids[winid]
   if not api.nvim_win_is_valid(bar_winid) then
     return
   end
@@ -426,7 +426,7 @@ local function close_view_for_win(winid)
   noautocmd(function()
     api.nvim_win_close(bar_winid, true)
   end)
-  sv_winids[winid] = nil
+  winids[winid] = nil
 end
 
 -- Get input characters---including mouse clicks and drags---from the input
@@ -562,10 +562,10 @@ local function set_topline(winid, linenr)
   end)
 end
 
--- Returns scrollview properties for the specified window. An empty dictionary
+-- Returns view properties for the specified window. An empty dictionary
 -- is returned if there is no corresponding scrollbar.
 local function get_props(winid)
-  local bar_winid = sv_winids[winid]
+  local bar_winid = winids[winid]
   if not bar_winid then
     return
   end
@@ -578,7 +578,7 @@ local function get_props(winid)
 end
 
 function M.remove_bars()
-  for id, _ in pairs(sv_winids) do
+  for id, _ in pairs(winids) do
     close_view_for_win(id)
   end
 end
@@ -598,12 +598,12 @@ function M.refresh_bars()
   local current_wins = {}
   for _, winid in ipairs(target_wins) do
     if show_scrollbar(winid) then
-      current_wins[#current_wins+1] = sv_winids[winid]
+      current_wins[#current_wins+1] = winids[winid]
     end
   end
 
   -- Close any remaining bars
-  for winid, swinid in pairs(sv_winids) do
+  for winid, swinid in pairs(winids) do
     if not vim.tbl_contains(current_wins, swinid) then
       close_view_for_win(winid)
     end
@@ -611,7 +611,7 @@ function M.refresh_bars()
 end
 
 local function enable()
-  scrollview_enabled = true
+  view_enabled = true
 
   local gid = api.nvim_create_augroup('scrollview', {})
 
@@ -684,13 +684,13 @@ local function enable()
 end
 
 local function disable()
-  scrollview_enabled = false
+  view_enabled = false
   api.nvim_create_augroup('scrollview', {})
   M.remove_bars()
 end
 
 local function refresh()
-  if scrollview_enabled then
+  if view_enabled then
     M.refresh_bars()
   end
 end
@@ -702,8 +702,8 @@ local function handle_leftmouse()
   -- Re-send the click, so its position can be obtained through
   -- read_input_stream().
   fn.feedkeys(MOUSEDOWN, 'ni')
-  if not scrollview_enabled then
-    -- nvim-scrollview is disabled. Process the click as it would ordinarily be
+  if not view_enabled then
+    -- disabled. Process the click as it would ordinarily be
     -- processed
     return
   end
@@ -894,7 +894,7 @@ function M.zf_operator(type)
   -- results in the cursor moving to the beginning of the line for zfl, which
   -- should not move the cursor. Separate handling for 'line' is needed since
   -- e.g., with 'char' handling, zfG won't include the last line in the fold if
-  -- the cursor gets positioned on the first character.
+    vim.o.operatorfunc = 'v:lua:package.loaded.scrollview.zf_operator<cr>g@'
   if type == 'char' then
     vim.cmd"silent normal! `[zf`]"
   elseif type == 'line' then
@@ -906,24 +906,24 @@ function M.zf_operator(type)
 end
 
 local function apply_keymaps()
-  local keymap = vim.keymap.set
-
   -- === Fold command synchronization workarounds ===
   -- zf takes a motion in normal mode, so it requires a g@ mapping.
-  keymap('n', 'zf', '<cmd>set operatorfunc=v:lua:package.loaded.scrollview.zf_operator<cr>g@', {unique = true})
+  vim.keymap.set('n', 'zf', function()
+    vim.o.operatorfunc = 'v:lua:package.loaded.scrollview.zf_operator'
+    return 'g@'
+  end, {unique = true})
 
   for _, seq in ipairs{
     'zF', 'zd', 'zD', 'zE', 'zo', 'zO', 'zc', 'zC', 'za', 'zA', 'zv',
     'zx', 'zX', 'zm', 'zM', 'zr', 'zR', 'zn', 'zN', 'zi'
   } do
-    keymap({'n', 'v'}, seq, function()
+    vim.keymap.set({'n', 'v'}, seq, function()
       vim.schedule(refresh)
       return seq
     end, {unique = true, expr=true})
   end
 
-  keymap({'n', 'v', 'o', 'i'}, '<leftmouse>', handle_leftmouse)
-
+  vim.keymap.set({'n', 'v', 'o', 'i'}, '<leftmouse>', handle_leftmouse)
 end
 
 function M.setup(config)
