@@ -28,7 +28,7 @@ function M.register(spec)
     end
   end
 
-  spec.ns = vim.api.nvim_create_namespace('scrollview.Handler.'..spec.name)
+  spec.ns = vim.api.nvim_create_namespace('satellite.Handler.'..spec.name)
   table.insert(M.handlers, spec)
 end
 

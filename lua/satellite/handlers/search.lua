@@ -1,7 +1,7 @@
 local api = vim.api
 local fn = vim.fn
 
-local util = require'scrollview.util'
+local util = require'satellite.util'
 
 ---@class CacheElem
 ---@field changedtick integer
@@ -71,7 +71,7 @@ end
 local function refresh()
   if is_search_mode() then
     update_matches(api.nvim_get_current_buf(), fn.getcmdline())
-    require('scrollview').refresh_bars()
+    require('satellite').refresh_bars()
   end
 end
 
@@ -98,7 +98,7 @@ function handler.init()
       fg = api.nvim_get_hl_by_name('Search', true).background
     })
 
-    local group = api.nvim_create_augroup('scrollview_search', {})
+    local group = api.nvim_create_augroup('satellite_search', {})
 
     api.nvim_create_autocmd('CmdlineChanged', {
       group = group,
@@ -113,7 +113,7 @@ function handler.init()
 
   on_cmd('nohl', group, function()
     update_matches(api.nvim_get_current_buf(), '')
-    require('scrollview').refresh_bars()
+    require('satellite').refresh_bars()
   end)
 
   -- Refresh when activating search nav mappings
@@ -123,7 +123,7 @@ function handler.init()
         ---@diagnostic disable-next-line: missing-parameter
         local pattern = vim.v.hlsearch == 1 and fn.getreg('/') or ''
         update_matches(api.nvim_get_current_buf(), pattern)
-        require('scrollview').refresh_bars()
+        require('satellite').refresh_bars()
       end)
       return seq
     end, {expr = true})
@@ -153,4 +153,4 @@ function handler.update(bufnr)
   return marks
 end
 
-require('scrollview.handlers').register(handler)
+require('satellite.handlers').register(handler)

@@ -142,7 +142,7 @@ local function virtual_line_count(winid, start, vend)
 end
 
 -- Returns an array that maps window rows to the topline that corresponds to a
--- scrollbar at that row under virtual scrollview mode, in the current window.
+-- scrollbar at that row under virtual satellite mode, in the current window.
 -- The computation primarily loops over lines, but may loop over virtual spans
 -- as part of calling 'virtual_line_count', so the cursor may be moved.
 local function virtual_topline_lookup()
@@ -200,7 +200,7 @@ local function row_to_barpos(winid, row)
   return round(winheight0 * vrow / vlinecount0)
 end
 
-local ns = api.nvim_create_namespace('scrollview')
+local ns = api.nvim_create_namespace('satellite')
 
 local function get_symbol(count, s)
   if type(s) == 'string' then
@@ -235,7 +235,7 @@ local function render_bar(bbufnr, winid, row, height, winheight)
 
   -- Run handlers
   local bufnr = api.nvim_win_get_buf(winid)
-  for _, handler in ipairs(require('scrollview.handlers').handlers) do
+  for _, handler in ipairs(require('satellite.handlers').handlers) do
     local name = handler.name
     local handler_config = user_config.handlers[name]
     if not handler_config or handler_config.enable then
@@ -608,7 +608,7 @@ end
 local function enable()
   view_enabled = true
 
-  local gid = api.nvim_create_augroup('scrollview', {})
+  local gid = api.nvim_create_augroup('satellite', {})
 
   -- The following error can arise when the last window in a tab is going to
   -- be closed, but there are still open floating windows, and at least one
@@ -680,7 +680,7 @@ end
 
 local function disable()
   view_enabled = false
-  api.nvim_create_augroup('scrollview', {})
+  api.nvim_create_augroup('satellite', {})
   M.remove_bars()
 end
 
@@ -889,7 +889,7 @@ function M.zf_operator(type)
   -- results in the cursor moving to the beginning of the line for zfl, which
   -- should not move the cursor. Separate handling for 'line' is needed since
   -- e.g., with 'char' handling, zfG won't include the last line in the fold if
-    vim.o.operatorfunc = 'v:lua:package.loaded.scrollview.zf_operator<cr>g@'
+    vim.o.operatorfunc = 'v:lua:package.loaded.satellite.zf_operator<cr>g@'
   if type == 'char' then
     vim.cmd"silent normal! `[zf`]"
   elseif type == 'line' then
@@ -904,7 +904,7 @@ local function apply_keymaps()
   -- === Fold command synchronization workarounds ===
   -- zf takes a motion in normal mode, so it requires a g@ mapping.
   vim.keymap.set('n', 'zf', function()
-    vim.o.operatorfunc = 'v:lua:package.loaded.scrollview.zf_operator'
+    vim.o.operatorfunc = 'v:lua:package.loaded.satellite.zf_operator'
     return 'g@'
   end, {unique = true})
 
@@ -927,7 +927,7 @@ function M.setup(config)
   -- Load builtin handlers
   for _, name in ipairs(BUILTIN_HANDLERS) do
     if user_config.handlers[name].enable then
-      require('scrollview.handlers.'..name)
+      require('satellite.handlers.'..name)
     end
   end
 

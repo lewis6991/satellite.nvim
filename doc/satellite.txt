@@ -1,0 +1,127 @@
+*satellite.txt*   Satellite
+*satellite.nvim*
+
+Author:   Lewis Russell <lewis6991@gmail.com>
+Homepage: <https://github.com/lewis6991/satellite.nvim>
+License:  MIT license
+
+==============================================================================
+REQUIREMENTS                                          *satellite-requirements*
+
+* Scrollbar mouse dragging requires mouse support (see |'mouse'|) and
+  `nvim>=0.7`.
+
+==============================================================================
+USAGE                                                        *satellite-usage*
+
+For basic setup with all batteries included:
+>
+    require('satellite').setup()
+
+Configuration can be passed to the setup function. Here is an example with most
+of the default settings:
+>
+    require('satellite').setup {
+      current_only = false,
+      winblend = 50,
+      zindex = 40,
+      excluded_filetypes = {},
+      width = 2,
+      handlers = {
+        search = {
+          enable = true,
+        },
+        diagnostic = {
+          enable = true,
+        },
+        gitsigns = {
+          enable = true,
+        },
+      },
+    }
+<
+
+==============================================================================
+COMMANDS                                                  *satellite-commands*
+* The *:SatelliteDisable* command disables scrollbars.
+* The *:SatelliteEnable* command enables scrollbars. This is only necessary
+  if scrollbars have previously been disabled.
+* The *:SatelliteRefresh* command refreshes the scrollbars. This is relevant
+  when the scrollbars are out-of-sync, which can occur e.g., as a result of
+  some window arrangement actions.
+
+==============================================================================
+CONFIGURATION                                        *satellite-configuration*
+
+This section describes the configuration fields which can be passed to
+|satellite.setup()|.
+
+current_only                                   *satellite-config-current_only*
+        Type: `boolean`
+        Default: `false`
+
+        Whether satellite should only be displayed in the current window.
+
+excluded_filetypes                       *satellite-config-excluded_filetypes*
+        Type: `string[]`
+        Default: `[]`
+
+        File types for which scrollbars should not be displayed.
+
+winblend                                           *satellite-config-winblend*
+        Type: `integer`
+        Default: `50`
+
+        Level of transparency for scrollbars. Must be between `0` (opaque)
+        and `100` (transparent).
+
+zindex                                              *satellite-config-zindex*
+        Type: `integer`
+        Default: `40`
+
+        Z-index for scrollbars.
+
+Highlight Groups ~
+                                                *satellite-config-highlights*
+The following highlight group can be configured to change |satellite.nvim|'s
+colors.
+
+Name         Default   Description
+----         -------   -----------
+`ScrollView`   `Visual`    Color for the scrollbar
+
+The highlight groups can be customized. Example:
+ >
+    " Link ScrollView highlight to Pmenu highlight
+    highlight link ScrollView Pmenu
+
+    " Specify custom highlighting for ScrollView
+    highlight ScrollView ctermbg=159 guibg=LightCyan
+
+Mouse Support (experimental) ~
+                                                    *satellite-mouse-support*
+
+A |<LeftMouse>| mapping is automatically created for interactive mouse
+support.
+
+==============================================================================
+ISSUES                                                      *satellite-issues*
+
+* Scrollbars can become out-of-sync after window arrangement actions that are
+  not followed by a scroll event. For example, this can be seen by starting
+  `nvim`, issuing |:help|, then typing `<ctrl-w>J` to move the help window to
+  the bottom of the screen. This could be resolved if there was an event that
+  is triggered by the window arrangement actions. |:SatelliteRefresh|, or
+  scrolling can be used to refresh the scrollbars.
+
+* Scrollbars become out-of-sync when the mouse wheel is used to scroll a
+  non-current window. This is because the |WinScrolled| event only corresponds
+  to the current window. The scrollbars can be refreshed with
+  |:SatelliteRefresh|, scrolling, or by changing the current window.
+
+* Scrollbars become out-of-sync after fold commands. Because there are no
+  |autocmd-events| for folding, the plugin is unable to refresh the
+  scrollbars.
+
+============================================================================
+ vim:tw=78:ts=4:ft=help:norl:

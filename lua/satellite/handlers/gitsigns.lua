@@ -6,13 +6,13 @@ local handler = {
 }
 
 function handler.init()
-  local group = api.nvim_create_augroup('scrollview_gitsigns', {})
+  local group = api.nvim_create_augroup('satellite_gitsigns', {})
 
   api.nvim_create_autocmd('User', {
     pattern = 'GitsignsHunkUpdate',
     group = group,
     callback = function()
-      require('scrollview').refresh_bars()
+      require('satellite').refresh_bars()
     end
   })
 end
@@ -42,4 +42,4 @@ function handler.update(bufnr)
   return marks
 end
 
-require('scrollview.handlers').register(handler)
+require('satellite.handlers').register(handler)
