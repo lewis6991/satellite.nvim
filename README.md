@@ -45,6 +45,30 @@ use {
 }
 ```
 
+Configuration can be passed to the setup function. Here is an example with most of
+the default settings:
+
+```lua
+require('satellite').setup {
+  current_only = false,
+  winblend = 50,
+  zindex = 40,
+  excluded_filetypes = {},
+  width = 2,
+  handlers = {
+    search = {
+      enable = true,
+    },
+    diagnostic = {
+      enable = true,
+    },
+    gitsigns = {
+      enable = true,
+    },
+  },
+}
+```
+
 * The `:SatelliteDisable` command disables scrollbars.
 * The `:SatelliteEnable` command enables scrollbars. This is only necessary
   if scrollbars have previously been disabled.
