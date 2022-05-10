@@ -1,4 +1,4 @@
-WIP
+# 🚧 WIP 🚧
 
 # satellite.nvim
 
