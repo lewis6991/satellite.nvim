@@ -1,16 +1,23 @@
 local api = vim.api
 
-local group = api.nvim_create_augroup('scrollview_gitsigns', {})
+---@type Handler
+local handler = {
+  name = 'gitsigns',
+}
 
-api.nvim_create_autocmd('User', {
-  pattern = 'GitsignsHunkUpdate',
-  group = group,
-  callback = function()
-    require('scrollview').refresh_bars()
-  end
-})
+function handler.init()
+  local group = api.nvim_create_augroup('scrollview_gitsigns', {})
 
-require('scrollview.handlers').register('gitsigns', function(bufnr)
+  api.nvim_create_autocmd('User', {
+    pattern = 'GitsignsHunkUpdate',
+    group = group,
+    callback = function()
+      require('scrollview').refresh_bars()
+    end
+  })
+end
+
+function handler.update(bufnr)
   if not package.loaded.gitsigns then
     return {}
   end
@@ -33,4 +40,6 @@ require('scrollview.handlers').register('gitsigns', function(bufnr)
   end
 
   return marks
-end)
+end
+
+require('scrollview.handlers').register(handler)

@@ -68,33 +68,15 @@ local function update_matches(bufnr, pattern)
   return matches
 end
 
-local function update()
+local function refresh()
   if is_search_mode() then
     update_matches(api.nvim_get_current_buf(), fn.getcmdline())
     require('scrollview').refresh_bars()
   end
 end
 
-api.nvim_set_hl(0, 'SearchSV', {
-  fg = api.nvim_get_hl_by_name('Search', true).background
-})
-
-local group = api.nvim_create_augroup('scrollview_search', {})
-
-api.nvim_create_autocmd('CmdlineChanged', {
-  group = group,
-  -- Debounce as this is triggered very often
-  callback = util.debounce_trailing(update)
-})
-
-api.nvim_create_autocmd({'CmdlineEnter', 'CmdlineLeave'}, {
-  group = group,
-  callback = update
-})
-
-
 -- Clear matches and refresh when :nohl is run
-local function on_cmd(cmd, f)
+local function on_cmd(cmd, group, f)
   api.nvim_create_autocmd({'CmdlineLeave'}, {
     group = group,
     callback = function()
@@ -106,24 +88,49 @@ local function on_cmd(cmd, f)
   })
 end
 
-on_cmd('nohl', function()
-  update_matches(api.nvim_get_current_buf(), '')
-  require('scrollview').refresh_bars()
-end)
+---@type Handler
+local handler = {
+  name = 'search'
+}
 
--- Refresh when activating search nav mappings
-for _, seq in ipairs{'n', 'N', '&', '*'} do
-  vim.keymap.set('n', seq, function()
-    vim.schedule(function()
-      local pattern = vim.v.hlsearch == 1 and fn.getreg('/') or ''
-      update_matches(api.nvim_get_current_buf(), pattern)
-      require('scrollview').refresh_bars()
-    end)
-    return seq
-  end, {expr = true})
+function handler.init()
+    api.nvim_set_hl(0, 'SearchSV', {
+      fg = api.nvim_get_hl_by_name('Search', true).background
+    })
+
+    local group = api.nvim_create_augroup('scrollview_search', {})
+
+    api.nvim_create_autocmd('CmdlineChanged', {
+      group = group,
+      -- Debounce as this is triggered very often
+      callback = util.debounce_trailing(refresh)
+    })
+
+    api.nvim_create_autocmd({'CmdlineEnter', 'CmdlineLeave'}, {
+      group = group,
+      callback = refresh
+    })
+
+  on_cmd('nohl', group, function()
+    update_matches(api.nvim_get_current_buf(), '')
+    require('scrollview').refresh_bars()
+  end)
+
+  -- Refresh when activating search nav mappings
+  for _, seq in ipairs{'n', 'N', '&', '*'} do
+    vim.keymap.set('n', seq, function()
+      vim.schedule(function()
+        ---@diagnostic disable-next-line: missing-parameter
+        local pattern = vim.v.hlsearch == 1 and fn.getreg('/') or ''
+        update_matches(api.nvim_get_current_buf(), pattern)
+        require('scrollview').refresh_bars()
+      end)
+      return seq
+    end, {expr = true})
+  end
 end
 
-require('scrollview.handlers').register('search', function(bufnr)
+function handler.update(bufnr)
   local marks = {}
   local matches = update_matches(bufnr)
   local cursor_lnum = api.nvim_win_get_cursor(0)[1]
@@ -144,4 +151,6 @@ require('scrollview.handlers').register('search', function(bufnr)
     end
   end
   return marks
-end)
+end
+
+require('scrollview.handlers').register(handler)

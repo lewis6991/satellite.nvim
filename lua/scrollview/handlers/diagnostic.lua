@@ -5,15 +5,22 @@ local diagnostic_hls = {
   [vim.diagnostic.severity.HINT]  = 'DiagnosticHint',
 }
 
-local gid = vim.api.nvim_create_augroup('scrollview_diagnostics', {})
-vim.api.nvim_create_autocmd('DiagnosticChanged', {
-  group = gid,
-  callback = function()
-    require('scrollview').refresh_bars()
-  end
-})
+---@type Handler
+local handler = {
+  name = 'diagnostics'
+}
 
-require('scrollview.handlers').register('diagnostics', function(bufnr)
+function handler.init()
+  local gid = vim.api.nvim_create_augroup('scrollview_diagnostics', {})
+  vim.api.nvim_create_autocmd('DiagnosticChanged', {
+    group = gid,
+    callback = function()
+      require('scrollview').refresh_bars()
+    end
+  })
+end
+
+function handler.update(bufnr)
   local marks = {}
   local diags = vim.diagnostic.get(bufnr)
   for _, diag in ipairs(diags) do
@@ -25,4 +32,6 @@ require('scrollview.handlers').register('diagnostics', function(bufnr)
     }
   end
   return marks
-end)
+end
+
+require('scrollview.handlers').register(handler)
