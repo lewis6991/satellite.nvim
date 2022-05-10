@@ -9,7 +9,7 @@ WIP
 * Display marks for different kinds of decorations across the buffer. Builtin handlers include:
   * search results
   * diagnostic
-  * Git hunks (via Gitsigns)
+  * Git hunks (via [gitsigns.nvim])
 * Handling for folds
 * Mouse support (currently broken)
 
@@ -19,7 +19,7 @@ Neovim >= 0.7.0
 
 ## Installation
 
-[packer.nvim][packer]:
+[packer.nvim]:
 ```lua
 use 'lewis6991/satellite.nvim'
 ```
@@ -31,7 +31,7 @@ For basic setup with all batteries included:
 require('satellite').setup()
 ```
 
-If using [packer.nvim][packer] Satellite can be setup directly in the plugin spec:
+If using [packer.nvim] Satellite can be setup directly in the plugin spec:
 
 ```lua
 use {
@@ -75,6 +75,7 @@ This plugin was based on [nvim-scrollview] which provides a very good implementa
 - [nvim-scrollview]
 - [nvim-scrollbar]
 
-[packer]: https://github.com/wbthomason/packer.nvim
-[nvim-scrollview]: https://github.com/dstein64/nvim-scrollview
+[gitsigns.nvim]: https://github.com/lewis6991/gitsigns.nvim
 [nvim-scrollbar]: https://github.com/petertriho/nvim-scrollbar
+[nvim-scrollview]: https://github.com/dstein64/nvim-scrollview
+[packer.nvim]: https://github.com/wbthomason/packer.nvim
