@@ -66,4 +66,15 @@ Documentation can be accessed with:
 :help satellite
 ```
 
+## Credit
+
+This plugin was based on [nvim-scrollview] which provides a very good implementation for a normal scrollbar.
+
+## Similar plugins
+
+- [nvim-scrollview]
+- [nvim-scrollbar]
+
 [packer]: https://github.com/wbthomason/packer.nvim
+[nvim-scrollview]: https://github.com/dstein64/nvim-scrollview
+[nvim-scrollbar]: https://github.com/petertriho/nvim-scrollbar
