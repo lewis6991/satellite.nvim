@@ -277,10 +277,12 @@ local function create_view(config)
   -- It's not sufficient to just specify Normal highlighting. With just that, a
   -- color scheme's specification of EndOfBuffer would be used to color the
   -- bottom of the scrollbar.
-  vim.wo[winid].winhighlight = 'Normal:Normal'
-  vim.wo[winid].winblend = user_config.winblend
-  vim.wo[winid].foldcolumn = '0'
-  vim.wo[winid].wrap = false
+  require('satellite.util').win_set_local_options(winid, {
+    winhighlight = 'Normal:Normal',
+    winblend = user_config.winblend,
+    foldcolumn = '0',
+    wrap = false,
+  })
 
   return bufnr, winid
 end
