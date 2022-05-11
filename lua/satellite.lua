@@ -1,6 +1,10 @@
 local api = vim.api
 local fn = vim.fn
 
+local util = require('satellite.util')
+
+local ffi = require'ffi'
+
 local BUILTIN_HANDLERS = {
   'search',
   'diagnostic',
@@ -57,6 +61,15 @@ local M = {}
 -- from usage of the plugin.
 
 local winids = {}
+
+ffi.cdef[[
+  int text_locked(void);
+]]
+
+local function text_locked()
+  ---@diagnostic disable-next-line: undefined-field
+  return ffi.C.text_locked() == 1
+end
 
 -- Round to the nearest integer.
 -- WARN: .5 rounds to the right on the number line, including for negatives
@@ -213,17 +226,36 @@ local function get_symbol(count, s)
   return s[count]
 end
 
-local function render_bar(bbufnr, winid, row, height, winheight)
+--- Fill lines in bufnr with empty lines
+---
+---@param bufnr integer
+---@param height integer
+local function fill_lines(bufnr, height, width)
   local lines = {}
-  for i = 1, winheight do
-    lines[i] = string.rep(' ', user_config.width)
+  for i = 1, height do
+    lines[i] = string.rep(' ', width)
+  end
+  vim.bo[bufnr].modifiable = true
+  api.nvim_buf_set_lines(bufnr, 0, -1, true, lines)
+  vim.bo[bufnr].modifiable = false
+end
+
+local function render_bar(bbufnr, winid, row, height, winheight)
+  if api.nvim_buf_line_count(bbufnr) < winheight then
+    if text_locked() then
+      vim.schedule(function()
+        fill_lines(bbufnr, winheight, user_config.width)
+      end)
+      -- Decorate on the next update
+      return
+    else
+      fill_lines(bbufnr, winheight, user_config.width)
+    end
   end
 
-  vim.bo[bbufnr].modifiable = true
-  api.nvim_buf_set_lines(bbufnr, 0, -1, true, lines)
-  vim.bo[bbufnr].modifiable = false
-
   local col = user_config.width == 2 and 1 or 0
+
+  api.nvim_buf_clear_namespace(bbufnr, ns, 0, -1)
 
   for i = row, row+height do
     pcall(api.nvim_buf_set_extmark, bbufnr, ns, i, col, {
@@ -238,6 +270,7 @@ local function render_bar(bbufnr, winid, row, height, winheight)
   for _, handler in ipairs(require('satellite.handlers').handlers) do
     local name = handler.name
     local handler_config = user_config.handlers[name]
+    api.nvim_buf_clear_namespace(bbufnr, handler.ns, 0, -1)
     if not handler_config or handler_config.enable then
       local positions = {}
       for _, m in ipairs(handler.update(bufnr)) do
@@ -610,67 +643,8 @@ local function enable()
 
   local gid = api.nvim_create_augroup('satellite', {})
 
-  -- The following error can arise when the last window in a tab is going to
-  -- be closed, but there are still open floating windows, and at least one
-  -- other tab.
-  --   > "E5601: Cannot close window, only floating window would remain"
-  -- Neovim Issue #11440 is open to address this. As of 2020/12/12, this
-  -- issue is a 0.6 milestone.
-  -- The autocmd below removes bars subsequent to :quit, :wq, or :qall (and
-  -- also ZZ and ZQ), to avoid the error. However, the error will still arise
-  -- when <ctrl-w>c or :close are used. To avoid the error in those cases,
-  -- <ctrl-w>o can be used to first close the floating windows, or
-  -- alternatively :tabclose can be used (or one of the alternatives handled
-  -- with the autocmd, like ZQ).
-  api.nvim_create_autocmd('QuitPre', { group = gid, callback = M.remove_bars })
-
-  -- For the duration of command-line window usage, there should be no bars.
-  -- Without this, bars can possibly overlap the command line window. This
-  -- can be problematic particularly when there is a vertical split with the
-  -- left window's bar on the bottom of the screen, where it would overlap
-  -- with the center of the command line window. It was not possible to use
-  -- CmdwinEnter, since the removal has to occur prior to that event. Rather,
-  -- this is triggered by the WinEnter event, just prior to the relevant
-  -- funcionality becoming unavailable.
-  --
-  -- Remove scrollbars if in cmdlnie. This fails when called from the
-  -- CmdwinEnter event (some functionality, like nvim_win_close, cannot be
-  -- used from the command line window), but works during the transition to
-  -- the command line window (from the WinEnter event).
-  api.nvim_create_autocmd('WinEnter', {group = gid, callback = function()
-    if in_cmdline_win() then
-      M.remove_bars()
-    end
-  end})
-
   -- === Scrollbar Refreshing ===
-  api.nvim_create_autocmd({
-    -- The following handles bar refreshing when changing the current window.
-    'WinEnter', 'TermEnter',
-
-    -- The following restores bars after leaving the command-line window.
-    -- Refreshing must be asynchronous, since the command line window is still
-    -- in an intermediate state when the CmdwinLeave event is triggered.
-    'CmdwinLeave',
-
-    -- The following handles scrolling events, which could arise from various
-    -- actions, including resizing windows, movements (e.g., j, k), or
-    -- scrolling (e.g., <ctrl-e>, zz).
-    'WinScrolled',
-
-    -- The following handles the case where text is pasted. TextChangedI is not
-    -- necessary since WinScrolled will be triggered if there is corresponding
-    -- scrolling.
-    'TextChanged',
-
-    -- The following handles when :e is used to load a file.
-    'BufWinEnter',
-
-    -- The following is used so that bars are shown when cycling through tabs.
-    'TabEnter',
-
-    'VimResized'
-  }, {
+  api.nvim_create_autocmd('BufWinEnter', {
     group = gid,
     callback = M.refresh_bars
   })
@@ -900,25 +874,27 @@ function M.zf_operator(type)
   refresh()
 end
 
-local function apply_keymaps()
-  -- === Fold command synchronization workarounds ===
-  -- zf takes a motion in normal mode, so it requires a g@ mapping.
-  vim.keymap.set('n', 'zf', function()
-    vim.o.operatorfunc = 'v:lua:package.loaded.satellite.zf_operator'
-    return 'g@'
-  end, {unique = true})
+local debounced = util.debouncer(50)
 
-  for _, seq in ipairs{
-    'zF', 'zd', 'zD', 'zE', 'zo', 'zO', 'zc', 'zC', 'za', 'zA', 'zv',
-    'zx', 'zX', 'zm', 'zM', 'zr', 'zR', 'zn', 'zN', 'zi'
-  } do
-    vim.keymap.set({'n', 'v'}, seq, function()
-      vim.schedule(refresh)
-      return seq
-    end, {unique = true, expr=true})
+-- local updates = {}
+-- local calls = {}
+
+local function on_win(_, winid)
+  -- calls[winid] = (calls[winid] or 0) + 1
+  -- print(string.format('DEBUG1 %d %d %d', calls[winid], updates[winid] or 0, winid))
+  if not view_enabled then
+    return
   end
 
-  vim.keymap.set({'n', 'v', 'o', 'i'}, '<leftmouse>', handle_leftmouse)
+  if not winids[winid] then
+    return
+  end
+
+  if debounced(winid) then
+    return
+  end
+
+  show_scrollbar(winid)
 end
 
 function M.setup(config)
@@ -931,7 +907,7 @@ function M.setup(config)
     end
   end
 
-  apply_keymaps()
+  vim.keymap.set({'n', 'v', 'o', 'i'}, '<leftmouse>', handle_leftmouse)
 
   api.nvim_create_user_command('ScrollViewRefresh', refresh, {bar = true, force = true})
   api.nvim_create_user_command('ScrollViewEnable' , enable , {bar = true, force = true})
@@ -946,6 +922,7 @@ function M.setup(config)
   api.nvim_set_hl(0, 'ScrollView', {default = true, link = 'Visual' })
 
   enable()
+  api.nvim_set_decoration_provider(ns, { on_win = on_win })
 end
 
 return M
