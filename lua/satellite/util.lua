@@ -2,24 +2,26 @@
 local M = {}
 
 -- NOTE:
+-- Set window option.
 -- Workaround for nvim bug where nvim_win_set_option "leaks" local
 -- options to windows created afterwards (thanks @sindrets!)
 -- SEE:
 -- https://github.com/b0o/incline.nvim/issues/4
 -- https://github.com/neovim/neovim/issues/18283
 -- https://github.com/neovim/neovim/issues/14670
-function M.win_set_local_options(win, opts)
-  a.nvim_win_call(win, function()
-    for opt, val in pairs(opts) do
-      local arg
-      if type(val) == 'boolean' then
-        arg = (val and '' or 'no') .. opt
-      else
-        arg = opt .. '=' .. val
-      end
-      vim.cmd('setlocal ' .. arg)
+-- https://github.com/neovim/neovim#9110
+function M.set_window_option(winid, key, value)
+    -- Convert to Vim format (e.g., 1 instead of Lua true).
+    if value == true then
+      value = 1
+    elseif value == false then
+      value = 0
     end
-  end)
+    -- setwinvar(..., '&...', ...) is used in place of nvim_win_set_option
+    -- to avoid Neovim Issues #15529 and #15531, where the global window option
+    -- is set in addition to the window-local option, when using Neovim's API or
+    -- Lua interface.
+    vim.fn.setwinvar(winid, '&' .. key, value)
 end
 
 
