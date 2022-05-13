@@ -12,12 +12,15 @@ local BUILTIN_HANDLERS = {
 
 ---@class DiagnosticConfig
 ---@field enable boolean
+---@field overlap boolean
 
 ---@class GitsignsConfig
 ---@field enable boolean
+---@field overlap boolean
 
 ---@class SearchConfig
 ---@field enable boolean
+---@field overlap boolean
 
 ---@class HandlerConfigs
 ---@field diagnostic DiagnosticConfig
@@ -36,12 +39,15 @@ local user_config = {
   handlers = {
     search = {
       enable = true,
+      overlap = true,
     },
     diagnostic = {
       enable = true,
+      overlap = true,
     },
     gitsigns = {
       enable = true,
+      overlap = false,
     },
     marks = {
       enable = true,
@@ -52,7 +58,6 @@ local user_config = {
   winblend = 50,
   zindex = 40,
   excluded_filetypes = {},
-  width = 2,
 }
 
 local view_enabled = false
@@ -225,20 +230,19 @@ local function handler_enabled(name)
   return not handler_config or handler_config.enable
 end
 
-local function render_bar(bbufnr, winid, row, height, winheight)
+local function render_bar(bbufnr, bar_winid, winid, row, height)
+  local winheight = api.nvim_win_get_height(winid)
   local lines = {}
   for i = 1, winheight do
-    lines[i] = string.rep(' ', user_config.width)
+    lines[i] = ' '
   end
 
   vim.bo[bbufnr].modifiable = true
   api.nvim_buf_set_lines(bbufnr, 0, -1, true, lines)
   vim.bo[bbufnr].modifiable = false
 
-  local col = user_config.width == 2 and 1 or 0
-
   for i = row, row+height do
-    pcall(api.nvim_buf_set_extmark, bbufnr, ns, i, col, {
+    pcall(api.nvim_buf_set_extmark, bbufnr, ns, i, 0, {
       virt_text = { {' ', 'ScrollView'} },
       virt_text_pos = 'overlay',
       priority = 1,
@@ -249,6 +253,7 @@ local function render_bar(bbufnr, winid, row, height, winheight)
   local bufnr = api.nvim_win_get_buf(winid)
   for _, handler in ipairs(handlers) do
     local name = handler.name
+    local handler_config = user_config.handlers[name]
     if handler_enabled(name) then
       local positions = {}
       for _, m in ipairs(handler.update(bufnr)) do
@@ -256,15 +261,22 @@ local function render_bar(bbufnr, winid, row, height, winheight)
         positions[pos] = (positions[pos] or 0) + 1
         local symbol = get_symbol(positions[pos], m.symbol)
 
-        local mcol = user_config.width == 2 and (m.col or 1) or 0
-
-        local ok, err = pcall(api.nvim_buf_set_extmark, bbufnr, handler.ns, pos, mcol, {
+        local opts = {
           id = not m.unique and pos+1 or nil,
-          virt_text = {{symbol, m.highlight}},
-          virt_text_pos = 'overlay',
-          hl_mode = 'combine',
           priority = positions[pos]
-        })
+        }
+
+        if handler_config.overlap then
+          opts.virt_text = {{symbol, m.highlight}}
+          opts.virt_text_pos = 'overlay'
+          opts.hl_mode = 'combine'
+        else
+          -- Signs are 2 chars so fill the first char with whitespace
+          opts.sign_text = ' '..symbol
+          opts.sign_hl_group = m.highlight
+        end
+
+        local ok, err = pcall(api.nvim_buf_set_extmark, bbufnr, handler.ns, pos, 0, opts)
         if not ok then
           print(string.format('%s ROW: %d', handler.name, pos))
           print(err)
@@ -273,6 +285,20 @@ local function render_bar(bbufnr, winid, row, height, winheight)
     end
   end
 
+  -- Reposition window if we need to
+  local winwidth = api.nvim_win_get_width(winid)
+  local signwidth = vim.fn.getwininfo(bar_winid)[1].textoff
+  local col = winwidth - signwidth - 1
+
+  local config = api.nvim_win_get_config(bar_winid)
+  ---@diagnostic disable-next-line: undefined-field
+  if config.col ~= col then
+    local ok, err = pcall(api.nvim_win_set_config, bar_winid, {col = col})
+    if ok then
+      print(col)
+      error(err)
+    end
+  end
 end
 
 local function create_view(config)
@@ -367,13 +393,19 @@ local function show_scrollbar(winid)
     focusable = false,
     zindex = user_config.zindex,
     height = winheight,
-    width = user_config.width,
+    width = 1,
     row = 0,
-    col = winwidth - user_config.width,
+    col = winwidth - 1
   }
 
   local bar_winid = winids[winid]
   local bar_bufnr
+
+  if bar_winid then
+    local signwidth = vim.fn.getwininfo(bar_winid)[1].textoff
+    config.col = config.col - signwidth
+    config.width = config.width + signwidth
+  end
 
   if bar_winid and api.nvim_win_is_valid(bar_winid) then
     api.nvim_win_set_config(bar_winid, config)
@@ -384,7 +416,7 @@ local function show_scrollbar(winid)
     winids[winid] = bar_winid
   end
 
-  render_bar(bar_bufnr, winid, toprow, height, winheight)
+  render_bar(bar_bufnr, bar_winid, winid, toprow, height)
 
   vim.w[bar_winid].height = height
   vim.w[bar_winid].row = toprow
@@ -402,11 +434,10 @@ local function move_scrollbar(winid, row)
     -- Can happen if mouse is dragged over other floating windows
     return
   end
-  local winheight = api.nvim_win_get_height(winid)
   local height = api.nvim_win_get_var(bar_winid, 'height')
 
   local bar_bufnr0 = api.nvim_win_get_buf(bar_winid)
-  render_bar(bar_bufnr0, winid, row, height, winheight)
+  render_bar(bar_bufnr0, bar_winid, winid, row, height)
 end
 
 local function noautocmd(f)
