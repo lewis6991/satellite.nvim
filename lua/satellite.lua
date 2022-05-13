@@ -13,14 +13,17 @@ local BUILTIN_HANDLERS = {
 ---@class DiagnosticConfig
 ---@field enable boolean
 ---@field overlap boolean
+---@field priority integer
 
 ---@class GitsignsConfig
 ---@field enable boolean
 ---@field overlap boolean
+---@field priority integer
 
 ---@class SearchConfig
 ---@field enable boolean
 ---@field overlap boolean
+---@field priority integer
 
 ---@class HandlerConfigs
 ---@field diagnostic DiagnosticConfig
@@ -40,14 +43,17 @@ local user_config = {
     search = {
       enable = true,
       overlap = true,
+      priority = 10,
     },
     diagnostic = {
       enable = true,
       overlap = true,
+      priority = 50,
     },
     gitsigns = {
       enable = true,
-      overlap = false,
+      overlap = true,
+      priority = 20,
     },
     marks = {
       enable = true,
@@ -227,7 +233,7 @@ end
 
 local function handler_enabled(name)
   local handler_config = user_config.handlers[name]
-  return not handler_config or handler_config.enable
+  return not handler_config or handler_config.enable ~= false
 end
 
 local function render_bar(bbufnr, bar_winid, winid, row, height)
@@ -253,7 +259,7 @@ local function render_bar(bbufnr, bar_winid, winid, row, height)
   local bufnr = api.nvim_win_get_buf(winid)
   for _, handler in ipairs(handlers) do
     local name = handler.name
-    local handler_config = user_config.handlers[name]
+    local handler_config = user_config.handlers[name] or {}
     if handler_enabled(name) then
       local positions = {}
       for _, m in ipairs(handler.update(bufnr)) do
@@ -263,10 +269,10 @@ local function render_bar(bbufnr, bar_winid, winid, row, height)
 
         local opts = {
           id = not m.unique and pos+1 or nil,
-          priority = positions[pos]
+          priority = (handler_config.priority or 1)*10 + positions[pos]
         }
 
-        if handler_config.overlap then
+        if handler_config.overlap ~= false then
           opts.virt_text = {{symbol, m.highlight}}
           opts.virt_text_pos = 'overlay'
           opts.hl_mode = 'combine'
