@@ -7,7 +7,7 @@ local diagnostic_hls = {
 
 ---@type Handler
 local handler = {
-  name = 'diagnostics'
+  name = 'diagnostic'
 }
 
 function handler.init()
