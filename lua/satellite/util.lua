@@ -59,6 +59,10 @@ api.nvim_create_autocmd('TextChanged,TextChangedI', {
   end
 })
 
+function M.invalidate_virtual_line_count_cache(winid)
+  virtual_line_count_cache[winid] = nil
+end
+
 -- Returns the count of virtual lines between the specified start and end lines
 -- (both inclusive), in the specified window. A closed fold counts as one
 -- virtual line. The computation loops over either lines or virtual spans, so
