@@ -4,7 +4,8 @@ local fn = vim.fn
 local BUILTIN_HANDLERS = {
   'search',
   'diagnostic',
-  'gitsigns'
+  'gitsigns',
+  'marks',
 }
 
 ---@class DiagnosticConfig
@@ -38,6 +39,9 @@ local user_config = {
       enable = true,
     },
     gitsigns = {
+      enable = true,
+    },
+    marks = {
       enable = true,
     },
   },
