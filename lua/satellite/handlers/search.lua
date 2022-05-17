@@ -153,4 +153,4 @@ function handler.update(bufnr)
   return marks
 end
 
-require('satellite.handlers').register(handler)
+return handler

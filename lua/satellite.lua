@@ -245,7 +245,7 @@ local function render_bar(bbufnr, winid, row, height, winheight)
     local handler_config = user_config.handlers[name]
     if not handler_config or handler_config.enable then
       local positions = {}
-      for _, m in ipairs(handler.update(bufnr, user_config)) do
+      for _, m in ipairs(handler.update(bufnr)) do
         local pos = row_to_barpos(winid, m.lnum-1)
         positions[pos] = (positions[pos] or 0) + 1
         local symbol = get_symbol(positions[pos], m.symbol)
@@ -932,9 +932,10 @@ function M.setup(config)
 
   -- Load builtin handlers
   for _, name in ipairs(BUILTIN_HANDLERS) do
-    if user_config.handlers[name].enable then
-      require('satellite.handlers.'..name)
-    end
+if user_config.handlers[name].enable then
+  local handler = require('satellite.handlers.' .. name)
+  require('satellite.handlers').register(handler, user_config)
+end
   end
 
   apply_keymaps()

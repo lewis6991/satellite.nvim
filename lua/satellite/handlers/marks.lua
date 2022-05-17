@@ -6,6 +6,7 @@ local handler = {
 }
 
 local builtin_marks = { '\'.', '\'^', '\'\'', '\'"', '\'<', '\'>', '\'[', '\']' }
+local show_builtins = false
 
 local function refresh()
   require('satellite').refresh_bars()
@@ -22,7 +23,8 @@ local function its_a_builtin_mark(m)
   return false
 end
 
-function handler.init()
+function handler.init(config)
+  show_builtins = config.handlers.marks.show_builtins
   -- range over a-z
   for char = 97, 122 do
     local map = 'm' .. string.char(char)
@@ -33,11 +35,11 @@ function handler.init()
   end
 end
 
-function handler.update(bufnr, config)
+function handler.update(bufnr)
   local marks = {}
   local buffer_marks = vim.fn.getmarklist(bufnr)
   for _, mark in ipairs(buffer_marks) do
-    if not its_a_builtin_mark(mark.mark) or config.handlers.marks.show_builtins then
+    if not its_a_builtin_mark(mark.mark) or show_builtins then
       marks[#marks + 1] = {
         -- [bufnum, lnum, col, off]
         lnum = mark.pos[2],
@@ -50,4 +52,4 @@ function handler.update(bufnr, config)
   return marks
 end
 
-require('satellite.handlers').register(handler)
+return handler
