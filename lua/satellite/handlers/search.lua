@@ -33,6 +33,7 @@ local function update_matches(bufnr, pattern)
     and (not pattern or cache[bufnr].pattern == pattern) then
     return cache[bufnr].matches
   end
+  print('MISS')
 
   local matches = {}
 
@@ -130,27 +131,45 @@ function handler.init()
   end
 end
 
-function handler.update(bufnr)
+SYMBOLS = {'⠂', '⠅', '⠇', '⠗', '⠟', '⠿'}
+
+function handler.update(bufnr, winid)
   local marks = {}
   local matches = update_matches(bufnr)
   local cursor_lnum = api.nvim_win_get_cursor(0)[1]
   for _, lnum in ipairs(matches) do
-    marks[#marks+1] = {
-      lnum = lnum,
-      -- symbol = {'-', '=', '≡'},
-      symbol = {'⠂', '⠅', '⠇', '⠗', '⠟', '⠿'},
-      highlight = 'SearchSV',
-    }
+    local pos = util.row_to_barpos(winid, lnum-1)
+
+    local count = 1
+    if marks[pos] and marks[pos].count then
+      count = marks[pos].count + 1
+    end
+
     if lnum == cursor_lnum then
-      marks[#marks+1] = {
-        lnum      = lnum,
-        symbol    = ' ',
+      marks[pos] = {
+        count = count,
         highlight = 'SearchCurrent',
         unique    = true,
       }
+    elseif count < 6 then
+      marks[pos] = {
+        count = count
+      }
     end
   end
-  return marks
+
+  local marks1 = {}
+
+  for pos, mark in pairs(marks) do
+    marks1[#marks1+1] = {
+      pos = pos,
+      unique = mark.unique,
+      highlight = mark.highlight or 'SearchSV',
+      symbol = mark.symbol or SYMBOLS[mark.count] or SYMBOLS[#SYMBOLS],
+    }
+  end
+
+  return marks1
 end
 
 require('satellite.handlers').register(handler)

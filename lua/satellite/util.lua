@@ -1,3 +1,5 @@
+local api = vim.api
+local fn = vim.fn
 
 local M = {}
 
@@ -36,6 +38,70 @@ function M.debounce_trailing(f, ms)
       end)
     end)
   end
+end
+
+local function defaulttable()
+  return setmetatable({}, {
+    __index = function(tbl, k)
+      tbl[k] = defaulttable()
+      return tbl[k]
+    end
+  })
+end
+
+local virtual_line_count_cache = defaulttable()
+
+api.nvim_create_autocmd('TextChanged,TextChangedI', {
+  callback = function()
+    -- Invalidate
+    local winid = api.nvim_get_current_win()
+    virtual_line_count_cache[winid] = nil
+  end
+})
+
+-- Returns the count of virtual lines between the specified start and end lines
+-- (both inclusive), in the specified window. A closed fold counts as one
+-- virtual line. The computation loops over either lines or virtual spans, so
+-- the cursor may be moved.
+function M.virtual_line_count(winid, start, vend)
+  if not vend then
+    vend = api.nvim_buf_line_count(api.nvim_win_get_buf(winid))
+  end
+
+  local cached = rawget(virtual_line_count_cache[winid][start], vend)
+  if cached then
+    return cached
+  end
+
+  return api.nvim_win_call(winid, function()
+    local count = 0
+    local line = start
+    while line <= vend do
+      count = count + 1
+      local foldclosedend = fn.foldclosedend(line)
+      if foldclosedend ~= -1 then
+        line = foldclosedend
+      end
+      line = line + 1
+    end
+    virtual_line_count_cache[winid][start][vend] = count
+    return count
+  end)
+end
+
+-- Round to the nearest integer.
+-- WARN: .5 rounds to the right on the number line, including for negatives
+-- (which would not result in rounding up in magnitude).
+-- (e.g., round(3.5) == 3, round(-3.5) == -3 != -4)
+local function round(x)
+  return math.floor(x + 0.5)
+end
+
+function M.row_to_barpos(winid, row)
+  local vlinecount0 = M.virtual_line_count(winid, 1) - 1
+  local vrow = M.virtual_line_count(winid, 1, row)
+  local winheight0 = api.nvim_win_get_height(winid) - 1
+  return round(winheight0 * vrow / vlinecount0)
 end
 
 return M

@@ -2,6 +2,7 @@ local api = vim.api
 local fn = vim.fn
 
 local handlers = require('satellite.handlers').handlers
+local util = require'satellite.util'
 
 local BUILTIN_HANDLERS = {
   'search',
@@ -76,14 +77,6 @@ local M = {}
 
 local winids = {}
 
--- Round to the nearest integer.
--- WARN: .5 rounds to the right on the number line, including for negatives
--- (which would not result in rounding up in magnitude).
--- (e.g., round(3.5) == 3, round(-3.5) == -3 != -4)
-local function round(x)
-  return math.floor(x + 0.5)
-end
-
 -- Replace termcodes.
 local function t(str)
   return api.nvim_replace_termcodes(str, true, true, true)
@@ -118,47 +111,6 @@ local function visible_line_range(winid)
   end))
 end
 
-local function defaulttable()
-  return setmetatable({}, {
-    __index = function(tbl, k)
-      tbl[k] = defaulttable()
-      return tbl[k]
-    end
-  })
-end
-
-local virtual_line_count_cache = defaulttable()
-
--- Returns the count of virtual lines between the specified start and end lines
--- (both inclusive), in the specified window. A closed fold counts as one
--- virtual line. The computation loops over either lines or virtual spans, so
--- the cursor may be moved.
-local function virtual_line_count(winid, start, vend)
-  if not vend then
-    vend = api.nvim_buf_line_count(api.nvim_win_get_buf(winid))
-  end
-
-  local cached = rawget(virtual_line_count_cache[winid][start], vend)
-  if cached then
-    return cached
-  end
-
-  return api.nvim_win_call(winid, function()
-    local count = 0
-    local line = start
-    while line <= vend do
-      count = count + 1
-      local foldclosedend = fn.foldclosedend(line)
-      if foldclosedend ~= -1 then
-        line = foldclosedend
-      end
-      line = line + 1
-    end
-    virtual_line_count_cache[winid][start][vend] = count
-    return count
-  end)
-end
-
 -- Returns an array that maps window rows to the topline that corresponds to a
 -- scrollbar at that row under virtual satellite mode, in the current window.
 -- The computation primarily loops over lines, but may loop over virtual spans
@@ -167,7 +119,7 @@ local function virtual_topline_lookup()
   local winid = api.nvim_get_current_win()
   local winheight = api.nvim_win_get_height(winid)
   local result = {}  -- A list of line numbers
-  local total_vlines = virtual_line_count(winid, 1)
+  local total_vlines = util.virtual_line_count(winid, 1)
   if total_vlines > 1 and winheight > 1 then
     local count = 1  -- The count of virtual lines
     local line = 1
@@ -209,13 +161,6 @@ local function virtual_topline_lookup()
     end
   end
   return result
-end
-
-local function row_to_barpos(winid, row)
-  local vlinecount0 = virtual_line_count(winid, 1) - 1
-  local vrow = virtual_line_count(winid, 1, row)
-  local winheight0 = api.nvim_win_get_height(winid) - 1
-  return round(winheight0 * vrow / vlinecount0)
 end
 
 local ns = api.nvim_create_namespace('satellite')
@@ -262,8 +207,8 @@ local function render_bar(bbufnr, bar_winid, winid, row, height)
     local handler_config = user_config.handlers[name] or {}
     if handler_enabled(name) then
       local positions = {}
-      for _, m in ipairs(handler.update(bufnr)) do
-        local pos = row_to_barpos(winid, m.lnum-1)
+      for _, m in ipairs(handler.update(bufnr, winid)) do
+        local pos = m.pos or util.row_to_barpos(winid, m.lnum-1)
         positions[pos] = (positions[pos] or 0) + 1
         local symbol = get_symbol(positions[pos], m.symbol)
 
@@ -317,7 +262,6 @@ local function create_view(config)
 
   local winid = api.nvim_open_win(bufnr, false, config)
 
-  local util = require('satellite.util')
   -- It's not sufficient to just specify Normal highlighting. With just that, a
   -- color scheme's specification of EndOfBuffer would be used to color the
   -- bottom of the scrollbar.
@@ -384,11 +328,8 @@ local function show_scrollbar(winid)
     return
   end
 
-  -- Invalidate
-  virtual_line_count_cache[winid] = nil
-
-  local toprow = row_to_barpos(winid, topline - 1)
-  local botrow = row_to_barpos(winid, botline - 1)
+  local toprow = util.row_to_barpos(winid, topline - 1)
+  local botrow = util.row_to_barpos(winid, botline - 1)
 
   local height = botrow - toprow
 
@@ -570,7 +511,7 @@ local function set_topline(winid, linenr)
     local topline = visible_line_range(winid)
     -- Use virtual lines to figure out how much to scroll up. winline() doesn't
     -- accommodate wrapped lines.
-    local virtual_line = virtual_line_count(winid, topline, fn.line('.'))
+    local virtual_line = util.virtual_line_count(winid, topline, fn.line('.'))
     if virtual_line > 1 then
       vim.cmd('keepjumps normal! ' .. (virtual_line - 1) .. t'<c-e>')
     end
