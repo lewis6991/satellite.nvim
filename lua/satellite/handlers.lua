@@ -3,7 +3,7 @@
 ---@field name string
 ---@field ns integer
 ---@field init fun()
----@field update fun(bufnr: integer)
+---@field update fun(bufnr: integer,user_config: table)
 
 local M = {}
 

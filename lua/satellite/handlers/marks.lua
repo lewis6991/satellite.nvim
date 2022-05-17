@@ -33,11 +33,11 @@ function handler.init()
   end
 end
 
-function handler.update(bufnr)
+function handler.update(bufnr, config)
   local marks = {}
   local buffer_marks = vim.fn.getmarklist(bufnr)
   for _, mark in ipairs(buffer_marks) do
-    if not its_a_builtin_mark(mark.mark) then
+    if not its_a_builtin_mark(mark.mark) or config.handlers.marks.show_builtins then
       marks[#marks + 1] = {
         -- [bufnum, lnum, col, off]
         lnum = mark.pos[2],

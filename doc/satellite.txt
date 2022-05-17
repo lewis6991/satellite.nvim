@@ -39,6 +39,7 @@ of the default settings:
         },
         marks = {
           enable = true,
+          show_builtins = false, -- shows the builtin marks like [ ] < >
         },
       },
     }

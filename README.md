@@ -68,6 +68,7 @@ require('satellite').setup {
     },
     marks = {
       enable = true,
+      show_builtins = false, -- shows the builtin marks like [ ] < >
     },
   },
 }

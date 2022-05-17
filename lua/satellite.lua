@@ -43,6 +43,7 @@ local user_config = {
     },
     marks = {
       enable = true,
+      show_builtins = false,
     },
   },
   current_only = false,
@@ -244,7 +245,7 @@ local function render_bar(bbufnr, winid, row, height, winheight)
     local handler_config = user_config.handlers[name]
     if not handler_config or handler_config.enable then
       local positions = {}
-      for _, m in ipairs(handler.update(bufnr)) do
+      for _, m in ipairs(handler.update(bufnr, user_config)) do
         local pos = row_to_barpos(winid, m.lnum-1)
         positions[pos] = (positions[pos] or 0) + 1
         local symbol = get_symbol(positions[pos], m.symbol)
