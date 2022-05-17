@@ -37,6 +37,9 @@ of the default settings:
         gitsigns = {
           enable = true,
         },
+        marks = {
+          enable = true,
+        },
       },
     }
 <
