@@ -938,9 +938,9 @@ function M.setup(config)
 
   apply_keymaps()
 
-  api.nvim_create_user_command('ScrollViewRefresh', refresh, {bar = true, force = true})
-  api.nvim_create_user_command('ScrollViewEnable' , enable , {bar = true, force = true})
-  api.nvim_create_user_command('ScrollViewDisable', disable, {bar = true, force = true})
+  api.nvim_create_user_command('SatelliteRefresh', refresh, {bar = true, force = true})
+  api.nvim_create_user_command('SatelliteEnable' , enable , {bar = true, force = true})
+  api.nvim_create_user_command('SatelliteDisable', disable, {bar = true, force = true})
 
   -- The default highlight group is specified below.
   -- Change this default by defining or linking an alternative highlight group.
