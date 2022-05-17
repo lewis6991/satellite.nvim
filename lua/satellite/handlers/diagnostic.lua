@@ -34,4 +34,4 @@ function handler.update(bufnr)
   return marks
 end
 
-return handler
+require('satellite.handlers').register(handler)

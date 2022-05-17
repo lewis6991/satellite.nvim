@@ -5,8 +5,9 @@ local handler = {
   name = 'marks',
 }
 
-local builtin_marks = { '\'.', '\'^', '\'\'', '\'"', '\'<', '\'>', '\'[', '\']' }
-local show_builtins = false
+local BUILTIN_MARKS = { "'.", "'^", "''", "'\"", "'<", "'>", "'[", "']" }
+
+local config = {}
 
 local function refresh()
   require('satellite').refresh_bars()
@@ -14,8 +15,8 @@ end
 
 ---@param m string mark name
 ---@return boolean
-local function its_a_builtin_mark(m)
-  for _, mark in pairs(builtin_marks) do
+local function mark_is_builtin(m)
+  for _, mark in pairs(BUILTIN_MARKS) do
     if mark == m then
       return true
     end
@@ -23,8 +24,8 @@ local function its_a_builtin_mark(m)
   return false
 end
 
-function handler.init(config)
-  show_builtins = config.handlers.marks.show_builtins
+function handler.init(config0)
+  config = config0
   -- range over a-z
   for char = 97, 122 do
     local map = 'm' .. string.char(char)
@@ -39,7 +40,7 @@ function handler.update(bufnr)
   local marks = {}
   local buffer_marks = vim.fn.getmarklist(bufnr)
   for _, mark in ipairs(buffer_marks) do
-    if not its_a_builtin_mark(mark.mark) or show_builtins then
+    if config.show_builtins or not mark_is_builtin(mark.mark) then
       marks[#marks + 1] = {
         -- [bufnum, lnum, col, off]
         lnum = mark.pos[2],
@@ -52,4 +53,4 @@ function handler.update(bufnr)
   return marks
 end
 
-return handler
+require('satellite.handlers').register(handler)

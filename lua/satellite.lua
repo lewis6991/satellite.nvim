@@ -1,6 +1,8 @@
 local api = vim.api
 local fn = vim.fn
 
+local handlers = require('satellite.handlers').handlers
+
 local BUILTIN_HANDLERS = {
   'search',
   'diagnostic',
@@ -218,6 +220,11 @@ local function get_symbol(count, s)
   return s[count]
 end
 
+local function handler_enabled(name)
+  local handler_config = user_config.handlers[name]
+  return not handler_config or handler_config.enable
+end
+
 local function render_bar(bbufnr, winid, row, height, winheight)
   local lines = {}
   for i = 1, winheight do
@@ -240,10 +247,9 @@ local function render_bar(bbufnr, winid, row, height, winheight)
 
   -- Run handlers
   local bufnr = api.nvim_win_get_buf(winid)
-  for _, handler in ipairs(require('satellite.handlers').handlers) do
+  for _, handler in ipairs(handlers) do
     local name = handler.name
-    local handler_config = user_config.handlers[name]
-    if not handler_config or handler_config.enable then
+    if handler_enabled(name) then
       local positions = {}
       for _, m in ipairs(handler.update(bufnr)) do
         local pos = row_to_barpos(winid, m.lnum-1)
@@ -932,10 +938,16 @@ function M.setup(config)
 
   -- Load builtin handlers
   for _, name in ipairs(BUILTIN_HANDLERS) do
-if user_config.handlers[name].enable then
-  local handler = require('satellite.handlers.' .. name)
-  require('satellite.handlers').register(handler, user_config)
-end
+    if handler_enabled(name) then
+      require('satellite.handlers.'..name)
+    end
+  end
+
+  -- Initialize handlers
+  for _, handler in ipairs(handlers) do
+    if handler_enabled(handler.name) and handler.init then
+      handler.init(user_config.handlers[handler.name])
+    end
   end
 
   apply_keymaps()
