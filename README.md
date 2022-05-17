@@ -13,6 +13,7 @@
   * search results
   * diagnostic
   * Git hunks (via [gitsigns.nvim])
+  * Marks
 * Handling for folds
 * Mouse support (currently broken)
 
@@ -64,6 +65,10 @@ require('satellite').setup {
     },
     gitsigns = {
       enable = true,
+    },
+    marks = {
+      enable = true,
+      show_builtins = false, -- shows the builtin marks like [ ] < >
     },
   },
 }

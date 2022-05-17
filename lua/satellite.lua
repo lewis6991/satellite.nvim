@@ -4,7 +4,8 @@ local fn = vim.fn
 local BUILTIN_HANDLERS = {
   'search',
   'diagnostic',
-  'gitsigns'
+  'gitsigns',
+  'marks',
 }
 
 ---@class DiagnosticConfig
@@ -39,6 +40,10 @@ local user_config = {
     },
     gitsigns = {
       enable = true,
+    },
+    marks = {
+      enable = true,
+      show_builtins = false,
     },
   },
   current_only = false,
@@ -927,16 +932,17 @@ function M.setup(config)
 
   -- Load builtin handlers
   for _, name in ipairs(BUILTIN_HANDLERS) do
-    if user_config.handlers[name].enable then
-      require('satellite.handlers.'..name)
-    end
+if user_config.handlers[name].enable then
+  local handler = require('satellite.handlers.' .. name)
+  require('satellite.handlers').register(handler, user_config)
+end
   end
 
   apply_keymaps()
 
-  api.nvim_create_user_command('ScrollViewRefresh', refresh, {bar = true, force = true})
-  api.nvim_create_user_command('ScrollViewEnable' , enable , {bar = true, force = true})
-  api.nvim_create_user_command('ScrollViewDisable', disable, {bar = true, force = true})
+  api.nvim_create_user_command('SatelliteRefresh', refresh, {bar = true, force = true})
+  api.nvim_create_user_command('SatelliteEnable' , enable , {bar = true, force = true})
+  api.nvim_create_user_command('SatelliteDisable', disable, {bar = true, force = true})
 
   -- The default highlight group is specified below.
   -- Change this default by defining or linking an alternative highlight group.

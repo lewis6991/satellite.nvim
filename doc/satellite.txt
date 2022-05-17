@@ -37,6 +37,10 @@ of the default settings:
         gitsigns = {
           enable = true,
         },
+        marks = {
+          enable = true,
+          show_builtins = false, -- shows the builtin marks like [ ] < >
+        },
       },
     }
 <

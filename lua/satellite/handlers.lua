@@ -2,7 +2,7 @@
 ---@class Handler
 ---@field name string
 ---@field ns integer
----@field init fun()
+---@field init fun(config: table)
 ---@field update fun(bufnr: integer)
 
 local M = {}
@@ -11,7 +11,7 @@ local M = {}
 M.handlers = {}
 
 ---@param spec Handler
-function M.register(spec)
+function M.register(spec,config)
   vim.validate{
     spec   = {spec       , 'table'  },
     name   = {spec.name  , 'string' },
@@ -22,7 +22,7 @@ function M.register(spec)
   if spec.init then
     local orig_update = spec.update
     spec.update = function(...)
-      spec.init()
+      spec.init(config)
       spec.update = orig_update
       return spec.update(...)
     end
