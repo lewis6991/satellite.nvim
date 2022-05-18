@@ -58,7 +58,7 @@ function handler.update(bufnr, winid)
 
     local pos = util.row_to_barpos(winid, lnum-1)
 
-    if config.show_builtins or not mark_is_builtin(mark.mark) then
+    if config and config.show_builtins or not mark_is_builtin(mark.mark) then
       marks[pos] = {
         -- first char of mark name is a single quote
         symbol = string.sub(mark.mark, 2, 3),
