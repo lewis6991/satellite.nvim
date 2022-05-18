@@ -33,7 +33,6 @@ local function update_matches(bufnr, pattern)
     and (not pattern or cache[bufnr].pattern == pattern) then
     return cache[bufnr].matches
   end
-  print('MISS')
 
   local matches = {}
 
