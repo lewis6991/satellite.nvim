@@ -51,14 +51,6 @@ end
 
 local virtual_line_count_cache = defaulttable()
 
-api.nvim_create_autocmd('TextChanged,TextChangedI', {
-  callback = function()
-    -- Invalidate
-    local winid = api.nvim_get_current_win()
-    virtual_line_count_cache[winid] = nil
-  end
-})
-
 function M.invalidate_virtual_line_count_cache(winid)
   virtual_line_count_cache[winid] = nil
 end
@@ -108,13 +100,15 @@ function M.row_to_barpos(winid, row)
   return round(winheight0 * vrow / vlinecount0)
 end
 
--- Clear matches and refresh when :nohl is run
+--- Run callback when command is run
+---@param cmd string
+---@param augroup string|integer
+---@param f function()
 function M.on_cmd(cmd, augroup, f)
   api.nvim_create_autocmd({'CmdlineLeave'}, {
     group = augroup,
     callback = function()
-      if fn.getcmdtype() == ':'
-        and vim.startswith(fn.getcmdline(), cmd) then
+      if fn.getcmdtype() == ':' and vim.startswith(fn.getcmdline(), cmd) then
         f()
       end
     end

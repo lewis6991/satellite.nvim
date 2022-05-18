@@ -1,71 +1,12 @@
 local api = vim.api
 local fn = vim.fn
 
-local handlers = require('satellite.handlers').handlers
+local Handlers = require('satellite.handlers')
 local util = require'satellite.util'
+local Config = require'satellite.config'
+local render = require'satellite.render'
 
-local BUILTIN_HANDLERS = {
-  'search',
-  'diagnostic',
-  'gitsigns',
-  'marks',
-}
-
----@class DiagnosticConfig
----@field enable boolean
----@field overlap boolean
----@field priority integer
-
----@class GitsignsConfig
----@field enable boolean
----@field overlap boolean
----@field priority integer
-
----@class SearchConfig
----@field enable boolean
----@field overlap boolean
----@field priority integer
-
----@class HandlerConfigs
----@field diagnostic DiagnosticConfig
----@field gitsigns GitsignsConfig
----@field search SearchConfig
-
----@class Config
----@field handlers HandlerConfigs
----@field current_only boolean
----@field winblend integer
----@field zindex integer
----@field excluded_filetypes string[]
-
----@type Config
-local user_config = {
-  handlers = {
-    search = {
-      enable = true,
-      overlap = true,
-      priority = 10,
-    },
-    diagnostic = {
-      enable = true,
-      overlap = true,
-      priority = 50,
-    },
-    gitsigns = {
-      enable = true,
-      overlap = true,
-      priority = 20,
-    },
-    marks = {
-      enable = true,
-      show_builtins = false,
-    },
-  },
-  current_only = false,
-  winblend = 50,
-  zindex = 40,
-  excluded_filetypes = {},
-}
+local user_config = Config.user_config
 
 local view_enabled = false
 
@@ -90,9 +31,9 @@ end
 -- Returns true for ordinary windows (not floating and not external), and false
 -- otherwise.
 local function is_ordinary_window(winid)
-  local config = api.nvim_win_get_config(winid)
-  local not_external = not config['external']
-  local not_floating = config['relative'] == ''
+  local cfg = api.nvim_win_get_config(winid)
+  local not_external = not cfg['external']
+  local not_floating = cfg['relative'] == ''
   return not_external and not_floating
 end
 
@@ -163,96 +104,7 @@ local function virtual_topline_lookup()
   return result
 end
 
-local ns = api.nvim_create_namespace('satellite')
-
-local function get_symbol(count, s)
-  if type(s) == 'string' then
-    return s
-  end
-  local len = #s
-  if count > len then
-    count = len
-  end
-  return s[count]
-end
-
-local function handler_enabled(name)
-  local handler_config = user_config.handlers[name]
-  return not handler_config or handler_config.enable ~= false
-end
-
-local function render_bar(bbufnr, bar_winid, winid, row, height)
-  local winheight = api.nvim_win_get_height(winid)
-  local lines = {}
-  for i = 1, winheight do
-    lines[i] = ' '
-  end
-
-  vim.bo[bbufnr].modifiable = true
-  api.nvim_buf_set_lines(bbufnr, 0, -1, true, lines)
-  vim.bo[bbufnr].modifiable = false
-
-  for i = row, row+height do
-    pcall(api.nvim_buf_set_extmark, bbufnr, ns, i, 0, {
-      virt_text = { {' ', 'ScrollView'} },
-      virt_text_pos = 'overlay',
-      priority = 1,
-    })
-  end
-
-  -- Run handlers
-  local bufnr = api.nvim_win_get_buf(winid)
-  for _, handler in ipairs(handlers) do
-    local name = handler.name
-    local handler_config = user_config.handlers[name] or {}
-    if handler_enabled(name) then
-      local positions = {}
-      for _, m in ipairs(handler.update(bufnr, winid)) do
-        local pos = m.pos or util.row_to_barpos(winid, m.lnum-1)
-        positions[pos] = (positions[pos] or 0) + 1
-        local symbol = get_symbol(positions[pos], m.symbol)
-
-        local opts = {
-          id = not m.unique and pos+1 or nil,
-          priority = (handler_config.priority or 1)*10 + positions[pos]
-        }
-
-        if handler_config.overlap ~= false then
-          opts.virt_text = {{symbol, m.highlight}}
-          opts.virt_text_pos = 'overlay'
-          opts.hl_mode = 'combine'
-        else
-          -- Signs are 2 chars so fill the first char with whitespace
-          opts.sign_text = ' '..symbol
-          opts.sign_hl_group = m.highlight
-        end
-
-        local ok, err = pcall(api.nvim_buf_set_extmark, bbufnr, handler.ns, pos, 0, opts)
-        if not ok then
-          print(string.format('%s ROW: %d', handler.name, pos))
-          print(err)
-        end
-      end
-    end
-  end
-
-  -- Reposition window if we need to
-  local winwidth = api.nvim_win_get_width(winid)
-  local signwidth = vim.fn.getwininfo(bar_winid)[1].textoff
-  local col = winwidth - signwidth - 1
-
-  local config = api.nvim_win_get_config(bar_winid)
-  ---@diagnostic disable-next-line: undefined-field
-  if config.col ~= col then
-    local ok, err = pcall(api.nvim_win_set_config, bar_winid, {col = col})
-    if ok then
-      print(col)
-      error(err)
-    end
-  end
-end
-
-local function create_view(config)
+local function create_view(cfg)
   local bufnr = api.nvim_create_buf(false, true)
   vim.bo[bufnr].modifiable = false
   vim.bo[bufnr].buftype = 'nofile'
@@ -260,7 +112,7 @@ local function create_view(config)
   vim.bo[bufnr].bufhidden = 'delete'
   vim.bo[bufnr].buflisted = false
 
-  local winid = api.nvim_open_win(bufnr, false, config)
+  local winid = api.nvim_open_win(bufnr, false, cfg)
 
   -- It's not sufficient to just specify Normal highlighting. With just that, a
   -- color scheme's specification of EndOfBuffer would be used to color the
@@ -335,7 +187,7 @@ local function show_scrollbar(winid)
 
   local height = botrow - toprow
 
-  local config = {
+  local cfg = {
     win = winid,
     relative = 'win',
     style = 'minimal',
@@ -355,25 +207,25 @@ local function show_scrollbar(winid)
     -- wininfo can be nil when pressing <C-w>o
     if bar_wininfo then
       local signwidth = bar_wininfo.textoff
-      config.col = config.col - signwidth
-      config.width = config.width + signwidth
+      cfg.col = cfg.col - signwidth
+      cfg.width = cfg.width + signwidth
     end
   end
 
   if bar_winid and api.nvim_win_is_valid(bar_winid) then
-    api.nvim_win_set_config(bar_winid, config)
+    api.nvim_win_set_config(bar_winid, cfg)
     bar_bufnr = api.nvim_win_get_buf(bar_winid)
   else
-    config.noautocmd = true
-    bar_bufnr, bar_winid = create_view(config)
+    cfg.noautocmd = true
+    bar_bufnr, bar_winid = create_view(cfg)
     winids[winid] = bar_winid
   end
 
-  render_bar(bar_bufnr, bar_winid, winid, toprow, height)
+  render.render_bar(bar_bufnr, bar_winid, winid, toprow, height)
 
   vim.w[bar_winid].height = height
   vim.w[bar_winid].row = toprow
-  vim.w[bar_winid].col = config.col
+  vim.w[bar_winid].col = cfg.col
 
   return true
 end
@@ -390,7 +242,7 @@ local function move_scrollbar(winid, row)
   local height = api.nvim_win_get_var(bar_winid, 'height')
 
   local bar_bufnr0 = api.nvim_win_get_buf(bar_winid)
-  render_bar(bar_bufnr0, bar_winid, winid, row, height)
+  render.render_bar(bar_bufnr0, bar_winid, winid, row, height)
 end
 
 local function noautocmd(f)
@@ -917,22 +769,10 @@ local function apply_keymaps()
   vim.keymap.set({'n', 'v', 'o', 'i'}, '<leftmouse>', handle_leftmouse)
 end
 
-function M.setup(config)
-  user_config = vim.tbl_extend('force', user_config, config or {})
+function M.setup(cfg)
+  Config.apply(cfg)
 
-  -- Load builtin handlers
-  for _, name in ipairs(BUILTIN_HANDLERS) do
-    if handler_enabled(name) then
-      require('satellite.handlers.'..name)
-    end
-  end
-
-  -- Initialize handlers
-  for _, handler in ipairs(handlers) do
-    if handler_enabled(handler.name) and handler.init then
-      handler.init(user_config.handlers[handler.name])
-    end
-  end
+  Handlers.init()
 
   apply_keymaps()
 
