@@ -1,5 +1,7 @@
 local api = vim.api
 
+local util = require'satellite.util'
+
 ---@type Handler
 local handler = {
   name = 'gitsigns',
@@ -17,7 +19,7 @@ function handler.init()
   })
 end
 
-function handler.update(bufnr)
+function handler.update(bufnr, winid)
   if not package.loaded.gitsigns then
     return {}
   end
@@ -30,16 +32,27 @@ function handler.update(bufnr)
       local hl = hunk.type == 'add'    and 'GitSignsAdd' or
                  hunk.type == 'delete' and 'GitSignsDelete' or
                                            'GitSignsChange'
-      marks[#marks+1] = {
-        lnum = math.max(1, i),
+      local lnum = math.max(1, i)
+      local pos = util.row_to_barpos(winid, lnum-1)
+
+      marks[pos] = {
         symbol = hunk.type == 'delete' and '-' or '│',
-        highlight = hl,
-        col = 0,
+        highlight = hl
       }
     end
   end
 
-  return marks
+  local ret = {}
+
+  for pos, mark in pairs(marks) do
+    ret[#ret+1] = {
+      pos = pos,
+      highlight = mark.highlight,
+      symbol = mark.symbol,
+    }
+  end
+
+  return ret
 end
 
 require('satellite.handlers').register(handler)

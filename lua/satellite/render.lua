@@ -8,15 +8,6 @@ local M = {}
 
 local ns = api.nvim_create_namespace('satellite')
 
----@param count integer
----@param s string|string[]
-local function get_symbol(count, s)
-  if type(s) == 'string' then
-    return s
-  end
-  return s[count] or s[#s]
-end
-
 ---@param winid integer
 ---@param bbufnr integer
 ---@param row integer
@@ -55,15 +46,12 @@ local function render_handler(bufnr, winid, bbufnr, handler)
 
   local handler_config = user_config.handlers[name] or {}
 
-  local positions = {}
   for _, m in ipairs(handler.update(bufnr, winid)) do
-    local pos = m.pos or util.row_to_barpos(winid, m.lnum-1)
-    positions[pos] = (positions[pos] or 0) + 1
-    local symbol = get_symbol(positions[pos], m.symbol)
+    local pos, symbol = m.pos, m.symbol
 
     local opts = {
       id = not m.unique and pos+1 or nil,
-      priority = (handler_config.priority or 1)*10 + positions[pos]
+      priority = handler_config.priority
     }
 
     if handler_config.overlap ~= false then

@@ -50,21 +50,33 @@ function handler.init(config0)
 
 end
 
-function handler.update(bufnr)
+function handler.update(bufnr, winid)
   local marks = {}
   local buffer_marks = vim.fn.getmarklist(bufnr)
   for _, mark in ipairs(buffer_marks) do
+    local lnum = mark.pos[2]
+
+    local pos = util.row_to_barpos(winid, lnum-1)
+
     if config.show_builtins or not mark_is_builtin(mark.mark) then
-      marks[#marks + 1] = {
-        -- [bufnum, lnum, col, off]
-        lnum = mark.pos[2],
+      marks[pos] = {
         -- first char of mark name is a single quote
         symbol = string.sub(mark.mark, 2, 3),
-        highlight = highlight,
       }
     end
   end
-  return marks
+
+  local ret = {}
+
+  for pos, mark in pairs(marks) do
+    ret[#ret+1] = {
+      pos = pos,
+      highlight = highlight,
+      symbol = mark.symbol,
+    }
+  end
+
+  return ret
 end
 
 require('satellite.handlers').register(handler)

@@ -117,7 +117,7 @@ function handler.init()
   end
 end
 
-SYMBOLS = {'⠂', '⠅', '⠇', '⠗', '⠟', '⠿'}
+local SYMBOLS = {'⠂', '⠅', '⠇', '⠗', '⠟', '⠿'}
 
 function handler.update(bufnr, winid)
   local marks = {}
@@ -144,10 +144,10 @@ function handler.update(bufnr, winid)
     end
   end
 
-  local marks1 = {}
+  local ret = {}
 
   for pos, mark in pairs(marks) do
-    marks1[#marks1+1] = {
+    ret[#ret+1] = {
       pos = pos,
       unique = mark.unique,
       highlight = mark.highlight or 'SearchSV',
@@ -155,7 +155,7 @@ function handler.update(bufnr, winid)
     }
   end
 
-  return marks1
+  return ret
 end
 
 require('satellite.handlers').register(handler)

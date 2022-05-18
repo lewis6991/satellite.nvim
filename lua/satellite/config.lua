@@ -12,11 +12,18 @@
 ---@field enable boolean
 ---@field overlap boolean
 ---@field priority integer
+--
+---@class MarksConfig
+---@field enable boolean
+---@field overlap boolean
+---@field priority integer
+---@field show_builtins boolean
 
 ---@class HandlerConfigs
 ---@field diagnostic DiagnosticConfig
 ---@field gitsigns GitsignsConfig
 ---@field search SearchConfig
+---@field marks MarksConfig
 
 ---@class Config
 ---@field handlers HandlerConfigs
@@ -42,11 +49,13 @@ local user_config = {
     },
     gitsigns = {
       enable = true,
-      overlap = true,
+      overlap = false,
       priority = 20,
     },
     marks = {
       enable = true,
+      overlap = true,
+      priority = 60,
       show_builtins = false,
     },
   },
