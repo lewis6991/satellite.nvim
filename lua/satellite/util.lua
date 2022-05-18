@@ -108,4 +108,17 @@ function M.row_to_barpos(winid, row)
   return round(winheight0 * vrow / vlinecount0)
 end
 
+-- Clear matches and refresh when :nohl is run
+function M.on_cmd(cmd, augroup, f)
+  api.nvim_create_autocmd({'CmdlineLeave'}, {
+    group = augroup,
+    callback = function()
+      if fn.getcmdtype() == ':'
+        and vim.startswith(fn.getcmdline(), cmd) then
+        f()
+      end
+    end
+  })
+end
+
 return M

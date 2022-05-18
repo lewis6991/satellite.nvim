@@ -1,3 +1,5 @@
+local util = require'satellite.util'
+
 local highlight = 'Normal'
 
 ---@type Handler
@@ -26,6 +28,7 @@ end
 
 function handler.init(config0)
   config = config0
+
   -- range over a-z
   for char = 97, 122 do
     local map = 'm' .. string.char(char)
@@ -34,6 +37,17 @@ function handler.init(config0)
       return map
     end, { unique = true, expr = true })
   end
+
+  local group = vim.api.nvim_create_augroup('satellite_marks', {})
+
+  for _, cmd in ipairs{'k', 'mar', 'delm'} do
+    util.on_cmd(cmd, group, function()
+      vim.schedule(function()
+        require('satellite').refresh_bars()
+      end)
+    end)
+  end
+
 end
 
 function handler.update(bufnr)

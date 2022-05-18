@@ -75,19 +75,6 @@ local function refresh()
   end
 end
 
--- Clear matches and refresh when :nohl is run
-local function on_cmd(cmd, group, f)
-  api.nvim_create_autocmd({'CmdlineLeave'}, {
-    group = group,
-    callback = function()
-      if fn.getcmdtype() == ':'
-        and vim.startswith(fn.getcmdline(), cmd) then
-        f()
-      end
-    end
-  })
-end
-
 ---@type Handler
 local handler = {
   name = 'search'
@@ -111,7 +98,7 @@ function handler.init()
       callback = refresh
     })
 
-  on_cmd('nohl', group, function()
+  util.on_cmd('nohl', group, function()
     update_matches(api.nvim_get_current_buf(), '')
     require('satellite').refresh_bars()
   end)
