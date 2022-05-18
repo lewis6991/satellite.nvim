@@ -49,7 +49,7 @@ end
 local function render_handler(bufnr, winid, bbufnr, handler)
   local name = handler.name
 
-  if not Handlers.enabled(name) then
+  if not handler:enabled() then
     return
   end
 

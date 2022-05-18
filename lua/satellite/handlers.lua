@@ -5,6 +5,7 @@ local user_config = require'satellite.config'.user_config
 ---@field ns integer
 ---@field init fun(config: Config)
 ---@field update fun(bufnr: integer, winid, integer)
+---@field enabled fun(): boolean
 
 local M = {}
 
@@ -18,6 +19,17 @@ local BUILTIN_HANDLERS = {
 ---@type Handler[]
 M.handlers = {}
 
+local Handler = {}
+
+local function enabled(name)
+  local handler_config = user_config.handlers[name]
+  return not handler_config or handler_config.enable ~= false
+end
+
+function Handler:enabled()
+  return enabled(self.name)
+end
+
 ---@param spec Handler
 function M.register(spec)
   vim.validate{
@@ -28,25 +40,23 @@ function M.register(spec)
   }
 
   spec.ns = vim.api.nvim_create_namespace('satellite.Handler.'..spec.name)
-  table.insert(M.handlers, spec)
-end
 
-function M.enabled(name)
-  local handler_config = user_config.handlers[name]
-  return not handler_config or handler_config.enable ~= false
+  local h = setmetatable(spec, { __index = Handler })
+
+  table.insert(M.handlers, h)
 end
 
 function M.init()
-
   -- Load builtin handlers
   for _, name in ipairs(BUILTIN_HANDLERS) do
-    if M.enabled(name) then
+    if enabled(name) then
       require('satellite.handlers.'..name)
     end
   end
 
+  -- Initialize handlers
   for _, h in ipairs(M.handlers) do
-    if M.enabled(h.name) and h.init then
+    if h:enabled() and h.init then
       h.init(user_config.handlers[h.name])
     end
   end
