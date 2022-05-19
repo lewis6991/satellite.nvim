@@ -98,6 +98,7 @@ function handler.init()
     api.nvim_set_hl(0, 'SearchSV', {
       fg = api.nvim_get_hl_by_name('Search', true).background
     })
+    api.nvim_set_hl(0, 'SearchCurrentSV', { link = 'SearchCurrent', default = true })
 
     local group = api.nvim_create_augroup('satellite_search', {})
 
@@ -148,7 +149,7 @@ function handler.update(bufnr, winid)
     if lnum == cursor_lnum then
       marks[pos] = {
         count = count,
-        highlight = 'SearchCurrent',
+        highlight = 'SearchCurrentSV',
         unique    = true,
       }
     elseif count < 6 then

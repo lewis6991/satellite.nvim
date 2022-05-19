@@ -6,9 +6,17 @@ local util = require'satellite.util'
 local handler = {
   name = 'gitsigns',
 }
+local highlights = {
+  add = 'GitSignsAddSV',
+  change = 'GitSignsChangeSV',
+  delete = 'GitSignsDeleteSV',
+}
 
 function handler.init()
   local group = api.nvim_create_augroup('satellite_gitsigns', {})
+  vim.api.nvim_set_hl(0, 'GitSignsAddSV', { link = 'GitSignsAdd', default = true })
+  vim.api.nvim_set_hl(0, 'GitSignsChangeSV', { link = 'GitSignsDelete', default = true })
+  vim.api.nvim_set_hl(0, 'GitSignsChangeSV', { link = 'GitSignsChange', default = true })
 
   api.nvim_create_autocmd('User', {
     pattern = 'GitsignsHunkUpdate',
@@ -29,9 +37,7 @@ function handler.update(bufnr, winid)
   local hunks = require'gitsigns'.get_hunks(bufnr)
   for _, hunk in ipairs(hunks or {}) do
     for i = hunk.added.start, hunk.added.start+ math.max(0, hunk.added.count - 1) do
-      local hl = hunk.type == 'add'    and 'GitSignsAdd' or
-                 hunk.type == 'delete' and 'GitSignsDelete' or
-                                           'GitSignsChange'
+      local hl = highlights[hunk.type]
       local lnum = math.max(1, i)
       local pos = util.row_to_barpos(winid, lnum-1)
 

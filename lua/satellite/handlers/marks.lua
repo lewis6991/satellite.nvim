@@ -1,6 +1,5 @@
 local util = require'satellite.util'
 
-local highlight = 'Normal'
 
 ---@type Handler
 local handler = {
@@ -28,6 +27,7 @@ end
 
 function handler.init(config0)
   config = config0
+  vim.api.nvim_set_hl(0, 'MarksSV', { link = 'Normal', default = true })
 
   -- range over a-z
   for char = 97, 122 do
@@ -71,7 +71,7 @@ function handler.update(bufnr, winid)
   for pos, mark in pairs(marks) do
     ret[#ret+1] = {
       pos = pos,
-      highlight = highlight,
+      highlight = 'MarksSV',
       symbol = mark.symbol,
     }
   end
