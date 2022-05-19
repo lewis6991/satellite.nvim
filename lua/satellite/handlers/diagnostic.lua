@@ -1,14 +1,18 @@
 local util = require'satellite.util'
 
+local diagnostic_hls = {
+  [vim.diagnostic.severity.ERROR] = 'DiagnosticError',
+  [vim.diagnostic.severity.WARN]  = 'DiagnosticWarn',
+  [vim.diagnostic.severity.INFO]  = 'DiagnosticInfo',
+  [vim.diagnostic.severity.HINT]  = 'DiagnosticHint',
+}
+
 ---@type Handler
 local handler = {
   name = 'diagnostic'
 }
 
-local config ={}
-
-function handler.init(user_config)
-  config = user_config
+function handler.init()
   local gid = vim.api.nvim_create_augroup('satellite_diagnostics', {})
   vim.api.nvim_create_autocmd('DiagnosticChanged', {
     group = gid,
@@ -35,7 +39,7 @@ function handler.update(bufnr, winid)
 
     marks[pos] = {
       count = count,
-      highlight = config.highlight[diag.severity]
+      highlight = diagnostic_hls[diag.severity]
     }
   end
 
