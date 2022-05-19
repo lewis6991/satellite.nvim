@@ -93,12 +93,10 @@ end
 local handler = {
   name = 'search'
 }
+local config = {}
 
-function handler.init()
-    api.nvim_set_hl(0, 'SearchSV', {
-      fg = api.nvim_get_hl_by_name('Search', true).background
-    })
-
+function handler.init(user_config)
+    config = user_config
     local group = api.nvim_create_augroup('satellite_search', {})
 
     api.nvim_create_autocmd('CmdlineChanged', {
@@ -148,7 +146,7 @@ function handler.update(bufnr, winid)
     if lnum == cursor_lnum then
       marks[pos] = {
         count = count,
-        highlight = 'SearchCurrent',
+        highlight = config.highlight.current_match,
         unique    = true,
       }
     elseif count < 6 then
@@ -164,7 +162,7 @@ function handler.update(bufnr, winid)
     ret[#ret+1] = {
       pos = pos,
       unique = mark.unique,
-      highlight = mark.highlight or 'SearchSV',
+      highlight = mark.highlight or config.highlight.other_matches,
       symbol = mark.symbol or SYMBOLS[mark.count] or SYMBOLS[#SYMBOLS],
     }
   end

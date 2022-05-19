@@ -30,16 +30,40 @@ of the default settings:
       handlers = {
         search = {
           enable = true,
+          overlap = true,
+          priority = 10,
+          highlight = {
+            current_match = 'SearchCurrent',
+            other_matches = 'Search',
+          },
         },
         diagnostic = {
           enable = true,
+          overlap = true,
+            priority = 50,
+            highlight = {
+              [vim.diagnostic.severity.ERROR] = 'DiagnosticError',
+              [vim.diagnostic.severity.WARN] = 'DiagnosticWarn',
+              [vim.diagnostic.severity.INFO] = 'DiagnosticInfo',
+              [vim.diagnostic.severity.HINT] = 'DiagnosticHint',
+            },
         },
         gitsigns = {
           enable = true,
+          overlap = false,
+          priority = 20,
+          highlight = {
+            add = 'GitSignsAdd',
+            delete = 'GitSignsDelete',
+            change = 'GitSignsChange',
+          },
         },
         marks = {
           enable = true,
           show_builtins = false, -- shows the builtin marks like [ ] < >
+          overlap = true,
+          priority = 60,
+          highlight = 'Normal',
         },
       },
     }

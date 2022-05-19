@@ -1,6 +1,5 @@
 local util = require'satellite.util'
 
-local highlight = 'Normal'
 
 ---@type Handler
 local handler = {
@@ -26,8 +25,8 @@ local function mark_is_builtin(m)
   return false
 end
 
-function handler.init(config0)
-  config = config0
+function handler.init(user_config)
+  config = user_config
 
   -- range over a-z
   for char = 97, 122 do
@@ -71,7 +70,7 @@ function handler.update(bufnr, winid)
   for pos, mark in pairs(marks) do
     ret[#ret+1] = {
       pos = pos,
-      highlight = highlight,
+      highlight = config.highlight,
       symbol = mark.symbol,
     }
   end
