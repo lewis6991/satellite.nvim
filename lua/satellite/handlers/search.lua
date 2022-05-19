@@ -94,23 +94,33 @@ local handler = {
   name = 'search'
 }
 
+local function setup_hl()
+  api.nvim_set_hl(0, 'SearchSV', {
+    default = true,
+    fg = api.nvim_get_hl_by_name('Search', true).background
+  })
+end
+
 function handler.init()
-    api.nvim_set_hl(0, 'SearchSV', {
-      fg = api.nvim_get_hl_by_name('Search', true).background
-    })
+  local group = api.nvim_create_augroup('satellite_search', {})
 
-    local group = api.nvim_create_augroup('satellite_search', {})
+  api.nvim_create_autocmd('ColorScheme', {
+    group = group,
+    callback = setup_hl
+  })
 
-    api.nvim_create_autocmd('CmdlineChanged', {
-      group = group,
-      -- Debounce as this is triggered very often
-      callback = util.debounce_trailing(refresh)
-    })
+  setup_hl()
 
-    api.nvim_create_autocmd({'CmdlineEnter', 'CmdlineLeave'}, {
-      group = group,
-      callback = refresh
-    })
+  api.nvim_create_autocmd('CmdlineChanged', {
+    group = group,
+    -- Debounce as this is triggered very often
+    callback = util.debounce_trailing(refresh)
+  })
+
+  api.nvim_create_autocmd({'CmdlineEnter', 'CmdlineLeave'}, {
+    group = group,
+    callback = refresh
+  })
 
   util.on_cmd('nohl', group, function()
     update_matches(api.nvim_get_current_buf(), '')
