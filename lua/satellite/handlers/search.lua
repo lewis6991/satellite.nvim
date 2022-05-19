@@ -24,10 +24,24 @@ end
 local MAX_THRESHOLD1 = 500
 local MAX_THRESHOLD2 = 1000
 
+---@param pattern string
+local function smartcaseify(pattern)
+  if pattern and vim.o.ignorecase and vim.o.smartcase then
+    -- match() does not use 'smartcase' so we must handle it
+    local smartcase = pattern:find('[A-Z]') ~= nil
+    if smartcase and not vim.startswith(pattern, '\\C') then
+      return '\\C'..pattern
+    end
+  end
+  return pattern
+end
+
 ---@param bufnr integer
 ---@param pattern? string
 ---@return integer[]
 local function update_matches(bufnr, pattern)
+  pattern = smartcaseify(pattern)
+
   if cache[bufnr]
     and cache[bufnr].changedtick == vim.b[bufnr].changedtick
     and (not pattern or cache[bufnr].pattern == pattern) then
