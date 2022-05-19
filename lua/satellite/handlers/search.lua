@@ -119,15 +119,17 @@ function handler.init()
 
   -- Refresh when activating search nav mappings
   for _, seq in ipairs{'n', 'N', '&', '*'} do
-    vim.keymap.set('n', seq, function()
-      vim.schedule(function()
-        ---@diagnostic disable-next-line: missing-parameter
-        local pattern = vim.v.hlsearch == 1 and fn.getreg('/') or ''
-        update_matches(api.nvim_get_current_buf(), pattern)
-        require('satellite').refresh_bars()
-      end)
-      return seq
-    end, {expr = true})
+    if vim.fn.maparg(seq) == "" then
+      vim.keymap.set('n', seq, function()
+        vim.schedule(function()
+          ---@diagnostic disable-next-line: missing-parameter
+          local pattern = vim.v.hlsearch == 1 and fn.getreg('/') or ''
+          update_matches(api.nvim_get_current_buf(), pattern)
+          require('satellite').refresh_bars()
+        end)
+        return seq
+      end, {expr = true})
+    end
   end
 end
 

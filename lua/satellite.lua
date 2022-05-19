@@ -751,22 +751,28 @@ end
 local function apply_keymaps()
   -- === Fold command synchronization workarounds ===
   -- zf takes a motion in normal mode, so it requires a g@ mapping.
-  vim.keymap.set('n', 'zf', function()
-    vim.o.operatorfunc = 'v:lua:package.loaded.satellite.zf_operator'
-    return 'g@'
-  end, {unique = true})
+  if vim.fn.maparg('zf') == "" then
+    vim.keymap.set('n', 'zf', function()
+      vim.o.operatorfunc = 'v:lua:package.loaded.satellite.zf_operator'
+      return 'g@'
+    end, {unique = true})
+  end
 
   for _, seq in ipairs{
     'zF', 'zd', 'zD', 'zE', 'zo', 'zO', 'zc', 'zC', 'za', 'zA', 'zv',
     'zx', 'zX', 'zm', 'zM', 'zr', 'zR', 'zn', 'zN', 'zi'
   } do
-    vim.keymap.set({'n', 'v'}, seq, function()
-      vim.schedule(refresh)
-      return seq
-    end, {unique = true, expr=true})
+    if vim.fn.maparg(seq) == "" then
+      vim.keymap.set({'n', 'v'}, seq, function()
+        vim.schedule(refresh)
+        return seq
+      end, {unique = true, expr=true})
+    end
   end
 
-  vim.keymap.set({'n', 'v', 'o', 'i'}, '<leftmouse>', handle_leftmouse)
+  if vim.fn.maparg('<leftmouse>') == "" then
+    vim.keymap.set({'n', 'v', 'o', 'i'}, '<leftmouse>', handle_leftmouse)
+  end
 end
 
 function M.setup(cfg)

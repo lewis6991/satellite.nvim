@@ -32,10 +32,12 @@ function handler.init(config0)
   -- range over a-z
   for char = 97, 122 do
     local map = 'm' .. string.char(char)
-    vim.keymap.set({ 'n', 'v' }, map, function()
-      vim.schedule(refresh)
-      return map
-    end, { unique = true, expr = true })
+    if vim.fn.maparg(map) == "" then
+      vim.keymap.set({ 'n', 'v' }, map, function()
+        vim.schedule(refresh)
+        return map
+      end, { unique = true, expr = true })
+    end
   end
 
   local group = vim.api.nvim_create_augroup('satellite_marks', {})
