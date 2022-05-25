@@ -75,24 +75,19 @@ end
 ---@param winid integer
 ---@param bar_winid integer
 local function reposition_bar(winid, bar_winid)
-  -- Reposition window if we need to
   local winwidth = api.nvim_win_get_width(winid)
   local wininfo = vim.fn.getwininfo(bar_winid)[1]
-  if not wininfo then
-    return
-  end
   local signwidth = wininfo.textoff
-  local col = winwidth - signwidth - 1
+  local col = winwidth - signwidth
 
-  local cfg = api.nvim_win_get_config(bar_winid)
-  ---@diagnostic disable-next-line: undefined-field
-  if cfg.col ~= col then
-    local ok, err = pcall(api.nvim_win_set_config, bar_winid, {col = col})
-    if ok then
-      print(col)
-      error(err)
-    end
-  end
+  api.nvim_win_set_config(bar_winid, {
+    relative = 'win',
+    row = 0,
+    col = col,
+    width = 1 + signwidth,
+  })
+
+  vim.w[bar_winid].col = col
 end
 
 ---@param bbufnr integer
