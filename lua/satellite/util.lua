@@ -70,18 +70,19 @@ function M.virtual_line_count(winid, start, vend)
   end
 
   return api.nvim_win_call(winid, function()
-    local count = 0
+    local vline = 0
     local line = start
     while line <= vend do
-      count = count + 1
+      vline = vline + 1
       local foldclosedend = fn.foldclosedend(line)
       if foldclosedend ~= -1 then
         line = foldclosedend
       end
+      -- This function is called a lot so cache every line
+      virtual_line_count_cache[winid][start][line] = vline
       line = line + 1
     end
-    virtual_line_count_cache[winid][start][vend] = count
-    return count
+    return vline
   end)
 end
 

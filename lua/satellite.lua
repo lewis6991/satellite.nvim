@@ -439,9 +439,12 @@ end
 -- Refreshes scrollbars. Global state is initialized and restored.
 function M.refresh_bars()
   local current_wins = {}
-  for _, winid in ipairs(get_target_windows()) do
-    if show_scrollbar(winid) then
-      current_wins[#current_wins+1] = winids[winid]
+
+  if view_enabled then
+    for _, winid in ipairs(get_target_windows()) do
+      if show_scrollbar(winid) then
+        current_wins[#current_wins+1] = winids[winid]
+      end
     end
   end
 
@@ -530,12 +533,6 @@ local function disable()
   view_enabled = false
   api.nvim_create_augroup('satellite', {})
   M.remove_bars()
-end
-
-local function refresh()
-  if view_enabled then
-    M.refresh_bars()
-  end
 end
 
 local MOUSEDOWN = t('<leftmouse>')
@@ -745,12 +742,13 @@ function M.zf_operator(type)
   else
     -- Unsupported
   end
-  refresh()
+  M.refresh_bars()
 end
 
 local function apply_keymaps()
   -- === Fold command synchronization workarounds ===
   -- zf takes a motion in normal mode, so it requires a g@ mapping.
+  ---@diagnostic disable-next-line: missing-parameter
   if vim.fn.maparg('zf') == "" then
     vim.keymap.set('n', 'zf', function()
       vim.o.operatorfunc = 'v:lua:package.loaded.satellite.zf_operator'
@@ -762,14 +760,16 @@ local function apply_keymaps()
     'zF', 'zd', 'zD', 'zE', 'zo', 'zO', 'zc', 'zC', 'za', 'zA', 'zv',
     'zx', 'zX', 'zm', 'zM', 'zr', 'zR', 'zn', 'zN', 'zi'
   } do
+    ---@diagnostic disable-next-line: missing-parameter
     if vim.fn.maparg(seq) == "" then
       vim.keymap.set({'n', 'v'}, seq, function()
-        vim.schedule(refresh)
+        vim.schedule(M.refresh_bars)
         return seq
       end, {unique = true, expr=true})
     end
   end
 
+  ---@diagnostic disable-next-line: missing-parameter
   if vim.fn.maparg('<leftmouse>') == "" then
     vim.keymap.set({'n', 'v', 'o', 'i'}, '<leftmouse>', handle_leftmouse)
   end
@@ -782,9 +782,9 @@ function M.setup(cfg)
 
   apply_keymaps()
 
-  api.nvim_create_user_command('SatelliteRefresh', refresh, {bar = true, force = true})
-  api.nvim_create_user_command('SatelliteEnable' , enable , {bar = true, force = true})
-  api.nvim_create_user_command('SatelliteDisable', disable, {bar = true, force = true})
+  api.nvim_create_user_command('SatelliteRefresh', M.refresh_bars, { bar = true, force = true})
+  api.nvim_create_user_command('SatelliteEnable' , enable ,        { bar = true, force = true})
+  api.nvim_create_user_command('SatelliteDisable', disable,        { bar = true, force = true})
 
   -- The default highlight group is specified below.
   -- Change this default by defining or linking an alternative highlight group.
