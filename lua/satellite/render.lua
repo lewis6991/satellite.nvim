@@ -78,16 +78,18 @@ local function reposition_bar(winid, bar_winid)
   local winwidth = api.nvim_win_get_width(winid)
   local wininfo = vim.fn.getwininfo(bar_winid)[1]
   local signwidth = wininfo.textoff
-  local col = winwidth - signwidth
 
-  api.nvim_win_set_config(bar_winid, {
+  local cfg = {
     relative = 'win',
+    win = winid,
     row = 0,
-    col = col,
+    col = winwidth - signwidth - 1,
     width = 1 + signwidth,
-  })
+  }
 
-  vim.w[bar_winid].col = col
+  api.nvim_win_set_config(bar_winid, cfg)
+
+  vim.w[bar_winid].col = cfg.col
 end
 
 ---@param bbufnr integer

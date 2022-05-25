@@ -157,28 +157,33 @@ local function show_scrollbar(winid)
   -- Don't show in terminal mode, since the bar won't be properly updated for
   -- insertions.
   if wininfo.terminal ~= 0 then
+    print('DEBUG6 '..winid)
     return
   end
 
   if in_cmdline_win(winid) then
+    print('DEBUG5 '..winid)
     return
   end
 
   local winheight = api.nvim_win_get_height(winid)
   local winwidth = api.nvim_win_get_width(winid)
   if winheight == 0 or winwidth == 0 then
+    print('DEBUG3 '..winid)
     return
   end
 
   local line_count = api.nvim_buf_line_count(bufnr)
 
   if line_count == 0 then
+    print('DEBUG2 '..winid)
     return
   end
 
   -- Don't show the position bar when all lines are on screen.
   local topline, botline = visible_line_range(winid)
   if botline - topline + 1 == line_count then
+    print('DEBUG1 '..winid)
     return
   end
 
@@ -205,11 +210,11 @@ local function show_scrollbar(winid)
   if bar_winid then
     local bar_wininfo = vim.fn.getwininfo(bar_winid)[1]
     -- wininfo can be nil when pressing <C-w>o
-    if bar_wininfo then
+    -- if bar_wininfo then
       local signwidth = bar_wininfo.textoff
       cfg.col = cfg.col - signwidth
       cfg.width = cfg.width + signwidth
-    end
+    -- end
   end
 
   if bar_winid and api.nvim_win_is_valid(bar_winid) then
