@@ -2,6 +2,7 @@ local api = vim.api
 local fn = vim.fn
 
 local util = require'satellite.util'
+local async = require'satellite.async'
 
 ---@class CacheElem
 ---@field changedtick integer
@@ -21,9 +22,6 @@ local function is_search_mode()
   return false
 end
 
-local MAX_THRESHOLD1 = 500
-local MAX_THRESHOLD2 = 1000
-
 ---@param pattern string
 local function smartcaseify(pattern)
   if pattern and vim.o.ignorecase and vim.o.smartcase then
@@ -36,10 +34,20 @@ local function smartcaseify(pattern)
   return pattern
 end
 
+local function get_pattern()
+  if is_search_mode() then
+    return vim.fn.getcmdline()
+  else
+    ---@diagnostic disable-next-line: missing-parameter
+    return vim.v.hlsearch == 1 and fn.getreg('/') or ''
+  end
+end
+
 ---@param bufnr integer
 ---@param pattern? string
 ---@return integer[]
 local function update_matches(bufnr, pattern)
+  pattern = pattern or get_pattern()
   pattern = smartcaseify(pattern)
 
   if cache[bufnr]
@@ -53,23 +61,18 @@ local function update_matches(bufnr, pattern)
   if pattern and pattern ~= '' then
     local lines = api.nvim_buf_get_lines(bufnr, 0, -1, true)
 
+    local start_time = vim.loop.now()
     for lnum, line in ipairs(lines) do
-
       local count = 1
       repeat
         local col = fn.match(line, pattern, 0, count)
         if col ~= -1 then
           matches[#matches+1] = lnum
         end
-        local max_count = #matches < MAX_THRESHOLD1 and 6 or 1
-        if count > max_count then
-          break
-        end
         count = count + 1
       until col == -1
-      if #matches > MAX_THRESHOLD2 then
-        break
-      end
+
+      start_time = async.event_control(start_time)
     end
   end
 
@@ -82,12 +85,12 @@ local function update_matches(bufnr, pattern)
   return matches
 end
 
-local function refresh()
+local refresh = async.void(function()
   if is_search_mode() then
-    update_matches(api.nvim_get_current_buf(), fn.getcmdline())
+    update_matches(api.nvim_get_current_buf())
     require('satellite').refresh_bars()
   end
-end
+end)
 
 ---@type Handler
 local handler = {
@@ -113,8 +116,7 @@ function handler.init()
 
   api.nvim_create_autocmd('CmdlineChanged', {
     group = group,
-    -- Debounce as this is triggered very often
-    callback = util.debounce_trailing(refresh)
+    callback = refresh
   })
 
   api.nvim_create_autocmd({'CmdlineEnter', 'CmdlineLeave'}, {
@@ -122,21 +124,20 @@ function handler.init()
     callback = refresh
   })
 
-  util.on_cmd('nohl', group, function()
+  util.on_cmd('nohl', group, async.void(function()
     update_matches(api.nvim_get_current_buf(), '')
     require('satellite').refresh_bars()
-  end)
+  end))
 
   -- Refresh when activating search nav mappings
   for _, seq in ipairs{'n', 'N', '&', '*'} do
+    ---@diagnostic disable-next-line: missing-parameter
     if vim.fn.maparg(seq) == "" then
       vim.keymap.set('n', seq, function()
-        vim.schedule(function()
-          ---@diagnostic disable-next-line: missing-parameter
-          local pattern = vim.v.hlsearch == 1 and fn.getreg('/') or ''
-          update_matches(api.nvim_get_current_buf(), pattern)
+        vim.schedule(async.void(function()
+          update_matches(api.nvim_get_current_buf())
           require('satellite').refresh_bars()
-        end)
+        end))
         return seq
       end, {expr = true})
     end
@@ -149,6 +150,7 @@ function handler.update(bufnr, winid)
   local marks = {}
   local matches = update_matches(bufnr)
   local cursor_lnum = api.nvim_win_get_cursor(0)[1]
+  local start_time = vim.loop.now()
   for _, lnum in ipairs(matches) do
     local pos = util.row_to_barpos(winid, lnum-1)
 
@@ -168,6 +170,7 @@ function handler.update(bufnr, winid)
         count = count
       }
     end
+    start_time = async.event_control(start_time)
   end
 
   local ret = {}

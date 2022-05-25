@@ -1,6 +1,6 @@
 local api = vim.api
 
-local util = require'satellite.util'
+local async = require'satellite.async'
 local user_config = require'satellite.config'.user_config
 local Handlers = require'satellite.handlers'
 
@@ -77,7 +77,11 @@ end
 local function reposition_bar(winid, bar_winid)
   -- Reposition window if we need to
   local winwidth = api.nvim_win_get_width(winid)
-  local signwidth = vim.fn.getwininfo(bar_winid)[1].textoff
+  local wininfo = vim.fn.getwininfo(bar_winid)[1]
+  if not wininfo then
+    return
+  end
+  local signwidth = wininfo.textoff
   local col = winwidth - signwidth - 1
 
   local cfg = api.nvim_win_get_config(bar_winid)
@@ -96,7 +100,7 @@ end
 ---@param winid integer
 ---@param row integer
 ---@param height integer
-function M.render_bar(bbufnr, bwinid, winid, row, height)
+M.render_bar = async.void(function(bbufnr, bwinid, winid, row, height)
   render_scrollbar(winid, bbufnr, row, height)
 
   -- Run handlers
@@ -106,6 +110,6 @@ function M.render_bar(bbufnr, bwinid, winid, row, height)
   end
 
   reposition_bar(winid, bwinid)
-end
+end)
 
 return M

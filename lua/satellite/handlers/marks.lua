@@ -32,6 +32,7 @@ function handler.init(config0)
   -- range over a-z
   for char = 97, 122 do
     local map = 'm' .. string.char(char)
+    ---@diagnostic disable-next-line: missing-parameter
     if vim.fn.maparg(map) == "" then
       vim.keymap.set({ 'n', 'v' }, map, function()
         vim.schedule(refresh)
