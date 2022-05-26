@@ -204,12 +204,12 @@ local function show_scrollbar(winid)
 
   if bar_winid then
     local bar_wininfo = vim.fn.getwininfo(bar_winid)[1]
-    -- wininfo can be nil when pressing <C-w>o
-    -- if bar_wininfo then
+    -- wininfo can be nil when pressing <C-w>o in help buffers
+    if bar_wininfo then
       local signwidth = bar_wininfo.textoff
       cfg.col = cfg.col - signwidth
       cfg.width = cfg.width + signwidth
-    -- end
+    end
   end
 
   if bar_winid and api.nvim_win_is_valid(bar_winid) then
