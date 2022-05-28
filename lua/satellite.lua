@@ -169,8 +169,10 @@ local function show_scrollbar(winid)
   if winheight == 0 or winwidth == 0 then
     return
   end
-  if vim.o.winbar ~= '' then
-    winheight = winheight - 1
+  if vim.fn.has("nvim-0.8") > 0 then
+    if vim.o.winbar ~= '' then
+        winheight = winheight - 1
+    end
   end
 
   local line_count = api.nvim_buf_line_count(bufnr)
