@@ -125,10 +125,10 @@ function handler.init()
   })
 
   -- Regularly check v:hlsearch
-  util.watch_table(vim.v, 'hlsearch', vim.o.updatetime, function()
+  util.watch_table(vim.v, 'hlsearch', vim.o.updatetime, async.void(function()
     update_matches(api.nvim_get_current_buf(), '')
     require('satellite').refresh_bars()
-  end)
+  end))
 
   -- Refresh when activating search nav mappings
   for _, seq in ipairs{'n', 'N', '&', '*'} do
