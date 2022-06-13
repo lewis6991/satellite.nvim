@@ -88,7 +88,7 @@ end
 local refresh = async.void(function()
   if is_search_mode() then
     update_matches(api.nvim_get_current_buf())
-    require('satellite').refresh_bars()
+    require('satellite.view').refresh_bars()
   end
 end)
 
@@ -127,7 +127,7 @@ function handler.init()
   -- Regularly check v:hlsearch
   util.watch_table(vim.v, 'hlsearch', vim.o.updatetime, async.void(function()
     update_matches(api.nvim_get_current_buf(), '')
-    require('satellite').refresh_bars()
+    require('satellite.view').refresh_bars()
   end))
 
   -- Refresh when activating search nav mappings
@@ -137,7 +137,7 @@ function handler.init()
       vim.keymap.set('n', seq, function()
         vim.schedule(async.void(function()
           update_matches(api.nvim_get_current_buf())
-          require('satellite').refresh_bars()
+          require('satellite.view').refresh_bars()
         end))
         return seq
       end, {expr = true})

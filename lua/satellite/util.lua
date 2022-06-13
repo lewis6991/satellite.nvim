@@ -229,4 +229,24 @@ function M.visible_line_range(winid)
   end))
 end
 
+function M.noautocmd(f)
+  local eventignore = vim.o.eventignore
+  vim.o.eventignore = 'all'
+  f()
+  vim.o.eventignore = eventignore
+end
+
+function M.in_cmdline_win(winid)
+  winid = winid or api.nvim_get_current_win()
+  if not api.nvim_win_is_valid(winid) then
+    return false
+  end
+  if fn.win_gettype(winid) == 'command' then
+    return true
+  end
+  local bufnr = api.nvim_win_get_buf(winid)
+  return api.nvim_buf_get_name(bufnr) == '[Command Line]'
+end
+
+
 return M

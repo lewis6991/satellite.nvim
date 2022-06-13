@@ -14,7 +14,7 @@ function handler.init()
     pattern = 'GitsignsHunkUpdate',
     group = group,
     callback = function()
-      require('satellite').refresh_bars()
+      require('satellite.view').refresh_bars()
     end
   })
 end

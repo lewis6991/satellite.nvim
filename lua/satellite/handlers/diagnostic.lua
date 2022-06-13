@@ -17,7 +17,7 @@ function handler.init()
   vim.api.nvim_create_autocmd('DiagnosticChanged', {
     group = gid,
     callback = function()
-      require('satellite').refresh_bars()
+      require('satellite.view').refresh_bars()
     end
   })
 end

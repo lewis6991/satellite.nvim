@@ -1,211 +1,14 @@
 local api = vim.api
-local fn = vim.fn
 
 local Handlers = require('satellite.handlers')
-local util = require'satellite.util'
 local Config = require'satellite.config'
-local render = require'satellite.render'
-local mouse = require'satellite.mouse'
-local state = require'satellite.state'
-
-local user_config = Config.user_config
+local util = require'satellite.util'
+local view = require'satellite.view'
 
 local M = {}
 
-local function create_view(cfg)
-  local bufnr = api.nvim_create_buf(false, true)
-  vim.bo[bufnr].modifiable = false
-  vim.bo[bufnr].buftype = 'nofile'
-  vim.bo[bufnr].swapfile = false
-  vim.bo[bufnr].bufhidden = 'delete'
-  vim.bo[bufnr].buflisted = false
-
-  local winid = api.nvim_open_win(bufnr, false, cfg)
-
-  -- It's not sufficient to just specify Normal highlighting. With just that, a
-  -- color scheme's specification of EndOfBuffer would be used to color the
-  -- bottom of the scrollbar.
-  util.set_window_option(winid, "winhighlight", 'Normal:Normal')
-  util.set_window_option(winid, "winblend", user_config.winblend)
-  util.set_window_option(winid, "foldcolumn" , '0')
-  util.set_window_option(winid, "wrap" , false)
-
-  return bufnr, winid
-end
-
-local function in_cmdline_win(winid)
-  winid = winid or api.nvim_get_current_win()
-  if not api.nvim_win_is_valid(winid) then
-    return false
-  end
-  if fn.win_gettype(winid) == 'command' then
-    return true
-  end
-  local bufnr = api.nvim_win_get_buf(winid)
-  return api.nvim_buf_get_name(bufnr) == '[Command Line]'
-end
-
--- Show a scrollbar for the specified 'winid' window ID, using the specified
--- 'bar_winid' floating window ID (a new floating window will be created if
--- this is -1). Returns -1 if the bar is not shown, and the floating window ID
--- otherwise.
-local function show_scrollbar(winid)
-  local bufnr = api.nvim_win_get_buf(winid)
-  local buf_filetype = vim.bo[bufnr].filetype
-
-  util.invalidate_virtual_line_count_cache(winid)
-
-  -- Skip if the filetype is on the list of exclusions.
-  if vim.tbl_contains(user_config.excluded_filetypes, buf_filetype) then
-    return
-  end
-
-  local wininfo = fn.getwininfo(winid)[1]
-
-  -- Don't show in terminal mode, since the bar won't be properly updated for
-  -- insertions.
-  if wininfo.terminal ~= 0 then
-    return
-  end
-
-  if in_cmdline_win(winid) then
-    return
-  end
-
-  local winheight = api.nvim_win_get_height(winid)
-  local winwidth = api.nvim_win_get_width(winid)
-  if winheight == 0 or winwidth == 0 then
-    return
-  end
-  if vim.fn.has("nvim-0.8") > 0 then
-    if vim.o.winbar ~= '' then
-        winheight = winheight - 1
-    end
-  end
-
-  local line_count = api.nvim_buf_line_count(bufnr)
-
-  if line_count == 0 then
-    return
-  end
-
-  -- Don't show the position bar when all lines are on screen.
-  local topline, botline = util.visible_line_range(winid)
-  if botline - topline + 1 == line_count then
-    return
-  end
-
-  local cfg = {
-    win = winid,
-    relative = 'win',
-    style = 'minimal',
-    focusable = false,
-    zindex = user_config.zindex,
-    height = winheight,
-    width = 1,
-    row = 0,
-    col = winwidth - 1
-  }
-
-  local bar_winid = state.winids[winid]
-  local bar_bufnr
-
-  if bar_winid then
-    local bar_wininfo = vim.fn.getwininfo(bar_winid)[1]
-    -- wininfo can be nil when pressing <C-w>o in help buffers
-    if bar_wininfo then
-      local signwidth = bar_wininfo.textoff
-      cfg.col = cfg.col - signwidth
-      cfg.width = cfg.width + signwidth
-    end
-  end
-
-  if bar_winid and api.nvim_win_is_valid(bar_winid) then
-    api.nvim_win_set_config(bar_winid, cfg)
-    bar_bufnr = api.nvim_win_get_buf(bar_winid)
-  else
-    cfg.noautocmd = true
-    bar_bufnr, bar_winid = create_view(cfg)
-    state.winids[winid] = bar_winid
-  end
-
-  local toprow = util.row_to_barpos(winid, topline - 1)
-  local height = util.height_to_virtual(winid, topline - 1, botline - 1)
-  render.render_bar(bar_bufnr, bar_winid, winid, toprow, height)
-
-  vim.w[bar_winid].height = height
-  vim.w[bar_winid].row = toprow
-  vim.w[bar_winid].col = cfg.col
-  vim.w[bar_winid].width = cfg.width
-
-  return true
-end
-
-local function noautocmd(f)
-  local eventignore = vim.o.eventignore
-  vim.o.eventignore = 'all'
-  f()
-  vim.o.eventignore = eventignore
-end
-
-local function close_view_for_win(winid)
-  local bar_winid = state.winids[winid]
-  if not api.nvim_win_is_valid(bar_winid) then
-    return
-  end
-  if in_cmdline_win(winid) then
-    return
-  end
-  noautocmd(function()
-    api.nvim_win_close(bar_winid, true)
-  end)
-  state.winids[winid] = nil
-end
-
-function M.remove_bars()
-  for id, _ in pairs(state.winids) do
-    close_view_for_win(id)
-  end
-end
-
-local function get_target_windows()
-  local target_wins
-  if user_config.current_only then
-    target_wins = { api.nvim_get_current_win() }
-  else
-    target_wins = {}
-    local current_tab = api.nvim_get_current_tabpage()
-    for _, winid in ipairs(api.nvim_list_wins()) do
-      if util.is_ordinary_window(winid) and api.nvim_win_get_tabpage(winid) == current_tab then
-        target_wins[#target_wins+1] = winid
-      end
-    end
-  end
-  return target_wins
-end
-
--- Refreshes scrollbars. Global state is initialized and restored.
-function M.refresh_bars()
-  local current_wins = {}
-
-  if state.view_enabled then
-    for _, winid in ipairs(get_target_windows()) do
-      if show_scrollbar(winid) then
-        current_wins[#current_wins+1] = state.winids[winid]
-      end
-    end
-  end
-
-  -- Close any remaining bars
-  for winid, swinid in pairs(state.winids) do
-    if not vim.tbl_contains(current_wins, swinid) then
-      close_view_for_win(winid)
-    end
-  end
-end
-
 local function enable()
-  state.view_enabled = true
+  view.enable()
 
   local gid = api.nvim_create_augroup('satellite', {})
 
@@ -221,7 +24,7 @@ local function enable()
   -- <ctrl-w>o can be used to first close the floating windows, or
   -- alternatively :tabclose can be used (or one of the alternatives handled
   -- with the autocmd, like ZQ).
-  api.nvim_create_autocmd('QuitPre', { group = gid, callback = M.remove_bars })
+  api.nvim_create_autocmd('QuitPre', { group = gid, callback = view.disable })
 
   -- For the duration of command-line window usage, there should be no bars.
   -- Without this, bars can possibly overlap the command line window. This
@@ -232,13 +35,13 @@ local function enable()
   -- this is triggered by the WinEnter event, just prior to the relevant
   -- funcionality becoming unavailable.
   --
-  -- Remove scrollbars if in cmdlnie. This fails when called from the
+  -- Remove scrollbars if in cmdline. This fails when called from the
   -- CmdwinEnter event (some functionality, like nvim_win_close, cannot be
   -- used from the command line window), but works during the transition to
   -- the command line window (from the WinEnter event).
   api.nvim_create_autocmd('WinEnter', {group = gid, callback = function()
-    if in_cmdline_win() then
-      M.remove_bars()
+    if util.in_cmdline_win() then
+      view.remove_bars()
     end
   end})
 
@@ -271,18 +74,14 @@ local function enable()
     'VimResized'
   }, {
     group = gid,
-    callback = M.refresh_bars
+    callback = view.refresh_bars
   })
-
-  M.refresh_bars()
 end
 
 local function disable()
-  state.view_enabled = false
+  view.disable()
   api.nvim_create_augroup('satellite', {})
-  M.remove_bars()
 end
-
 
 -- An 'operatorfunc' for g@ that executes zf and then refreshes scrollbars.
 function M.zf_operator(type)
@@ -298,7 +97,7 @@ function M.zf_operator(type)
   else
     -- Unsupported
   end
-  M.refresh_bars()
+  view.refresh_bars()
 end
 
 local function apply_keymaps()
@@ -319,7 +118,7 @@ local function apply_keymaps()
     ---@diagnostic disable-next-line: missing-parameter
     if vim.fn.maparg(seq) == "" then
       vim.keymap.set({'n', 'v'}, seq, function()
-        vim.schedule(M.refresh_bars)
+        vim.schedule(view.refresh_bars)
         return seq
       end, {unique = true, expr=true})
     end
@@ -328,7 +127,7 @@ local function apply_keymaps()
   ---@diagnostic disable-next-line: missing-parameter
   if vim.fn.maparg('<leftmouse>') == "" then
     vim.keymap.set({'n', 'v', 'o', 'i'}, '<leftmouse>', function()
-      mouse.handle_leftmouse(M.refresh_bars)
+      require'satellite.mouse'.handle_leftmouse()
     end)
   end
 end
@@ -340,9 +139,9 @@ function M.setup(cfg)
 
   apply_keymaps()
 
-  api.nvim_create_user_command('SatelliteRefresh', M.refresh_bars, { bar = true, force = true})
-  api.nvim_create_user_command('SatelliteEnable' , enable ,        { bar = true, force = true})
-  api.nvim_create_user_command('SatelliteDisable', disable,        { bar = true, force = true})
+  api.nvim_create_user_command('SatelliteRefresh', view.refresh_bars, { bar = true, force = true})
+  api.nvim_create_user_command('SatelliteEnable' , enable ,           { bar = true, force = true})
+  api.nvim_create_user_command('SatelliteDisable', disable,           { bar = true, force = true})
 
   -- The default highlight group is specified below.
   -- Change this default by defining or linking an alternative highlight group.

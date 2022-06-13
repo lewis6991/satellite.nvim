@@ -46,7 +46,7 @@ function handler.init(config0)
   for _, cmd in ipairs{'k', 'mar', 'delm'} do
     util.on_cmd(cmd, group, function()
       vim.schedule(function()
-        require('satellite').refresh_bars()
+        require('satellite.view').refresh_bars()
       end)
     end)
   end

@@ -1,8 +1,7 @@
 local fn, api = vim.fn, vim.api
 
 local util = require'satellite.util'
-local render = require'satellite.render'
-local state = require'satellite.state'
+local view = require'satellite.view'
 
 -- Replace termcodes.
 local function t(str)
@@ -20,7 +19,7 @@ end
 -- Returns view properties for the specified window. An empty dictionary
 -- is returned if there is no corresponding scrollbar.
 local function get_props(winid)
-  local bar_winid = state.winids[winid]
+  local bar_winid = view.winids[winid]
   if not bar_winid then
     return
   end
@@ -91,8 +90,6 @@ local function set_topline(winid, linenr)
     vim.cmd('keepjumps normal! ' .. init_line .. 'G')
   end)
 end
-
-
 
 local function getchar()
   local ok, char = pcall(fn.getchar)
@@ -188,29 +185,13 @@ local function read_input_stream()
   return string, chars_props
 end
 
--- Given a target window row, the corresponding scrollbar is moved to that row.
--- The row is adjusted (up in value, down in visual position) such that the full
--- height of the scrollbar remains on screen.
-local function move_scrollbar(winid, row)
-  local bar_winid = state.winids[winid]
-  if not bar_winid then
-    -- Can happen if mouse is dragged over other floating windows
-    return
-  end
-  local height = api.nvim_win_get_var(bar_winid, 'height')
-
-  local bar_bufnr0 = api.nvim_win_get_buf(bar_winid)
-  render.render_bar(bar_bufnr0, bar_winid, winid, row, height)
-end
-
-
 local M = {}
 
-function M.handle_leftmouse(refresh)
+function M.handle_leftmouse()
   -- Re-send the click, so its position can be obtained through
   -- read_input_stream().
   fn.feedkeys(MOUSEDOWN, 'ni')
-  if not state.view_enabled then
+  if not view.enabled then
     -- disabled. Process the click as it would ordinarily be
     -- processed
     return
@@ -289,7 +270,7 @@ function M.handle_leftmouse(refresh)
           -- 'feedkeys' is not called, since the full mouse interaction has
           -- already been processed. The current window (from prior to
           -- scrolling) is not changed.
-          refresh()
+          view.refresh_bars()
         end
         return
       end
@@ -324,7 +305,7 @@ function M.handle_leftmouse(refresh)
         -- approach was deemed preferable to refreshing scrollbars initially, as
         -- that could result in unintended clicking/dragging where there is no
         -- scrollbar.
-        refresh()
+        view.refresh_bars()
 
         -- Don't restore toplines whenever a scrollbar was clicked. This
         -- prevents the window where a scrollbar is dragged from having its
@@ -374,7 +355,7 @@ function M.handle_leftmouse(refresh)
           if vim.wo[winid].scrollbind or vim.wo[winid].cursorbind then
             M.refresh_bars()
           end
-          move_scrollbar(winid, row0)
+          view.move_scrollbar(winid, row0)
         end
       end
       count = count + 1
