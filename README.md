@@ -15,7 +15,7 @@
   * Git hunks (via [gitsigns.nvim])
   * Marks
 * Handling for folds
-* Mouse support (currently broken)
+* Mouse support
 
 ## Requirements
 
