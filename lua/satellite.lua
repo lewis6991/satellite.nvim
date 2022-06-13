@@ -5,104 +5,12 @@ local Handlers = require('satellite.handlers')
 local util = require'satellite.util'
 local Config = require'satellite.config'
 local render = require'satellite.render'
+local mouse = require'satellite.mouse'
+local state = require'satellite.state'
 
 local user_config = Config.user_config
 
-local view_enabled = false
-
 local M = {}
-
--- Since there is no text displayed in the buffers, the same buffers are used
--- for multiple windows. This also prevents the buffer list from getting high
--- from usage of the plugin.
-
-local winids = {}
-
--- Replace termcodes.
-local function t(str)
-  return api.nvim_replace_termcodes(str, true, true, true)
-end
-
-local function is_visual_mode()
-  local mode = fn.mode()
-  return vim.tbl_contains({'v', 'V', t'<c-v>'}, mode)
-end
-
--- Returns true for ordinary windows (not floating and not external), and false
--- otherwise.
-local function is_ordinary_window(winid)
-  local cfg = api.nvim_win_get_config(winid)
-  local not_external = not cfg['external']
-  local not_floating = cfg['relative'] == ''
-  return not_external and not_floating
-end
-
--- Return top line and bottom line in window. For folds, the top line
--- represents the start of the fold and the bottom line represents the end of
--- the fold.
-local function visible_line_range(winid)
-  -- WARN: getwininfo(winid)[1].botline is not properly updated for some
-  -- movements (Neovim Issue #13510), so this is implemeneted as a workaround.
-  return unpack(api.nvim_win_call(winid, function()
-    local topline = fn.line('w0')
-    -- line('w$') returns 0 in silent Ex mode, but line('w0') is always greater
-    -- than or equal to 1.
-    local botline = math.max(fn.line('w$'), topline)
-    return {topline, botline}
-  end))
-end
-
--- Returns an array that maps window rows to the topline that corresponds to a
--- scrollbar at that row under virtual satellite mode, in the current window.
--- The computation primarily loops over lines, but may loop over virtual spans
--- as part of calling 'virtual_line_count', so the cursor may be moved.
-local function virtual_topline_lookup()
-  local winid = api.nvim_get_current_win()
-  local winheight = api.nvim_win_get_height(winid)
-  local result = {}  -- A list of line numbers
-  local total_vlines = util.virtual_line_count(winid, 1)
-  if total_vlines > 1 and winheight > 1 then
-    local count = 1  -- The count of virtual lines
-    local line = 1
-    local best = line
-    local best_distance = math.huge
-    local best_count = count
-    local bufnr = api.nvim_win_get_buf(winid)
-    local last_line = api.nvim_buf_line_count(bufnr)
-    for row = 1, winheight do
-      local proportion = (row - 1) / (winheight - 1)
-      while line <= last_line do
-        local current = (count - 1) / (total_vlines - 1)
-        local distance = math.abs(current - proportion)
-        if distance <= best_distance then
-          best = line
-          best_distance = distance
-          best_count = count
-        elseif distance > best_distance then
-          -- Prepare variables so that the next row starts iterating at the
-          -- current line and count, using an infinite best distance.
-          line = best
-          best_distance = math.huge
-          count = best_count
-          break
-        end
-        local foldclosedend = fn.foldclosedend(line)
-        if foldclosedend ~= -1 then
-          line = foldclosedend
-        end
-        line = line + 1
-        count = count + 1
-      end
-      local value = best
-      local foldclosed = fn.foldclosed(value)
-      if foldclosed ~= -1 then
-        value = foldclosed
-      end
-      table.insert(result, value)
-    end
-  end
-  return result
-end
 
 local function create_view(cfg)
   local bufnr = api.nvim_create_buf(false, true)
@@ -182,7 +90,7 @@ local function show_scrollbar(winid)
   end
 
   -- Don't show the position bar when all lines are on screen.
-  local topline, botline = visible_line_range(winid)
+  local topline, botline = util.visible_line_range(winid)
   if botline - topline + 1 == line_count then
     return
   end
@@ -199,7 +107,7 @@ local function show_scrollbar(winid)
     col = winwidth - 1
   }
 
-  local bar_winid = winids[winid]
+  local bar_winid = state.winids[winid]
   local bar_bufnr
 
   if bar_winid then
@@ -218,7 +126,7 @@ local function show_scrollbar(winid)
   else
     cfg.noautocmd = true
     bar_bufnr, bar_winid = create_view(cfg)
-    winids[winid] = bar_winid
+    state.winids[winid] = bar_winid
   end
 
   local toprow = util.row_to_barpos(winid, topline - 1)
@@ -233,21 +141,6 @@ local function show_scrollbar(winid)
   return true
 end
 
--- Given a target window row, the corresponding scrollbar is moved to that row.
--- The row is adjusted (up in value, down in visual position) such that the full
--- height of the scrollbar remains on screen.
-local function move_scrollbar(winid, row)
-  local bar_winid = winids[winid]
-  if not bar_winid then
-    -- Can happen if mouse is dragged over other floating windows
-    return
-  end
-  local height = api.nvim_win_get_var(bar_winid, 'height')
-
-  local bar_bufnr0 = api.nvim_win_get_buf(bar_winid)
-  render.render_bar(bar_bufnr0, bar_winid, winid, row, height)
-end
-
 local function noautocmd(f)
   local eventignore = vim.o.eventignore
   vim.o.eventignore = 'all'
@@ -256,7 +149,7 @@ local function noautocmd(f)
 end
 
 local function close_view_for_win(winid)
-  local bar_winid = winids[winid]
+  local bar_winid = state.winids[winid]
   if not api.nvim_win_is_valid(bar_winid) then
     return
   end
@@ -266,166 +159,11 @@ local function close_view_for_win(winid)
   noautocmd(function()
     api.nvim_win_close(bar_winid, true)
   end)
-  winids[winid] = nil
-end
-
-local function getchar()
-  local ok, char = pcall(fn.getchar)
-  if not ok then
-    -- E.g., <c-c>
-    char = t'<esc>'
-  end
-  -- For Vim on Cygwin, pressing <c-c> during getchar() does not raise
-  -- "Vim:Interrupt". Handling for such a scenario is added here as a
-  -- precaution, by converting to <esc>.
-  if char == t'<c-c>' then
-    char = t'<esc>'
-  end
-  if type(char) == 'number' then
-    char = tostring(char)
-  end
-  return char
-end
-
--- Get input characters---including mouse clicks and drags---from the input
--- stream. Characters are read until the input stream is empty. Returns a
--- 2-tuple with a string representation of the characters, along with a list of
--- dictionaries that include the following fields:
---   1) char
---   2) str_idx
---   3) charmod
---   4) mouse_winid
---   5) mouse_row
---   6) mouse_col
--- The mouse values are 0 when there was no mouse event or getmousepos is not
--- available. The mouse_winid is set to -1 when a mouse event was on the
--- command line. The mouse_winid is set to -2 when a mouse event was on the
--- tabline.
-local function read_input_stream()
-  local chars = {}
-  local chars_props = {}
-  local str_idx = 1  -- in bytes, 1-indexed
-  while true do
-    local char = getchar()
-    local charmod = fn.getcharmod()
-    table.insert(chars, char)
-    local mouse_winid = 0
-    local mouse_row = 0
-    local mouse_col = 0
-
-    -- Check v:mouse_winid to see if there was a mouse event. Even for clicks
-    -- on the command line, where getmousepos().winid could be zero,
-    -- v:mousewinid is non-zero.
-    if vim.v.mouse_winid ~= 0 then
-      mouse_winid = vim.v.mouse_winid
-      local mousepos = fn.getmousepos()
-      mouse_row = mousepos.winrow
-      mouse_col = mousepos.wincol
-
-      -- Handle a mouse event on the command line.
-      if mousepos.screenrow > vim.go.lines - vim.go.cmdheight then
-        mouse_winid = -1
-        mouse_row = mousepos.screenrow - vim.go.lines + vim.go.cmdheight
-        mouse_col = mousepos.screencol
-      end
-
-      -- Handle a mouse event on the tabline. When the click is on a floating
-      -- window covering the tabline, mousepos.winid will be set to that
-      -- floating window's winid. Otherwise, mousepos.winid would correspond to
-      -- an ordinary window ID (seemingly for the window below the tabline).
-      local screenpos = fn.win_screenpos(1)
-      if screenpos[1] == 2 and screenpos[2] == 1  -- Checks for presence of a tabline.
-          and mousepos.screenrow == 1
-          and is_ordinary_window(mousepos.winid) then
-        mouse_winid = -2
-        mouse_row = mousepos.screenrow
-        mouse_col = mousepos.screencol
-      end
-    end
-
-    local char_props = {
-      char = char,
-      str_idx = str_idx,
-      charmod = charmod,
-      mouse_winid = mouse_winid,
-      mouse_row = mouse_row,
-      mouse_col = mouse_col
-    }
-
-    str_idx = str_idx + string.len(char)
-    table.insert(chars_props, char_props)
-    -- Break if there are no more items on the input stream.
-    if fn.getchar(1) == 0 then
-      break
-    end
-  end
-  local string = table.concat(chars, '')
-  return string, chars_props
-end
-
--- Scrolls the window so that the specified line number is at the top.
-local function set_topline(winid, linenr)
-  -- WARN: Unlike other functions that move the cursor (e.g., VirtualLineCount,
-  -- VirtualProportionLine), a window workspace should not be used, as the
-  -- cursor and viewport changes here are intended to persist.
-  api.nvim_win_call(winid, function()
-    local init_line = fn.line('.')
-    vim.cmd('keepjumps normal! ' .. linenr .. 'G')
-    local topline = visible_line_range(winid)
-    -- Use virtual lines to figure out how much to scroll up. winline() doesn't
-    -- accommodate wrapped lines.
-    local virtual_line = util.virtual_line_count(winid, topline, fn.line('.'))
-    if virtual_line > 1 then
-      vim.cmd('keepjumps normal! ' .. (virtual_line - 1) .. t'<c-e>')
-    end
-    local _, botline = visible_line_range(winid)
-    if botline == fn.line('$') then
-      -- If the last buffer line is on-screen, position that line at the bottom
-      -- of the window.
-      vim.cmd('keepjumps normal! Gzb')
-    end
-
-    -- Position the cursor as if all scrolling was conducted with <ctrl-e> and/or
-    -- <ctrl-y>. H and L are used to get topline and botline instead of
-    -- getwininfo, to prevent jumping to a line that could result in a scroll if
-    -- scrolloff>0.
-    vim.cmd('keepjumps normal! H')
-    local effective_top = fn.line('.')
-    if init_line < effective_top then
-      -- User scrolled down.
-      return
-    end
-
-    vim.cmd('keepjumps normal! L')
-    local effective_bottom = fn.line('.')
-    if init_line > effective_bottom then
-      -- User scrolled up.
-      return
-    end
-
-    -- The initial line is still on-screen.
-    vim.cmd('keepjumps normal! ' .. init_line .. 'G')
-  end)
-end
-
--- Returns view properties for the specified window. An empty dictionary
--- is returned if there is no corresponding scrollbar.
-local function get_props(winid)
-  local bar_winid = winids[winid]
-  if not bar_winid then
-    return
-  end
-
-  return {
-    height = vim.w[bar_winid].height,
-    row    = vim.w[bar_winid].row,
-    col    = vim.w[bar_winid].col,
-    width  = vim.w[bar_winid].width,
-  }
+  state.winids[winid] = nil
 end
 
 function M.remove_bars()
-  for id, _ in pairs(winids) do
+  for id, _ in pairs(state.winids) do
     close_view_for_win(id)
   end
 end
@@ -438,7 +176,7 @@ local function get_target_windows()
     target_wins = {}
     local current_tab = api.nvim_get_current_tabpage()
     for _, winid in ipairs(api.nvim_list_wins()) do
-      if is_ordinary_window(winid) and api.nvim_win_get_tabpage(winid) == current_tab then
+      if util.is_ordinary_window(winid) and api.nvim_win_get_tabpage(winid) == current_tab then
         target_wins[#target_wins+1] = winid
       end
     end
@@ -450,16 +188,16 @@ end
 function M.refresh_bars()
   local current_wins = {}
 
-  if view_enabled then
+  if state.view_enabled then
     for _, winid in ipairs(get_target_windows()) do
       if show_scrollbar(winid) then
-        current_wins[#current_wins+1] = winids[winid]
+        current_wins[#current_wins+1] = state.winids[winid]
       end
     end
   end
 
   -- Close any remaining bars
-  for winid, swinid in pairs(winids) do
+  for winid, swinid in pairs(state.winids) do
     if not vim.tbl_contains(current_wins, swinid) then
       close_view_for_win(winid)
     end
@@ -467,7 +205,7 @@ function M.refresh_bars()
 end
 
 local function enable()
-  view_enabled = true
+  state.view_enabled = true
 
   local gid = api.nvim_create_augroup('satellite', {})
 
@@ -540,204 +278,11 @@ local function enable()
 end
 
 local function disable()
-  view_enabled = false
+  state.view_enabled = false
   api.nvim_create_augroup('satellite', {})
   M.remove_bars()
 end
 
-local MOUSEDOWN = t('<leftmouse>')
-local MOUSEUP = t('<leftrelease>')
-
-local function handle_leftmouse()
-  -- Re-send the click, so its position can be obtained through
-  -- read_input_stream().
-  fn.feedkeys(MOUSEDOWN, 'ni')
-  if not view_enabled then
-    -- disabled. Process the click as it would ordinarily be
-    -- processed
-    return
-  end
-  local count = 0
-  local winid  -- The target window ID for a mouse scroll.
-  local bufnr  -- The target buffer number.
-  local scrollbar_offset
-  local previous_row
-  local idx = 1
-  local string, chars_props = '', {}
-  local str_idx, char, mouse_winid, mouse_row, mouse_col
-  -- Computing this prior to the first mouse event could distort the location
-  -- since this could be an expensive operation (and the mouse could move).
-  local the_topline_lookup
-  while true do
-    while true do
-      idx = idx + 1
-      if idx > #chars_props then
-        idx = 1
-        string, chars_props = read_input_stream()
-      end
-      local char_props = chars_props[idx]
-      str_idx = char_props.str_idx
-      char = char_props.char
-      mouse_winid = char_props.mouse_winid
-      mouse_row = char_props.mouse_row
-      mouse_col = char_props.mouse_col
-      -- Break unless it's a mouse drag followed by another mouse drag, so
-      -- that the first drag is skipped.
-      if mouse_winid == 0
-          or vim.tbl_contains({MOUSEDOWN, MOUSEUP}, char) then
-        break
-      end
-      if idx >= #char_props then break end
-      local next = chars_props[idx + 1]
-      if next.mouse_winid == 0
-          or vim.tbl_contains({MOUSEDOWN, MOUSEUP}, next.char) then
-        break
-      end
-    end
-
-    if char == t'<esc>' then
-      fn.feedkeys(string.sub(string, str_idx + #char), 'ni')
-      return
-    end
-
-    -- In select-mode, mouse usage results in the mode intermediately
-    -- switching to visual mode, accompanied by a call to this function.
-    -- After the initial mouse event, the next getchar() character is
-    -- <80><f5>X. This is "Used for switching Select mode back on after a
-    -- mapping or menu" (https://github.com/vim/vim/blob/
-    -- c54f347d63bcca97ead673d01ac6b59914bb04e5/src/keymap.h#L84-L88,
-    -- https://github.com/vim/vim/blob/
-    -- c54f347d63bcca97ead673d01ac6b59914bb04e5/src/getchar.c#L2660-L2672)
-    -- Ignore this character after scrolling has started.
-    -- NOTE: "\x80\xf5X" (hex) ==# "\200\365X" (octal)
-    if not (char == '\x80\xf5X' and count > 0) then
-      if mouse_winid == 0 then
-        -- There was no mouse event.
-        fn.feedkeys(string.sub(string, str_idx), 'ni')
-        return
-      end
-
-      if char == MOUSEUP then
-        if count == 0 then
-          -- No initial MOUSEDOWN was captured.
-          fn.feedkeys(string.sub(string, str_idx), 'ni')
-        elseif count == 1 then
-          -- A scrollbar was clicked, but there was no corresponding drag.
-          -- Allow the interaction to be processed as it would be with no
-          -- scrollbar.
-          fn.feedkeys(MOUSEDOWN .. string.sub(string, str_idx), 'ni')
-        else
-          -- A scrollbar was clicked and there was a corresponding drag.
-          -- 'feedkeys' is not called, since the full mouse interaction has
-          -- already been processed. The current window (from prior to
-          -- scrolling) is not changed.
-          M.refresh_bars()
-        end
-        return
-      end
-
-      if count == 0 then
-        if mouse_winid < 0 then
-          -- The mouse event was on the tabline or command line.
-          fn.feedkeys(string.sub(string, str_idx), 'ni')
-          return
-        end
-
-        local props = get_props(mouse_winid)
-        if not props then
-          return
-        end
-
-        -- Add 1 cell horizontal left-padding for grabbing the scrollbar. Don't
-        -- add right-padding as this would extend past the window and will
-        -- interfere with dragging the vertical separator to resize the window.
-        if mouse_row < props.row
-            or mouse_row >= props.row + props.height
-            or mouse_col < props.col
-            or mouse_col > props.col + props.width then
-          -- The click was not on a scrollbar.
-          fn.feedkeys(string.sub(string, str_idx), 'ni')
-          return
-        end
-
-        -- The click was on a scrollbar.
-        -- Refresh the scrollbars and check if the mouse is still over a
-        -- scrollbar. If not, ignore all mouse events until a MOUSEUP. This
-        -- approach was deemed preferable to refreshing scrollbars initially, as
-        -- that could result in unintended clicking/dragging where there is no
-        -- scrollbar.
-        M.refresh_bars()
-
-        -- Don't restore toplines whenever a scrollbar was clicked. This
-        -- prevents the window where a scrollbar is dragged from having its
-        -- topline restored to the pre-drag position. This also prevents
-        -- restoring windows that may have had their windows shifted during the
-        -- course of scrollbar clicking/dragging, to prevent jumpiness in the
-        -- display.
-        props = get_props(mouse_winid)
-        if not props then
-          return
-        end
-
-        if mouse_row < props.row
-            or mouse_row >= props.row + props.height then
-          while fn.getchar() ~= MOUSEUP do
-          end
-          return
-        end
-
-        -- By this point, the click on a scrollbar was successful.
-        if is_visual_mode() then
-          -- Exit visual mode.
-          vim.cmd('normal! ' .. t'<esc>')
-        end
-        winid = mouse_winid
-        bufnr = api.nvim_win_get_buf(winid)
-        scrollbar_offset = props.row - mouse_row
-        previous_row = props.row
-      end
-      -- Only consider a scrollbar update for mouse events on windows (i.e.,
-      -- not on the tabline or command line).
-      if mouse_winid > 0 then
-        local winheight = api.nvim_win_get_height(winid)
-        local mouse_winrow = fn.getwininfo(mouse_winid)[1].winrow
-        local winrow = fn.getwininfo(winid)[1].winrow
-        local window_offset = mouse_winrow - winrow
-        local row = mouse_row + window_offset + scrollbar_offset
-        local props = get_props(winid)
-        if not props then
-          return
-        end
-        row = math.max(1, math.min(row, winheight - props.height + 1))
-        -- Only update scrollbar if the row changed.
-        if previous_row ~= row then
-          local topline
-          if row == 1 then
-            -- If the scrollbar was dragged to the top of the window, always show
-            -- the first line.
-            topline = 1
-          elseif row + props.height - 1 >= winheight then
-            -- If the scrollbar was dragged to the bottom of the window, always
-            -- show the bottom line.
-            topline = api.nvim_buf_line_count(bufnr)
-          else
-            if not the_topline_lookup then
-              the_topline_lookup = api.nvim_win_call(winid, virtual_topline_lookup)
-            end
-            topline = math.max(1, the_topline_lookup[row])
-          end
-          set_topline(winid, topline)
-          if vim.wo[winid].scrollbind or vim.wo[winid].cursorbind then
-            M.refresh_bars()
-          end
-          move_scrollbar(mouse_winid, row)
-          previous_row = row
-        end
-      end
-      count = count + 1
-    end  -- end while
-  end  -- end while
-end
 
 -- An 'operatorfunc' for g@ that executes zf and then refreshes scrollbars.
 function M.zf_operator(type)
@@ -782,7 +327,9 @@ local function apply_keymaps()
 
   ---@diagnostic disable-next-line: missing-parameter
   if vim.fn.maparg('<leftmouse>') == "" then
-    vim.keymap.set({'n', 'v', 'o', 'i'}, '<leftmouse>', handle_leftmouse)
+    vim.keymap.set({'n', 'v', 'o', 'i'}, '<leftmouse>', function()
+      mouse.handle_leftmouse(M.refresh_bars)
+    end)
   end
 end
 
