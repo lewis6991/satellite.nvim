@@ -74,7 +74,7 @@ end
 
 ---@param winid integer
 ---@param bar_winid integer
-local function reposition_bar(winid, bar_winid)
+local function reposition_bar(winid, bar_winid, toprow)
   local winwidth = api.nvim_win_get_width(winid)
   local wininfo = vim.fn.getwininfo(bar_winid)[1]
   local signwidth = wininfo.textoff
@@ -89,7 +89,9 @@ local function reposition_bar(winid, bar_winid)
 
   api.nvim_win_set_config(bar_winid, cfg)
 
-  vim.w[bar_winid].col = cfg.col
+  vim.w[bar_winid].col   = cfg.col
+  vim.w[bar_winid].width = cfg.width
+  vim.w[bar_winid].row   = toprow
 end
 
 ---@param bbufnr integer
@@ -106,7 +108,7 @@ M.render_bar = async.void(function(bbufnr, bwinid, winid, row, height)
     render_handler(bufnr, winid, bbufnr, handler)
   end
 
-  reposition_bar(winid, bwinid)
+  reposition_bar(winid, bwinid, row)
 end)
 
 return M

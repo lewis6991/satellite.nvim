@@ -94,11 +94,15 @@ local function round(x)
   return math.floor(x + 0.5)
 end
 
-function M.row_to_barpos(winid, row)
+function M.height_to_virtual(winid, row, row2)
   local vlinecount0 = M.virtual_line_count(winid, 1) - 1
-  local vrow = M.virtual_line_count(winid, 1, row)
+  local vheight = M.virtual_line_count(winid, row, row2)
   local winheight0 = api.nvim_win_get_height(winid) - 1
-  return round(winheight0 * vrow / vlinecount0)
+  return round(winheight0 * vheight / vlinecount0)
+end
+
+function M.row_to_barpos(winid, row)
+  return M.height_to_virtual(winid, 1, row)
 end
 
 --- Run callback when command is run

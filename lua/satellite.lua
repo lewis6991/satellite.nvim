@@ -187,11 +187,6 @@ local function show_scrollbar(winid)
     return
   end
 
-  local toprow = util.row_to_barpos(winid, topline - 1)
-  local botrow = util.row_to_barpos(winid, botline - 1)
-
-  local height = botrow - toprow
-
   local cfg = {
     win = winid,
     relative = 'win',
@@ -226,11 +221,14 @@ local function show_scrollbar(winid)
     winids[winid] = bar_winid
   end
 
+  local toprow = util.row_to_barpos(winid, topline - 1)
+  local height = util.height_to_virtual(winid, topline - 1, botline - 1)
   render.render_bar(bar_bufnr, bar_winid, winid, toprow, height)
 
   vim.w[bar_winid].height = height
   vim.w[bar_winid].row = toprow
   vim.w[bar_winid].col = cfg.col
+  vim.w[bar_winid].width = cfg.width
 
   return true
 end
@@ -271,6 +269,24 @@ local function close_view_for_win(winid)
   winids[winid] = nil
 end
 
+local function getchar()
+  local ok, char = pcall(fn.getchar)
+  if not ok then
+    -- E.g., <c-c>
+    char = t'<esc>'
+  end
+  -- For Vim on Cygwin, pressing <c-c> during getchar() does not raise
+  -- "Vim:Interrupt". Handling for such a scenario is added here as a
+  -- precaution, by converting to <esc>.
+  if char == t'<c-c>' then
+    char = t'<esc>'
+  end
+  if type(char) == 'number' then
+    char = tostring(char)
+  end
+  return char
+end
+
 -- Get input characters---including mouse clicks and drags---from the input
 -- stream. Characters are read until the input stream is empty. Returns a
 -- 2-tuple with a string representation of the characters, along with a list of
@@ -290,28 +306,13 @@ local function read_input_stream()
   local chars_props = {}
   local str_idx = 1  -- in bytes, 1-indexed
   while true do
-    local char
-    local ok = pcall(function()
-      char = fn.getchar()
-    end)
-    if not ok then
-      -- E.g., <c-c>
-      char = t'<esc>'
-    end
-    -- For Vim on Cygwin, pressing <c-c> during getchar() does not raise
-    -- "Vim:Interrupt". Handling for such a scenario is added here as a
-    -- precaution, by converting to <esc>.
-    if char == t'<c-c>' then
-      char = t'<esc>'
-    end
+    local char = getchar()
     local charmod = fn.getcharmod()
-    if type(char) == 'number' then
-      char = tostring(char)
-    end
     table.insert(chars, char)
     local mouse_winid = 0
     local mouse_row = 0
     local mouse_col = 0
+
     -- Check v:mouse_winid to see if there was a mouse event. Even for clicks
     -- on the command line, where getmousepos().winid could be zero,
     -- v:mousewinid is non-zero.
@@ -320,12 +321,14 @@ local function read_input_stream()
       local mousepos = fn.getmousepos()
       mouse_row = mousepos.winrow
       mouse_col = mousepos.wincol
+
       -- Handle a mouse event on the command line.
       if mousepos.screenrow > vim.go.lines - vim.go.cmdheight then
         mouse_winid = -1
         mouse_row = mousepos.screenrow - vim.go.lines + vim.go.cmdheight
         mouse_col = mousepos.screencol
       end
+
       -- Handle a mouse event on the tabline. When the click is on a floating
       -- window covering the tabline, mousepos.winid will be set to that
       -- floating window's winid. Otherwise, mousepos.winid would correspond to
@@ -339,6 +342,7 @@ local function read_input_stream()
         mouse_col = mousepos.screencol
       end
     end
+
     local char_props = {
       char = char,
       str_idx = str_idx,
@@ -347,6 +351,7 @@ local function read_input_stream()
       mouse_row = mouse_row,
       mouse_col = mouse_col
     }
+
     str_idx = str_idx + string.len(char)
     table.insert(chars_props, char_props)
     -- Break if there are no more items on the input stream.
@@ -355,8 +360,7 @@ local function read_input_stream()
     end
   end
   local string = table.concat(chars, '')
-  local result = {string, chars_props}
-  return unpack(result)
+  return string, chars_props
 end
 
 -- Scrolls the window so that the specified line number is at the top.
@@ -414,8 +418,9 @@ local function get_props(winid)
 
   return {
     height = vim.w[bar_winid].height,
-    row = vim.w[bar_winid].row,
-    col = vim.w[bar_winid].col,
+    row    = vim.w[bar_winid].row,
+    col    = vim.w[bar_winid].col,
+    width  = vim.w[bar_winid].width,
   }
 end
 
@@ -649,7 +654,7 @@ local function handle_leftmouse()
         if mouse_row < props.row
             or mouse_row >= props.row + props.height
             or mouse_col < props.col
-            or mouse_col > props.col + 1 then
+            or mouse_col > props.col + props.width then
           -- The click was not on a scrollbar.
           fn.feedkeys(string.sub(string, str_idx), 'ni')
           return
@@ -676,7 +681,8 @@ local function handle_leftmouse()
 
         if mouse_row < props.row
             or mouse_row >= props.row + props.height then
-          while fn.getchar() ~= MOUSEUP do end
+          while fn.getchar() ~= MOUSEUP do
+          end
           return
         end
 
