@@ -8,10 +8,10 @@ local user_config = require'satellite.config'.user_config
 
 local ns = api.nvim_create_namespace('satellite')
 
-local M = {
-  winids = {},
-  enabled = false,
-}
+local M = {}
+
+local enabled = false
+local winids = {}
 
 local function create_view(cfg)
   local bufnr = api.nvim_create_buf(false, true)
@@ -199,7 +199,7 @@ local function show_scrollbar(winid)
     col = winwidth - 1
   }
 
-  local bar_winid = M.winids[winid]
+  local bar_winid = winids[winid]
   local bar_bufnr
 
   if bar_winid then
@@ -218,7 +218,7 @@ local function show_scrollbar(winid)
   else
     cfg.noautocmd = true
     bar_bufnr, bar_winid = create_view(cfg)
-    M.winids[winid] = bar_winid
+    winids[winid] = bar_winid
   end
 
   local toprow = util.row_to_barpos(winid, topline - 1)
@@ -231,6 +231,22 @@ local function show_scrollbar(winid)
   vim.w[bar_winid].width = cfg.width
 
   return true
+end
+
+-- Returns view properties for the specified window. An empty dictionary
+-- is returned if there is no corresponding scrollbar.
+function M.get_props(winid)
+  local bar_winid = winids[winid]
+  if not bar_winid then
+    return
+  end
+
+  return {
+    height = vim.w[bar_winid].height,
+    row    = vim.w[bar_winid].row,
+    col    = vim.w[bar_winid].col,
+    width  = vim.w[bar_winid].width,
+  }
 end
 
 local function get_target_windows()
@@ -249,7 +265,7 @@ local function get_target_windows()
 end
 
 local function close(winid)
-  local bar_winid = M.winids[winid]
+  local bar_winid = winids[winid]
   if not api.nvim_win_is_valid(bar_winid) then
     return
   end
@@ -259,14 +275,14 @@ local function close(winid)
   util.noautocmd(function()
     api.nvim_win_close(bar_winid, true)
   end)
-  M.winids[winid] = nil
+  winids[winid] = nil
 end
 
 -- Given a target window row, the corresponding scrollbar is moved to that row.
 -- The row is adjusted (up in value, down in visual position) such that the full
 -- height of the scrollbar remains on screen.
 function M.move_scrollbar(winid, row)
-  local bar_winid = M.winids[winid]
+  local bar_winid = winids[winid]
   if not bar_winid then
     -- Can happen if mouse is dragged over other floating windows
     return
@@ -280,16 +296,16 @@ end
 function M.refresh_bars()
   local current_wins = {}
 
-  if M.enabled then
+  if enabled then
     for _, winid in ipairs(get_target_windows()) do
       if show_scrollbar(winid) then
-        current_wins[#current_wins+1] = M.winids[winid]
+        current_wins[#current_wins+1] = winids[winid]
       end
     end
   end
 
   -- Close any remaining bars
-  for winid, swinid in pairs(M.winids) do
+  for winid, swinid in pairs(winids) do
     if not vim.tbl_contains(current_wins, swinid) then
       close(winid)
     end
@@ -297,19 +313,23 @@ function M.refresh_bars()
 end
 
 function M.remove_bars()
-  for winid, _ in pairs(M.winids) do
+  for winid, _ in pairs(winids) do
     close(winid)
   end
 end
 
 function M.disable()
-  M.enabled = false
+  enabled = false
   M.remove_bars()
 end
 
 function M.enable()
-  M.enabled = true
+  enabled = true
   M.refresh_bars()
+end
+
+function M.enabled()
+  return enabled
 end
 
 return M

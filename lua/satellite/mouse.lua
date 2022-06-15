@@ -16,22 +16,6 @@ local function is_visual_mode()
   return vim.tbl_contains({'v', 'V', t'<c-v>'}, mode)
 end
 
--- Returns view properties for the specified window. An empty dictionary
--- is returned if there is no corresponding scrollbar.
-local function get_props(winid)
-  local bar_winid = view.winids[winid]
-  if not bar_winid then
-    return
-  end
-
-  return {
-    height = vim.w[bar_winid].height,
-    row    = vim.w[bar_winid].row,
-    col    = vim.w[bar_winid].col,
-    width  = vim.w[bar_winid].width,
-  }
-end
-
 local function get_topline(winid, bufnr, row, bar_height)
   if row == 0 then
     -- If the scrollbar was dragged to the top of the window, always show
@@ -191,7 +175,7 @@ function M.handle_leftmouse()
   -- Re-send the click, so its position can be obtained through
   -- read_input_stream().
   fn.feedkeys(MOUSEDOWN, 'ni')
-  if not view.enabled then
+  if not view.enabled() then
     -- disabled. Process the click as it would ordinarily be
     -- processed
     return
@@ -282,7 +266,7 @@ function M.handle_leftmouse()
           return
         end
 
-        local props = get_props(mouse_winid)
+        local props = view.get_props(mouse_winid)
         if not props then
           return
         end
@@ -313,7 +297,7 @@ function M.handle_leftmouse()
         -- restoring windows that may have had their windows shifted during the
         -- course of scrollbar clicking/dragging, to prevent jumpiness in the
         -- display.
-        props = get_props(mouse_winid)
+        props = view.get_props(mouse_winid)
         if not props then
           return
         end
@@ -343,7 +327,7 @@ function M.handle_leftmouse()
         local winrow = fn.getwininfo(winid)[1].winrow
         local window_offset = mouse_winrow - winrow
         local row = mouse_row + window_offset + scrollbar_offset
-        local props = get_props(winid)
+        local props = view.get_props(winid)
         if not props then
           return
         end
