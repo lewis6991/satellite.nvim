@@ -29,16 +29,9 @@ local function mark_set_keymap(m)
     ---@diagnostic disable-next-line: missing-parameter
     if vim.fn.maparg(map) == "" then
       vim.keymap.set({ 'n', 'v' }, map, function()
-        local bufnr = vim.api.nvim_get_current_buf()
-        local line, col = unpack(vim.api.nvim_win_get_cursor(0))
-        local mline, mcol = unpack(vim.api.nvim_buf_get_mark(bufnr, m))
-        if mline == line and mcol == col then
-            vim.api.nvim_buf_del_mark(bufnr, m)
-        else
-            vim.api.nvim_buf_set_mark(bufnr, m, line, col, {})
-        end
         vim.schedule(view.refresh_bars)
-      end)
+        return map
+      end, { unique = true, expr = true})
     end
 end
 
