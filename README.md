@@ -1,4 +1,4 @@
-# 🚧 WIP 🚧
+# 🚧 WIP and EXPERIMENTAL 🚧
 
 # satellite.nvim
 
@@ -6,12 +6,15 @@
 
 ![image](https://user-images.githubusercontent.com/7904185/167670068-8660fe2e-eb5a-45df-912d-479eb43e0239.png)
 
+**NOTE**: Many API's required to implement a decorated scrollbar in Neovim do not yet exist,
+and because of this, this plugin implements fairly unideal and unoptimised workarounds to get desired behaviours.
+Therefore, this plugin is highly experimental and currently serves as a platform to experiment, investigate and design the required API's that are needed to be implemented in Neovim core.
 
 ## Features
 
 * Display marks for different kinds of decorations across the buffer. Builtin handlers include:
-  * search results
-  * diagnostic
+  * Search results
+  * Diagnostic
   * Git hunks (via [gitsigns.nvim])
   * Marks
 * Handling for folds
@@ -19,7 +22,7 @@
 
 ## Requirements
 
-Neovim >= 0.7.0
+Neovim nightly
 
 ## Installation
 

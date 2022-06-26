@@ -13,6 +13,11 @@ local M = {}
 local enabled = false
 local winids = {}
 
+local function set_winlocal_opt(win, opt, value)
+  -- Set local=scope so options are never inherited in new windows
+  api.nvim_set_option_value(opt, value, { win = win, scope = 'local'})
+end
+
 local function create_view(cfg)
   local bufnr = api.nvim_create_buf(false, true)
   vim.bo[bufnr].modifiable = false
@@ -26,10 +31,10 @@ local function create_view(cfg)
   -- It's not sufficient to just specify Normal highlighting. With just that, a
   -- color scheme's specification of EndOfBuffer would be used to color the
   -- bottom of the scrollbar.
-  util.set_window_option(winid, "winhighlight", 'Normal:Normal')
-  util.set_window_option(winid, "winblend", user_config.winblend)
-  util.set_window_option(winid, "foldcolumn" , '0')
-  util.set_window_option(winid, "wrap" , false)
+  set_winlocal_opt(winid, 'winhighlight', 'Normal:Normal')
+  set_winlocal_opt(winid, 'winblend', user_config.winblend)
+  set_winlocal_opt(winid, 'foldcolumn' , '0')
+  set_winlocal_opt(winid, 'wrap' , false)
 
   return bufnr, winid
 end
@@ -170,7 +175,7 @@ local function show_scrollbar(winid)
     return
   end
 
-  if vim.o.winbar and vim.o.winbar ~= '' then
+  if vim.o.winbar ~= '' then
     winheight = winheight - 1
   end
 
