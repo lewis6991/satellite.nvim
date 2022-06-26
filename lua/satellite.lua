@@ -12,20 +12,6 @@ local function enable()
 
   local gid = api.nvim_create_augroup('satellite', {})
 
-  -- The following error can arise when the last window in a tab is going to
-  -- be closed, but there are still open floating windows, and at least one
-  -- other tab.
-  --   > "E5601: Cannot close window, only floating window would remain"
-  -- Neovim Issue #11440 is open to address this. As of 2020/12/12, this
-  -- issue is a 0.6 milestone.
-  -- The autocmd below removes bars subsequent to :quit, :wq, or :qall (and
-  -- also ZZ and ZQ), to avoid the error. However, the error will still arise
-  -- when <ctrl-w>c or :close are used. To avoid the error in those cases,
-  -- <ctrl-w>o can be used to first close the floating windows, or
-  -- alternatively :tabclose can be used (or one of the alternatives handled
-  -- with the autocmd, like ZQ).
-  api.nvim_create_autocmd('QuitPre', { group = gid, callback = view.disable })
-
   -- For the duration of command-line window usage, there should be no bars.
   -- Without this, bars can possibly overlap the command line window. This
   -- can be problematic particularly when there is a vertical split with the
