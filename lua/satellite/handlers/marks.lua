@@ -3,6 +3,10 @@ local view = require'satellite.view'
 
 local highlight = 'Normal'
 
+local api = vim.api
+
+require'satellite.autocmd.mark'
+
 ---@type Handler
 local handler = {
   name = 'marks',
@@ -23,37 +27,16 @@ local function mark_is_builtin(m)
   return false
 end
 
----@param m string mark name
-local function mark_set_keymap(m)
-    local map = 'm' .. m
-    ---@diagnostic disable-next-line: missing-parameter
-    if vim.fn.maparg(map) == "" then
-      vim.keymap.set({ 'n', 'v' }, map, function()
-        vim.schedule(view.refresh_bars)
-        return map
-      end, { unique = true, expr = true})
-    end
-end
-
 function handler.init(config0)
   config = config0
 
-  -- range over A-Z
-  for code = 65, 90 do
-    mark_set_keymap(string.char(code))
-  end
+  local group = api.nvim_create_augroup('satellite_marks', {})
 
-  -- -- range over a-z
-  for code = 97, 122 do
-    mark_set_keymap(string.char(code))
-  end
-
-  local group = vim.api.nvim_create_augroup('satellite_marks', {})
-  for _, cmd in ipairs{'k', 'mar', 'delm'} do
-    util.on_cmd(cmd, group, function()
-      vim.schedule(view.refresh_bars)
-    end)
-  end
+  api.nvim_create_autocmd('User', {
+    group = group,
+    pattern = 'Mark',
+    callback = vim.schedule_wrap(view.refresh_bars)
+  })
 
 end
 
