@@ -4,6 +4,8 @@ local fn = vim.fn
 local util = require'satellite.util'
 local async = require'satellite.async'
 
+require'satellite.autocmd.search'
+
 ---@class CacheElem
 ---@field changedtick integer
 ---@field pattern string
@@ -86,10 +88,8 @@ local function update_matches(bufnr, pattern)
 end
 
 local refresh = async.void(function()
-  if is_search_mode() then
-    update_matches(api.nvim_get_current_buf())
-    require('satellite.view').refresh_bars()
-  end
+  update_matches(api.nvim_get_current_buf())
+  require('satellite.view').refresh_bars()
 end)
 
 ---@type Handler
@@ -114,35 +114,11 @@ function handler.init()
 
   setup_hl()
 
-  api.nvim_create_autocmd('CmdlineChanged', {
+  api.nvim_create_autocmd('User', {
     group = group,
-    callback = refresh
+    pattern = 'Search',
+    callback = vim.schedule_wrap(refresh)
   })
-
-  api.nvim_create_autocmd({'CmdlineEnter', 'CmdlineLeave'}, {
-    group = group,
-    callback = refresh
-  })
-
-  -- Regularly check v:hlsearch
-  util.watch_table(vim.v, 'hlsearch', vim.o.updatetime, async.void(function()
-    update_matches(api.nvim_get_current_buf(), '')
-    require('satellite.view').refresh_bars()
-  end))
-
-  -- Refresh when activating search nav mappings
-  for _, seq in ipairs{'n', 'N', '&', '*'} do
-    ---@diagnostic disable-next-line: missing-parameter
-    if vim.fn.maparg(seq) == "" then
-      vim.keymap.set('n', seq, function()
-        vim.schedule(async.void(function()
-          update_matches(api.nvim_get_current_buf())
-          require('satellite.view').refresh_bars()
-        end))
-        return seq
-      end, {expr = true})
-    end
-  end
 end
 
 local SYMBOLS = {'⠂', '⠅', '⠇', '⠗', '⠟', '⠿'}

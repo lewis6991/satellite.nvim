@@ -190,21 +190,6 @@ function M.on_cmd(cmd, augroup, f)
   })
 end
 
---- Run callback when a field in a table is changed
----@param t table
----@param key string
----@param interval integer
----@param callback function()
-function M.watch_table(t, key, interval, callback)
-  local last_value = t[key]
-  vim.loop.new_timer():start(0, interval, function()
-    if last_value ~= t[key] then
-      last_value = t[key]
-      vim.schedule(callback)
-    end
-  end)
-end
-
 -- Returns true for ordinary windows (not floating and not external), and false
 -- otherwise.
 function M.is_ordinary_window(winid)
