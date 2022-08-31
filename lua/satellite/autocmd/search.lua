@@ -20,6 +20,14 @@ local last_hlsearch = vim.v.hlsearch
 
 local timer = vim.loop.new_timer()
 
+api.nvim_create_autocmd('VimLeavePre', {
+  callback = function()
+    if timer and not timer:is_closing() then
+      timer:close()
+    end
+  end
+})
+
 timer:start(0, vim.o.updatetime, function()
   -- Regularly check v:hlsearch
   if vim.v.hlsearch ~= last_hlsearch then
