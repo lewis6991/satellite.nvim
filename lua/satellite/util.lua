@@ -18,16 +18,7 @@ function M.debounce_trailing(f, ms)
   end
 end
 
-local function defaulttable()
-  return setmetatable({}, {
-    __index = function(tbl, k)
-      tbl[k] = defaulttable()
-      return tbl[k]
-    end
-  })
-end
-
-local virtual_line_count_cache = defaulttable()
+local virtual_line_count_cache = vim.defaulttable()
 
 function M.invalidate_virtual_line_count_cache(winid)
   virtual_line_count_cache[winid] = nil
@@ -57,10 +48,10 @@ function M.virtual_line_count(winid, start, vend)
   return ret
 end
 
-local virtual_topline_lookup_cache = defaulttable()
+local virtual_topline_lookup_cache = vim.defaulttable()
 
 function M.invalidate_virtual_topline_lookup()
-  virtual_topline_lookup_cache = defaulttable()
+  virtual_topline_lookup_cache = vim.defaulttable()
 end
 
 -- Returns an array that maps window rows to the topline that corresponds to a
