@@ -1,4 +1,4 @@
-local ffi = require'ffi'
+-- local ffi = require'ffi'
 
 local api = vim.api
 local fn = vim.fn
@@ -24,12 +24,12 @@ function M.invalidate_virtual_line_count_cache(winid)
   virtual_line_count_cache[winid] = nil
 end
 
-ffi.cdef[[
-  typedef int32_t linenr_T;
-  typedef void win_T;
-  win_T* find_window_by_handle(int window, int err);
-  int plines_m_win(win_T *wp, linenr_T first, linenr_T last);
-]]
+-- ffi.cdef[[
+--   typedef int32_t linenr_T;
+--   typedef void win_T;
+--   win_T* find_window_by_handle(int window, int err);
+--   int plines_m_win(win_T *wp, linenr_T first, linenr_T last);
+-- ]]
 
 -- Returns the count of virtual lines between the specified start and end lines
 -- (both inclusive), in the specified window. A closed fold counts as one
@@ -42,10 +42,29 @@ function M.virtual_line_count(winid, start, vend)
     return cached
   end
 
-  local w = ffi.C.find_window_by_handle(winid, 0)
-  local ret = ffi.C.plines_m_win(w, start, vend)
-  virtual_line_count_cache[winid][start][vend] = ret
-  return ret
+  -- Don't use ffi, as most of the perf is gained by caching as much as possible
+  -- do
+  --   local w = ffi.C.find_window_by_handle(winid, 0)
+  --   local ret = ffi.C.plines_m_win(w, start, vend)
+  --   virtual_line_count_cache[winid][start][vend] = ret
+  --   return ret
+  -- end
+
+  return api.nvim_win_call(winid, function()
+    local vline = 0
+    local line = start
+    while line <= vend do
+      vline = vline + 1
+      local foldclosedend = fn.foldclosedend(line)
+      if foldclosedend ~= -1 then
+        line = foldclosedend
+      end
+      -- This function is called a lot so cache every line
+      virtual_line_count_cache[winid][start][line] = vline
+      line = line + 1
+    end
+    return vline
+  end)
 end
 
 local virtual_topline_lookup_cache = vim.defaulttable()
