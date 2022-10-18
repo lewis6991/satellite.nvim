@@ -150,6 +150,8 @@ local function show_scrollbar(winid)
   local bufnr = api.nvim_win_get_buf(winid)
   local buf_filetype = vim.bo[bufnr].filetype
 
+  util.invalidate_virtual_line_count_cache(winid)
+
   -- Skip if the filetype is on the list of exclusions.
   if vim.tbl_contains(user_config.excluded_filetypes, buf_filetype) then
     return

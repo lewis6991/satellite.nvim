@@ -27,6 +27,12 @@ local function defaulttable()
   })
 end
 
+local virtual_line_count_cache = defaulttable()
+
+function M.invalidate_virtual_line_count_cache(winid)
+  virtual_line_count_cache[winid] = nil
+end
+
 ffi.cdef[[
   typedef int32_t linenr_T;
   typedef void win_T;
@@ -38,10 +44,17 @@ ffi.cdef[[
 -- (both inclusive), in the specified window. A closed fold counts as one
 -- virtual line.
 function M.virtual_line_count(winid, start, vend)
-  local w = ffi.C.find_window_by_handle(winid, 0)
   local buf = api.nvim_win_get_buf(winid)
   vend = vend or api.nvim_buf_line_count(buf)
-  return ffi.C.plines_m_win(w, start, vend)
+  local cached = rawget(virtual_line_count_cache[winid][start], vend)
+  if cached then
+    return cached
+  end
+
+  local w = ffi.C.find_window_by_handle(winid, 0)
+  local ret = ffi.C.plines_m_win(w, start, vend)
+  virtual_line_count_cache[winid][start][vend] = ret
+  return ret
 end
 
 local virtual_topline_lookup_cache = defaulttable()
