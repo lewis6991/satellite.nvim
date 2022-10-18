@@ -1,3 +1,5 @@
+local ffi = require'ffi'
+
 local api = vim.api
 local fn = vim.fn
 
@@ -32,41 +34,21 @@ local function defaulttable()
   })
 end
 
-local virtual_line_count_cache = defaulttable()
-
-function M.invalidate_virtual_line_count_cache(winid)
-  virtual_line_count_cache[winid] = nil
-end
+ffi.cdef[[
+  typedef int32_t linenr_T;
+  typedef void win_T;
+  win_T* find_window_by_handle(int window, int err);
+  int plines_m_win(win_T *wp, linenr_T first, linenr_T last);
+]]
 
 -- Returns the count of virtual lines between the specified start and end lines
 -- (both inclusive), in the specified window. A closed fold counts as one
--- virtual line. The computation loops over either lines or virtual spans, so
--- the cursor may be moved.
+-- virtual line.
 function M.virtual_line_count(winid, start, vend)
-  if not vend then
-    vend = api.nvim_buf_line_count(api.nvim_win_get_buf(winid))
-  end
-
-  local cached = rawget(virtual_line_count_cache[winid][start], vend)
-  if cached then
-    return cached
-  end
-
-  return api.nvim_win_call(winid, function()
-    local vline = 0
-    local line = start
-    while line <= vend do
-      vline = vline + 1
-      local foldclosedend = fn.foldclosedend(line)
-      if foldclosedend ~= -1 then
-        line = foldclosedend
-      end
-      -- This function is called a lot so cache every line
-      virtual_line_count_cache[winid][start][line] = vline
-      line = line + 1
-    end
-    return vline
-  end)
+  local w = ffi.C.find_window_by_handle(winid, 0)
+  local buf = api.nvim_win_get_buf(winid)
+  vend = vend or api.nvim_buf_line_count(buf)
+  return ffi.C.plines_m_win(w, start, vend)
 end
 
 local virtual_topline_lookup_cache = defaulttable()
