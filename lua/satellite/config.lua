@@ -14,6 +14,7 @@
 ---@field priority integer
 --
 ---@class MarksConfig
+---@field key    string
 ---@field enable boolean
 ---@field overlap boolean
 ---@field priority integer
@@ -53,6 +54,7 @@ local user_config = {
       priority = 20,
     },
     marks = {
+      key = 'm',
       enable = true,
       overlap = true,
       priority = 60,
