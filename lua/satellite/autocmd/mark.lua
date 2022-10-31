@@ -5,6 +5,7 @@
 ---
 
 local util = require'satellite.util'
+local config = require'satellite.config'
 
 local api, fn = vim.api, vim.fn
 
@@ -19,7 +20,7 @@ local group = api.nvim_create_augroup('satellite_autocmd_mark', {})
 
 ---@param m string mark name
 local function mark_set_keymap(m)
-  local key = 'm' .. m
+  local key = config.user_config.handlers.marks.key .. m
   ---@diagnostic disable-next-line: missing-parameter
   if fn.maparg(key) == "" then
     vim.keymap.set({ 'n', 'v' }, key, function()
