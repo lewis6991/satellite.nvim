@@ -11,7 +11,7 @@ function handler.init()
   local group = api.nvim_create_augroup('satellite_gitsigns', {})
 
   api.nvim_create_autocmd('User', {
-    pattern = 'GitsignsHunkUpdate',
+    pattern = 'GitSignsUpdate',
     group = group,
     callback = function()
       require('satellite.view').refresh_bars()
