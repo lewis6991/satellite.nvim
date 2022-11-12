@@ -73,6 +73,17 @@ function M.invalidate_virtual_topline_lookup()
   virtual_topline_lookup_cache = vim.defaulttable()
 end
 
+-- Returns the height of a window excluding the winbar
+function M.get_winheight(winid)
+  local winheight = api.nvim_win_get_height(winid)
+
+  if vim.wo[winid].winbar ~= '' then
+    winheight = winheight - 1
+  end
+
+  return winheight
+end
+
 -- Returns an array that maps window rows to the topline that corresponds to a
 -- scrollbar at that row under virtual satellite mode, in the current window.
 -- The computation primarily loops over lines, but may loop over virtual spans
@@ -82,7 +93,7 @@ function M.virtual_topline_lookup(winid)
     return virtual_topline_lookup_cache[winid]
   end
 
-  local winheight = api.nvim_win_get_height(winid)
+  local winheight = M.get_winheight(winid)
   local total_vlines = M.virtual_line_count(winid, 1)
   if not (total_vlines > 1 and winheight > 1) then
     virtual_topline_lookup_cache[winid] = {}
@@ -148,7 +159,7 @@ end
 function M.height_to_virtual(winid, row, row2)
   local vlinecount0 = M.virtual_line_count(winid, 1) - 1
   local vheight = M.virtual_line_count(winid, row, row2)
-  local winheight0 = api.nvim_win_get_height(winid) - 1
+  local winheight0 = M.get_winheight(winid) - 1
   return round(winheight0 * vheight / vlinecount0)
 end
 

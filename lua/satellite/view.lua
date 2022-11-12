@@ -44,7 +44,7 @@ end
 ---@param row integer
 ---@param height integer
 local function render_scrollbar(winid, bbufnr, row, height)
-  local winheight = api.nvim_win_get_height(winid)
+  local winheight = util.get_winheight(winid)
 
   local lines = {}
   for i = 1, winheight do
@@ -169,14 +169,10 @@ local function show_scrollbar(winid)
     return
   end
 
-  local winheight = api.nvim_win_get_height(winid)
+  local winheight = util.get_winheight(winid)
   local winwidth = api.nvim_win_get_width(winid)
   if winheight == 0 or winwidth == 0 then
     return
-  end
-
-  if vim.o.winbar ~= '' then
-    winheight = winheight - 1
   end
 
   local line_count = api.nvim_buf_line_count(bufnr)

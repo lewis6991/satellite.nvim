@@ -23,7 +23,7 @@ local function get_topline(winid, bufnr, row, bar_height)
     return 1
   end
 
-  local winheight = api.nvim_win_get_height(winid)
+  local winheight = util.get_winheight(winid)
   if row + bar_height >= winheight then
     -- If the scrollbar was dragged to the bottom of the window, always
     -- show the bottom line.
@@ -322,7 +322,7 @@ function M.handle_leftmouse()
       -- Only consider a scrollbar update for mouse events on windows (i.e.,
       -- not on the tabline or command line).
       if mouse_winid > 0 then
-        local winheight = api.nvim_win_get_height(winid)
+        local winheight = util.get_winheight(winid)
         local mouse_winrow = fn.getwininfo(mouse_winid)[1].winrow
         local winrow = fn.getwininfo(winid)[1].winrow
         local window_offset = mouse_winrow - winrow
