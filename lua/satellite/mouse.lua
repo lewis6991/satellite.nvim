@@ -268,6 +268,7 @@ function M.handle_leftmouse()
 
         local props = view.get_props(mouse_winid)
         if not props then
+          fn.feedkeys(string.sub(input_string, str_idx), 'ni')
           return
         end
 
