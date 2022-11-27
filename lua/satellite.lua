@@ -32,6 +32,15 @@ local function enable()
   end})
 
   -- === Scrollbar Refreshing ===
+
+  -- The following one ensures that the scrollbar is correctly
+  -- updated after leaving a window.
+  api.nvim_create_autocmd("WinLeave", {
+    callback = function()
+      vim.defer_fn(view.refresh_bars, 0)
+    end
+  })
+
   api.nvim_create_autocmd({
     -- The following handles bar refreshing when changing the current window.
     'WinEnter', 'TermEnter',
