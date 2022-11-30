@@ -75,7 +75,7 @@ M.user_config = setmetatable({}, {
 
 ---@param config Config
 function M.apply(config)
-  user_config = vim.tbl_extend('force', user_config, config or {})
+  user_config = vim.tbl_deep_extend('force', user_config, config or {})
 end
 
 return M
