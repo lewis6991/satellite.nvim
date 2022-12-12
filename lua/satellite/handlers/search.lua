@@ -67,8 +67,12 @@ local function update_matches(bufnr, pattern)
     for lnum, line in ipairs(lines) do
       local count = 1
       repeat
-        local col = fn.match(line, pattern, 0, count)
-        if col ~= -1 then
+        local ok, col = pcall(fn.match, line, pattern, 0, count)
+        if not ok then
+          -- Make sure no lines match any error-causing regex pattern.
+          matches = {}
+          break
+        elseif col ~= -1 then
           matches[#matches+1] = lnum
         end
         count = count + 1
