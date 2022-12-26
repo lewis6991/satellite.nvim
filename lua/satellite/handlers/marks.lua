@@ -1,9 +1,9 @@
 local util = require'satellite.util'
 local view = require'satellite.view'
 
-local highlight = 'Normal'
-
 local api = vim.api
+
+util.set_hl_link('Mark', 'Normal')
 
 require'satellite.autocmd.mark'
 
@@ -47,7 +47,7 @@ local function add_mark_to_bar(marks, mark, winid)
   if config and config.show_builtins or not mark_is_builtin(mark.mark) then
     marks[#marks+1] = {
       pos = pos,
-      highlight = highlight,
+      highlight = 'MarkSV',
       -- first char of mark name is a single quote
       symbol = string.sub(mark.mark, 2, 3),
     }

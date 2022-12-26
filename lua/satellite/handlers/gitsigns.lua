@@ -7,6 +7,16 @@ local handler = {
   name = 'gitsigns',
 }
 
+local gitsigns_hls = {
+  'GitSignsAdd',
+  'GitSignsDelete',
+  'GitSignsChange',
+}
+
+for _, hl_name in ipairs(gitsigns_hls) do
+  util.set_hl_link(hl_name, hl_name)
+end
+
 function handler.init()
   local group = api.nvim_create_augroup('satellite_gitsigns', {})
 
@@ -29,9 +39,9 @@ function handler.update(bufnr, winid)
   local hunks = require'gitsigns'.get_hunks(bufnr)
   for _, hunk in ipairs(hunks or {}) do
     for i = hunk.added.start, hunk.added.start+ math.max(0, hunk.added.count - 1) do
-      local hl = hunk.type == 'add'    and 'GitSignsAdd' or
-                 hunk.type == 'delete' and 'GitSignsDelete' or
-                                           'GitSignsChange'
+      local hl = hunk.type == 'add'    and 'GitSignsAddSV' or
+                 hunk.type == 'delete' and 'GitSignsDeleteSV' or
+                                           'GitSignsChangeSV'
       local lnum = math.max(1, i)
       local pos = util.row_to_barpos(winid, lnum-1)
 
