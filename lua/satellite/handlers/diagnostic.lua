@@ -7,6 +7,11 @@ local diagnostic_hls = {
   [vim.diagnostic.severity.HINT]  = 'DiagnosticHint',
 }
 
+for i, hl_name in ipairs(diagnostic_hls) do
+  util.set_hl_link(hl_name, hl_name)
+  diagnostic_hls[i] = hl_name
+end
+
 ---@type Handler
 local handler = {
   name = 'diagnostic'

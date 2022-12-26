@@ -91,9 +91,25 @@ Highlight Groups ~
 The following highlight group can be configured to change |satellite.nvim|'s
 colors.
 
-Name         Default   Description
-----         -------   -----------
-`ScrollView`   `Visual`    Color for the scrollbar
+Name                 Default           Description
+----                 -------           -----------
+`ScrollView`           `Visual`            scrollbar
+
+`MarkSV`               `Normal`            mark
+
+`GitsignsAddSV`        `GissignsAdd`       git diff added
+
+`GitsignsChangeSV`     `GissignsChange`    git diff changed
+
+`GitsignsDeleteSV`     `GissignsDelete`    git diff deleted
+
+`DiagnosticInfoSV`     `DiagnosticInfo`    diagnostic info
+
+`DiagnosticHintSV`     `DiagnosticHint`    diagnostic hints
+
+`DiagnosticWarnSV`     `DiagnosticWarn`    diagnostic warnings
+
+`DiagnosticErrorSV`    `DiagnosticError`   diagnostic errors
 
 The highlight groups can be customized. Example:
  >
