@@ -5,6 +5,11 @@ local fn = vim.fn
 
 local M = {}
 
+function M.set_hl_link(name, link)
+  local new_name = name..'SV'
+  api.nvim_set_hl(0, new_name, { link = link, default = true })
+end
+
 function M.debounce_trailing(f, ms)
   local timer = vim.loop.new_timer()
   return function(...)
