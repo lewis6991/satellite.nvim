@@ -68,6 +68,11 @@ require('satellite').setup {
     },
     gitsigns = {
       enable = true,
+      signs = { -- can only be a single character (multibyte is okay)
+        add = "│",
+        change = "│",
+        delete = "-",
+      },
     },
     marks = {
       enable = true,
