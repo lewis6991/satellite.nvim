@@ -7,7 +7,11 @@ local handler = {
   name = 'gitsigns',
 }
 
-function handler.init()
+local config = {}
+
+function handler.init(config0)
+  config = config0
+
   local group = api.nvim_create_augroup('satellite_gitsigns', {})
 
   api.nvim_create_autocmd('User', {
@@ -35,8 +39,13 @@ function handler.update(bufnr, winid)
       local lnum = math.max(1, i)
       local pos = util.row_to_barpos(winid, lnum-1)
 
+      local symbol = config.signs[hunk.type]
+      if not symbol or type(symbol) ~= "string" then
+        symbol = hunk.type == 'delete' and '-' or '│'
+      end
+
       marks[pos] = {
-        symbol = hunk.type == 'delete' and '-' or '│',
+        symbol = symbol,
         highlight = hl
       }
     end

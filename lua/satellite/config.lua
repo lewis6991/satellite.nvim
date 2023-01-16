@@ -7,6 +7,7 @@
 ---@field enable boolean
 ---@field overlap boolean
 ---@field priority integer
+---@field signs table<string, string>
 
 ---@class SearchConfig
 ---@field enable boolean
@@ -52,6 +53,11 @@ local user_config = {
       enable = true,
       overlap = false,
       priority = 20,
+      signs = {
+        add = "│",
+        change = "│",
+        delete = "-",
+      },
     },
     marks = {
       key = 'm',
