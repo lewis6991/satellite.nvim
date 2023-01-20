@@ -23,7 +23,7 @@ local function mark_set_keymap(m)
   local key = config.user_config.handlers.marks.key .. m
   ---@diagnostic disable-next-line: missing-parameter
   if fn.maparg(key) == "" then
-    vim.keymap.set({ 'n', 'v' }, key, function()
+    vim.keymap.set({ 'n', 'x' }, key, function()
       exec_autocmd { key = key }
       return key
     end, { unique = true, expr = true})
