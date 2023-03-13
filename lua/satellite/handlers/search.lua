@@ -58,7 +58,7 @@ local function update_matches(bufnr, pattern)
     return cache[bufnr].matches
   end
 
-  local matches = {}
+  local matches = {} ---@type integer[]
 
   if pattern and pattern ~= '' then
     local lines = api.nvim_buf_get_lines(bufnr, 0, -1, true)
@@ -128,7 +128,7 @@ end
 local SYMBOLS = {'⠂', '⠅', '⠇', '⠗', '⠟', '⠿'}
 
 function handler.update(bufnr, winid)
-  local marks = {}
+  local marks = {} ---@type {count: integer, highlight: string, unique: boolean, symbol: string}[]
   local matches = update_matches(bufnr)
   local cursor_lnum = api.nvim_win_get_cursor(0)[1]
   local start_time = vim.loop.now()
@@ -154,7 +154,7 @@ function handler.update(bufnr, winid)
     start_time = async.event_control(start_time)
   end
 
-  local ret = {}
+  local ret = {} ---@type SatelliteMark[]
 
   for pos, mark in pairs(marks) do
     ret[#ret+1] = {

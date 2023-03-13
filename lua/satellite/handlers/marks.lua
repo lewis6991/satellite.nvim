@@ -40,6 +40,9 @@ function handler.init(config0)
 
 end
 
+---@param marks SatelliteMark[]
+---@param mark {pos: {[1]:integer, [2]:integer}, mark: string}
+---@param winid integer
 local function add_mark_to_bar(marks, mark, winid)
   local lnum = mark.pos[2]
   local pos = util.row_to_barpos(winid, lnum-1)

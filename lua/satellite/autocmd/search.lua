@@ -18,7 +18,7 @@ end
 
 local last_hlsearch = vim.v.hlsearch
 
-local timer = vim.loop.new_timer()
+local timer = assert(vim.loop.new_timer())
 
 timer:start(0, vim.o.updatetime, function()
   -- Regularly check v:hlsearch

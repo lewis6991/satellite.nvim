@@ -5,8 +5,12 @@ local fn = vim.fn
 
 local M = {}
 
+---@generic F: function
+---@param f F
+---@param ms integer
+---@return F
 function M.debounce_trailing(f, ms)
-  local timer = vim.loop.new_timer()
+  local timer = assert(vim.loop.new_timer())
   return function(...)
     local argv = {...}
     timer:start(ms or 100, 0, function()
@@ -18,6 +22,7 @@ function M.debounce_trailing(f, ms)
   end
 end
 
+---@type table<integer,table<integer,table<integer,integer>>>
 local virtual_line_count_cache = vim.defaulttable()
 
 function M.invalidate_virtual_line_count_cache(winid)
@@ -63,10 +68,12 @@ function M.virtual_line_count(winid, start, vend)
       virtual_line_count_cache[winid][start][line] = vline
       line = line + 1
     end
+    ---@diagnostic disable-next-line:redundant-return-value
     return vline
   end)
 end
 
+---@type table<integer,table<integer,table<integer,integer>>>
 local virtual_topline_lookup_cache = vim.defaulttable()
 
 function M.invalidate_virtual_topline_lookup()
@@ -141,6 +148,7 @@ function M.virtual_topline_lookup(winid)
       end
       table.insert(result, value)
     end
+    ---@diagnostic disable-next-line:redundant-return-value
     return result
   end)
 
@@ -194,6 +202,8 @@ end
 -- Return top line and bottom line in window. For folds, the top line
 -- represents the start of the fold and the bottom line represents the end of
 -- the fold.
+---@param winid integer
+---@return integer, integer
 function M.visible_line_range(winid)
   -- WARN: getwininfo(winid)[1].botline is not properly updated for some
   -- movements (Neovim Issue #13510), so this is implemeneted as a workaround.
@@ -202,6 +212,7 @@ function M.visible_line_range(winid)
     -- line('w$') returns 0 in silent Ex mode, but line('w0') is always greater
     -- than or equal to 1.
     local botline = math.max(fn.line('w$'), topline)
+    ---@diagnostic disable-next-line:redundant-return-value
     return {topline, botline}
   end))
 end

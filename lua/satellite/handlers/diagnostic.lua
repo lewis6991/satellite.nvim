@@ -26,7 +26,7 @@ local SYMBOLS = {'-', '=', '≡'}
 -- local SYMBOLS = {'⠂', '⠅', '⠇', '⠗', '⠟', '⠿'},
 
 function handler.update(bufnr, winid)
-  local marks = {}
+  local marks = {} ---@type {count: integer, highlight: string}[]
   local diags = vim.diagnostic.get(bufnr)
   for _, diag in ipairs(diags) do
     local lnum = diag.lnum + 1
@@ -43,7 +43,7 @@ function handler.update(bufnr, winid)
     }
   end
 
-  local ret = {}
+  local ret = {} ---@type SatelliteMark[]
 
   for pos, mark in pairs(marks) do
     ret[#ret+1] = {

@@ -1,10 +1,15 @@
 local user_config = require'satellite.config'.user_config
 
+---@class SatelliteMark
+---@field pos integer
+---@field highlight string
+---@field symbol string
+
 ---@class Handler
 ---@field name string
 ---@field ns integer
 ---@field init fun(config: Config)
----@field update fun(bufnr: integer, winid, integer)
+---@field update fun(bufnr: integer, winid: integer): SatelliteMark[]
 ---@field enabled fun(): boolean
 
 local M = {}
