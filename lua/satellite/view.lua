@@ -97,8 +97,13 @@ local function render_handler(bufnr, winid, bbufnr, handler)
 
     local ok, err = pcall(api.nvim_buf_set_extmark, bbufnr, handler.ns, pos, 0, opts)
     if not ok then
-      print(string.format('%s ROW: %d', handler.name, pos))
-      print(err)
+      print(string.format('error(satellite.nvim): handler=%s buf=%d row=%d opts=%s, err="%s"',
+        handler.name,
+        bbufnr,
+        pos,
+        vim.inspect(opts, {newline= ' ', indent=''}),
+        err
+      ))
     end
   end
 end
