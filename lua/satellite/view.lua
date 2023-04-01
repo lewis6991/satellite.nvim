@@ -55,6 +55,7 @@ local function render_scrollbar(winid, bbufnr, row, height)
   api.nvim_buf_set_lines(bbufnr, 0, -1, true, lines)
   vim.bo[bbufnr].modifiable = false
 
+  api.nvim_buf_clear_namespace(bbufnr, ns, 0, -1)
   for i = row, row+height do
     pcall(api.nvim_buf_set_extmark, bbufnr, ns, i, 0, {
       virt_text = { {' ', 'ScrollView'} },
