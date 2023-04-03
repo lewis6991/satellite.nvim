@@ -65,6 +65,8 @@ require('satellite').setup {
     },
     diagnostic = {
       enable = true,
+      signs = {'-', '=', '≡'},
+      min_severity = vim.diagnostic.severity.HINT,
     },
     gitsigns = {
       enable = true,

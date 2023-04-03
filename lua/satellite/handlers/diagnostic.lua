@@ -12,7 +12,14 @@ local handler = {
   name = 'diagnostic'
 }
 
-function handler.init()
+local config = {
+  signs = {'-', '=', '≡'},
+  min_severity = vim.diagnostic.severity.HINT
+}
+
+function handler.init(config0)
+  config = vim.tbl_deep_extend('force', config, config0)
+
   local gid = vim.api.nvim_create_augroup('satellite_diagnostics', {})
   vim.api.nvim_create_autocmd('DiagnosticChanged', {
     group = gid,
@@ -22,25 +29,29 @@ function handler.init()
   })
 end
 
-local SYMBOLS = {'-', '=', '≡'}
--- local SYMBOLS = {'⠂', '⠅', '⠇', '⠗', '⠟', '⠿'},
-
 function handler.update(bufnr, winid)
-  local marks = {} ---@type {count: integer, highlight: string}[]
+  local marks = {} ---@type {count: integer, severity: integer}[]
   local diags = vim.diagnostic.get(bufnr)
   for _, diag in ipairs(diags) do
-    local lnum = diag.lnum + 1
-    local pos = util.row_to_barpos(winid, lnum-1)
+    if diag.severity <= config.min_severity then
+      local lnum = diag.lnum + 1
+      local pos = util.row_to_barpos(winid, lnum-1)
 
-    local count = 1
-    if marks[pos] and marks[pos].count then
-      count = marks[pos].count + 1
+      local count = 1
+      if marks[pos] and marks[pos].count then
+        count = marks[pos].count + 1
+      end
+
+      local severity = diag.severity or vim.diagnostic.severity.HINT
+      if marks[pos] and marks[pos].severity and marks[pos].severity < severity then
+        severity = marks[pos].severity
+      end
+
+      marks[pos] = {
+        count = count,
+        severity = severity
+      }
     end
-
-    marks[pos] = {
-      count = count,
-      highlight = diagnostic_hls[diag.severity]
-    }
   end
 
   local ret = {} ---@type SatelliteMark[]
@@ -48,8 +59,8 @@ function handler.update(bufnr, winid)
   for pos, mark in pairs(marks) do
     ret[#ret+1] = {
       pos = pos,
-      highlight = mark.highlight,
-      symbol = SYMBOLS[mark.count] or SYMBOLS[#SYMBOLS]
+      highlight = diagnostic_hls[mark.severity],
+      symbol = config.signs[mark.count] or config.signs[#config.signs]
     }
   end
 
