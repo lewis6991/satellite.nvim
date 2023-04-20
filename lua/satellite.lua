@@ -69,7 +69,7 @@ local function enable()
     'VimResized'
   }, {
     group = gid,
-    callback = view.refresh_bars
+    callback = vim.schedule_wrap(view.refresh_bars)
   })
 end
 
