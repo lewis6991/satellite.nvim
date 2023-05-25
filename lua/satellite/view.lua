@@ -11,6 +11,8 @@ local ns = api.nvim_create_namespace('satellite')
 local M = {}
 
 local enabled = false
+
+--- @type table<integer,integer>
 local winids = {}
 
 local function set_winlocal_opt(win, opt, value)
@@ -46,7 +48,7 @@ end
 local function render_scrollbar(winid, bbufnr, row, height)
   local winheight = util.get_winheight(winid)
 
-  local lines = {}
+  local lines = {} --- @type string[]
   for i = 1, winheight do
     lines[i] = ' '
   end
@@ -111,9 +113,12 @@ end
 
 ---@param winid integer
 ---@param bar_winid integer
+---@param toprow integer
 local function reposition_bar(winid, bar_winid, toprow)
   local winwidth = api.nvim_win_get_width(winid)
   local wininfo = vim.fn.getwininfo(bar_winid)[1]
+
+  --- @type integer
   local signwidth = wininfo.textoff
 
   local cfg = {
@@ -145,13 +150,17 @@ local render = async.void(function(bbufnr, bwinid, winid, row, height)
     render_handler(bufnr, winid, bbufnr, handler)
   end
 
-  reposition_bar(winid, bwinid, row)
+  -- if api.nvim_win_is_valid(winid) and api.nvim_win_is_valid(bwinid) then
+  --   reposition_bar(winid, bwinid, row)
+  -- end
 end)
 
 -- Show a scrollbar for the specified 'winid' window ID, using the specified
 -- 'bar_winid' floating window ID (a new floating window will be created if
 -- this is -1). Returns -1 if the bar is not shown, and the floating window ID
 -- otherwise.
+---@param winid integer
+---@return boolean?
 local function show_scrollbar(winid)
   local bufnr = api.nvim_win_get_buf(winid)
   local buf_filetype = vim.bo[bufnr].filetype
@@ -206,12 +215,13 @@ local function show_scrollbar(winid)
   }
 
   local bar_winid = winids[winid]
-  local bar_bufnr
+  local bar_bufnr --- @type integer
 
   if bar_winid then
     local bar_wininfo = vim.fn.getwininfo(bar_winid)[1]
     -- wininfo can be nil when pressing <C-w>o in help buffers
     if bar_wininfo then
+      ---@type integer
       local signwidth = bar_wininfo.textoff
       cfg.col = cfg.col - signwidth
       cfg.width = cfg.width + signwidth
@@ -239,8 +249,10 @@ local function show_scrollbar(winid)
   return true
 end
 
--- Returns view properties for the specified window. An empty dictionary
--- is returned if there is no corresponding scrollbar.
+--- Returns view properties for the specified window. An empty dictionary
+--- is returned if there is no corresponding scrollbar.
+--- @param winid integer
+--- @return {height:integer, row: integer, col: integer, width:integer}?
 function M.get_props(winid)
   local bar_winid = winids[winid]
   if not bar_winid then
@@ -260,7 +272,7 @@ local function get_target_windows()
     return { api.nvim_get_current_win() }
   end
 
-  local target_wins = {}
+  local target_wins = {} ---@type integer[]
   local current_tab = api.nvim_get_current_tabpage()
   for _, winid in ipairs(api.nvim_list_wins()) do
     if util.is_ordinary_window(winid) and api.nvim_win_get_tabpage(winid) == current_tab then
@@ -284,9 +296,11 @@ local function close(winid)
   winids[winid] = nil
 end
 
--- Given a target window row, the corresponding scrollbar is moved to that row.
--- The row is adjusted (up in value, down in visual position) such that the full
--- height of the scrollbar remains on screen.
+--- Given a target window row, the corresponding scrollbar is moved to that row.
+--- The row is adjusted (up in value, down in visual position) such that the full
+--- height of the scrollbar remains on screen.
+--- @param winid integer
+--- @param row integer
 function M.move_scrollbar(winid, row)
   local bar_winid = winids[winid]
   if not bar_winid then
@@ -300,7 +314,7 @@ function M.move_scrollbar(winid, row)
 end
 
 function M.refresh_bars()
-  local current_wins = {}
+  local current_wins = {} ---@type integer[]
 
   if enabled then
     for _, winid in ipairs(get_target_windows()) do

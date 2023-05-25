@@ -39,6 +39,10 @@ end
 -- Returns the count of virtual lines between the specified start and end lines
 -- (both inclusive), in the specified window. A closed fold counts as one
 -- virtual line.
+--- @param winid integer
+--- @param start integer
+--- @param vend? integer
+--- @return integer
 function M.virtual_line_count(winid, start, vend)
   local buf = api.nvim_win_get_buf(winid)
   vend = vend or api.nvim_buf_line_count(buf)
@@ -73,7 +77,7 @@ function M.virtual_line_count(winid, start, vend)
   end)
 end
 
----@type table<integer,table<integer,table<integer,integer>>>
+---@type table<integer,integer[]>
 local virtual_topline_lookup_cache = vim.defaulttable()
 
 function M.invalidate_virtual_topline_lookup()
@@ -81,6 +85,8 @@ function M.invalidate_virtual_topline_lookup()
 end
 
 -- Returns the height of a window excluding the winbar
+--- @param winid integer
+--- @return integer
 function M.get_winheight(winid)
   local winheight = api.nvim_win_get_height(winid)
 
@@ -95,6 +101,8 @@ end
 -- scrollbar at that row under virtual satellite mode, in the current window.
 -- The computation primarily loops over lines, but may loop over virtual spans
 -- as part of calling 'virtual_line_count', so the cursor may be moved.
+--- @param winid integer
+--- @return table<integer,integer>
 function M.virtual_topline_lookup(winid)
   if rawget(virtual_topline_lookup_cache, winid) then
     return virtual_topline_lookup_cache[winid]
@@ -111,7 +119,7 @@ function M.virtual_topline_lookup(winid)
   local last_line = api.nvim_buf_line_count(bufnr)
 
   virtual_topline_lookup_cache[winid] = api.nvim_win_call(winid, function()
-    local result = {}  -- A list of line numbers
+    local result = {}  --- @type integer[] A list of line numbers
     local count = 1  -- The count of virtual lines
     local line = 1
     local best = line
@@ -160,10 +168,16 @@ end
 -- WARN: .5 rounds to the right on the number line, including for negatives
 -- (which would not result in rounding up in magnitude).
 -- (e.g., round(3.5) == 3, round(-3.5) == -3 != -4)
+--- @param x number
+--- @return integer
 local function round(x)
   return math.floor(x + 0.5)
 end
 
+--- @param winid integer
+--- @param row integer
+--- @param row2 integer
+--- @return integer
 function M.height_to_virtual(winid, row, row2)
   local vlinecount0 = M.virtual_line_count(winid, 1) - 1
   local vheight = M.virtual_line_count(winid, row, row2)
@@ -171,6 +185,9 @@ function M.height_to_virtual(winid, row, row2)
   return round(winheight0 * vheight / vlinecount0)
 end
 
+--- @param winid integer
+--- @param row integer
+--- @return integer
 function M.row_to_barpos(winid, row)
   return M.height_to_virtual(winid, 1, row)
 end
@@ -192,6 +209,8 @@ end
 
 -- Returns true for ordinary windows (not floating and not external), and false
 -- otherwise.
+---@param winid integer
+---@return boolean
 function M.is_ordinary_window(winid)
   local cfg = api.nvim_win_get_config(winid)
   local not_external = not cfg['external']
@@ -207,6 +226,7 @@ end
 function M.visible_line_range(winid)
   -- WARN: getwininfo(winid)[1].botline is not properly updated for some
   -- movements (Neovim Issue #13510), so this is implemeneted as a workaround.
+  ---@return {[1]: integer, [2]: integer}
   return unpack(api.nvim_win_call(winid, function()
     local topline = fn.line('w0')
     -- line('w$') returns 0 in silent Ex mode, but line('w0') is always greater

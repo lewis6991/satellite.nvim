@@ -4,6 +4,8 @@ local util = require'satellite.util'
 local view = require'satellite.view'
 
 -- Replace termcodes.
+--- @param str string
+--- @return string
 local function t(str)
   return api.nvim_replace_termcodes(str, true, true, true)
 end

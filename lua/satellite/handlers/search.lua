@@ -25,6 +25,7 @@ local function is_search_mode()
 end
 
 ---@param pattern string
+---@return string
 local function smartcaseify(pattern)
   if pattern and vim.o.ignorecase and vim.o.smartcase then
     -- match() does not use 'smartcase' so we must handle it
@@ -127,8 +128,14 @@ end
 
 local SYMBOLS = {'⠂', '⠅', '⠇', '⠗', '⠟', '⠿'}
 
+---@class SearchMark
+---@field count integer
+---@field highlight string
+---@field unique boolean
+---@field symbol string
+
 function handler.update(bufnr, winid)
-  local marks = {} ---@type {count: integer, highlight: string, unique: boolean, symbol: string}[]
+  local marks = {} ---@type SearchMark[]
   local matches = update_matches(bufnr)
   local cursor_lnum = api.nvim_win_get_cursor(0)[1]
   local start_time = vim.loop.now()

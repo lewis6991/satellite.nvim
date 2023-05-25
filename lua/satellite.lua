@@ -79,15 +79,16 @@ local function disable()
 end
 
 -- An 'operatorfunc' for g@ that executes zf and then refreshes scrollbars.
-function M.zf_operator(type)
+--- @param optype 'char'|'line'
+function M.zf_operator(optype)
   -- Handling for 'char' is needed since e.g., using linewise mark jumping
   -- results in the cursor moving to the beginning of the line for zfl, which
   -- should not move the cursor. Separate handling for 'line' is needed since
   -- e.g., with 'char' handling, zfG won't include the last line in the fold if
     vim.o.operatorfunc = 'v:lua:package.loaded.satellite.zf_operator<cr>g@'
-  if type == 'char' then
+  if optype == 'char' then
     vim.cmd"silent normal! `[zf`]"
-  elseif type == 'line' then
+  elseif optype == 'line' then
     vim.cmd"silent normal! '[zf']"
   else
     -- Unsupported
