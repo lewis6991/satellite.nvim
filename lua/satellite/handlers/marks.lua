@@ -1,7 +1,7 @@
 local util = require'satellite.util'
 local view = require'satellite.view'
 
-local highlight = 'Normal'
+local highlight = 'MarkSV'
 
 local api = vim.api
 
@@ -11,6 +11,13 @@ require'satellite.autocmd.mark'
 local handler = {
   name = 'marks',
 }
+
+local function setup_hl()
+  api.nvim_set_hl(0, highlight, {
+    default = true,
+    fg = api.nvim_get_hl_by_name('Normal', true).foreground,
+  })
+end
 
 local BUILTIN_MARKS = { "'.", "'^", "''", "'\"", "'<", "'>", "'[", "']" }
 
@@ -31,6 +38,13 @@ function handler.init(config0)
   config = config0
 
   local group = api.nvim_create_augroup('satellite_marks', {})
+
+  api.nvim_create_autocmd('ColorScheme', {
+    group = group,
+    callback = setup_hl,
+  })
+
+  setup_hl()
 
   api.nvim_create_autocmd('User', {
     group = group,
