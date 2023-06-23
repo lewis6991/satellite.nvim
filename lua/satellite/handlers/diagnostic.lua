@@ -17,15 +17,13 @@ local config = {
   min_severity = vim.diagnostic.severity.HINT,
 }
 
-function handler.init(config0)
+function handler.init(config0, update)
   config = vim.tbl_deep_extend('force', config, config0)
 
   local gid = vim.api.nvim_create_augroup('satellite_diagnostics', {})
   vim.api.nvim_create_autocmd('DiagnosticChanged', {
     group = gid,
-    callback = function()
-      require('satellite.view').refresh_bars()
-    end,
+    callback = update,
   })
 end
 

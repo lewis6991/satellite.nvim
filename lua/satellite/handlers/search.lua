@@ -96,9 +96,10 @@ local function update_matches(bufnr, pattern)
   return matches
 end
 
-local refresh = async.void(function()
+--- @param update fun()
+local refresh = async.void(function(update)
   update_matches(api.nvim_get_current_buf())
-  require('satellite.view').refresh_bars()
+  update()
 end)
 
 ---@type Handler
@@ -113,7 +114,7 @@ local function setup_hl()
   })
 end
 
-function handler.init()
+function handler.init(_config, update)
   local group = api.nvim_create_augroup('satellite_search', {})
 
   api.nvim_create_autocmd('ColorScheme', {
@@ -126,7 +127,9 @@ function handler.init()
   api.nvim_create_autocmd('User', {
     group = group,
     pattern = 'Search',
-    callback = vim.schedule_wrap(refresh),
+    callback = vim.schedule_wrap(function()
+      refresh(update)
+    end),
   })
 end
 

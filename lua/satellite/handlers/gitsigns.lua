@@ -9,7 +9,7 @@ local handler = {
 
 local config = {}
 
-function handler.init(config0)
+function handler.setup(config0, update)
   config = config0
 
   local group = api.nvim_create_augroup('satellite_gitsigns', {})
@@ -17,9 +17,7 @@ function handler.init(config0)
   api.nvim_create_autocmd('User', {
     pattern = 'GitSignsUpdate',
     group = group,
-    callback = function()
-      require('satellite.view').refresh_bars()
-    end,
+    callback = update,
   })
 end
 

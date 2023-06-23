@@ -10,7 +10,7 @@ local user_config = require 'satellite.config'.user_config
 ---@class Handler
 ---@field name string
 ---@field ns integer
----@field init fun(config: HandlerConfig)
+---@field setup fun(config: HandlerConfig, update: fun())
 ---@field update fun(bufnr: integer, winid: integer): SatelliteMark[]
 ---@field enabled fun(): boolean
 
@@ -42,7 +42,7 @@ function M.register(spec)
   vim.validate {
     spec = { spec, 'table' },
     name = { spec.name, 'string' },
-    init = { spec.init, 'function', true },
+    init = { spec.setup, 'function', true },
     update = { spec.update, 'function' },
   }
 
@@ -61,10 +61,12 @@ function M.init()
     end
   end
 
+  local update = require('satellite.view').refresh_bars
+
   -- Initialize handlers
   for _, h in ipairs(M.handlers) do
-    if h:enabled() and h.init then
-      h.init(user_config.handlers[h.name])
+    if h:enabled() and h.setup then
+      h.setup(user_config.handlers[h.name], update)
     end
   end
 end
