@@ -27,6 +27,8 @@ local function create_view(cfg)
   vim.bo[bufnr].swapfile = false
   vim.bo[bufnr].bufhidden = 'delete'
   vim.bo[bufnr].buflisted = false
+  -- Don't store undo information to reduce memory usage
+  vim.bo[bufnr].undolevels = -1
 
   local winid = api.nvim_open_win(bufnr, false, cfg)
 
@@ -48,14 +50,17 @@ end
 local function render_scrollbar(winid, bbufnr, row, height)
   local winheight = util.get_winheight(winid)
 
-  local lines = {} --- @type string[]
-  for i = 1, winheight do
-    lines[i] = ' '
-  end
+  -- only set populate lines if we need to
+  if api.nvim_buf_line_count(bbufnr) ~= winheight then
+    local lines = {} --- @type string[]
+    for i = 1, winheight do
+      lines[i] = ' '
+    end
 
-  vim.bo[bbufnr].modifiable = true
-  api.nvim_buf_set_lines(bbufnr, 0, -1, true, lines)
-  vim.bo[bbufnr].modifiable = false
+    vim.bo[bbufnr].modifiable = true
+    api.nvim_buf_set_lines(bbufnr, 0, -1, true, lines)
+    vim.bo[bbufnr].modifiable = false
+  end
 
   api.nvim_buf_clear_namespace(bbufnr, ns, 0, -1)
   for i = row, row+height do
