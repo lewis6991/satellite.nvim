@@ -1,10 +1,10 @@
 local api = vim.api
 local fn = vim.fn
 
-local util = require'satellite.util'
-local async = require'satellite.async'
+local util = require 'satellite.util'
+local async = require 'satellite.async'
 
-require'satellite.autocmd.search'
+require 'satellite.autocmd.search'
 
 ---@class CacheElem
 ---@field changedtick integer
@@ -15,10 +15,12 @@ require'satellite.autocmd.search'
 local cache = {}
 
 local function is_search_mode()
-  if vim.o.incsearch
+  if
+    vim.o.incsearch
     and vim.o.hlsearch
     and api.nvim_get_mode().mode == 'c'
-    and vim.tbl_contains({ '/', '?' }, fn.getcmdtype()) then
+    and vim.tbl_contains({ '/', '?' }, fn.getcmdtype())
+  then
     return true
   end
   return false
@@ -31,7 +33,7 @@ local function smartcaseify(pattern)
     -- match() does not use 'smartcase' so we must handle it
     local smartcase = pattern:find('[A-Z]') ~= nil
     if smartcase and not vim.startswith(pattern, '\\C') then
-      return '\\C'..pattern
+      return '\\C' .. pattern
     end
   end
   return pattern
@@ -53,9 +55,11 @@ local function update_matches(bufnr, pattern)
   pattern = pattern or get_pattern()
   pattern = smartcaseify(pattern)
 
-  if cache[bufnr]
+  if
+    cache[bufnr]
     and cache[bufnr].changedtick == vim.b[bufnr].changedtick
-    and (not pattern or cache[bufnr].pattern == pattern) then
+    and (not pattern or cache[bufnr].pattern == pattern)
+  then
     return cache[bufnr].matches
   end
 
@@ -74,7 +78,7 @@ local function update_matches(bufnr, pattern)
           matches = {}
           break
         elseif col ~= -1 then
-          matches[#matches+1] = lnum
+          matches[#matches + 1] = lnum
         end
         count = count + 1
       until col == -1
@@ -86,7 +90,7 @@ local function update_matches(bufnr, pattern)
   cache[bufnr] = {
     pattern = pattern,
     changedtick = vim.b[bufnr].changedtick,
-    matches = matches
+    matches = matches,
   }
 
   return matches
@@ -99,13 +103,13 @@ end)
 
 ---@type Handler
 local handler = {
-  name = 'search'
+  name = 'search',
 }
 
 local function setup_hl()
   api.nvim_set_hl(0, 'SearchSV', {
     default = true,
-    fg = api.nvim_get_hl_by_name('Search', true).background
+    fg = api.nvim_get_hl_by_name('Search', true).background,
   })
 end
 
@@ -114,7 +118,7 @@ function handler.init()
 
   api.nvim_create_autocmd('ColorScheme', {
     group = group,
-    callback = setup_hl
+    callback = setup_hl,
   })
 
   setup_hl()
@@ -122,11 +126,11 @@ function handler.init()
   api.nvim_create_autocmd('User', {
     group = group,
     pattern = 'Search',
-    callback = vim.schedule_wrap(refresh)
+    callback = vim.schedule_wrap(refresh),
   })
 end
 
-local SYMBOLS = {'⠂', '⠅', '⠇', '⠗', '⠟', '⠿'}
+local SYMBOLS = { '⠂', '⠅', '⠇', '⠗', '⠟', '⠿' }
 
 ---@class SearchMark
 ---@field count integer
@@ -140,7 +144,7 @@ function handler.update(bufnr, winid)
   local cursor_lnum = api.nvim_win_get_cursor(0)[1]
   local start_time = vim.loop.now()
   for _, lnum in ipairs(matches) do
-    local pos = util.row_to_barpos(winid, lnum-1)
+    local pos = util.row_to_barpos(winid, lnum - 1)
 
     local count = 1
     if marks[pos] and marks[pos].count then
@@ -151,11 +155,11 @@ function handler.update(bufnr, winid)
       marks[pos] = {
         count = count,
         highlight = 'SearchCurrent',
-        unique    = true,
+        unique = true,
       }
     elseif count < 6 then
       marks[pos] = {
-        count = count
+        count = count,
       }
     end
     start_time = async.event_control(start_time)
@@ -164,7 +168,7 @@ function handler.update(bufnr, winid)
   local ret = {} ---@type SatelliteMark[]
 
   for pos, mark in pairs(marks) do
-    ret[#ret+1] = {
+    ret[#ret + 1] = {
       pos = pos,
       unique = mark.unique,
       highlight = mark.highlight or 'SearchSV',

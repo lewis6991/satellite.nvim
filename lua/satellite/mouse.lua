@@ -1,7 +1,7 @@
 local fn, api = vim.fn, vim.api
 
-local util = require'satellite.util'
-local view = require'satellite.view'
+local util = require 'satellite.util'
+local view = require 'satellite.view'
 
 -- Replace termcodes.
 --- @param str string
@@ -15,7 +15,7 @@ local MOUSEUP = t('<leftrelease>')
 
 local function is_visual_mode()
   local mode = fn.mode()
-  return vim.tbl_contains({'v', 'V', t'<c-v>'}, mode)
+  return vim.tbl_contains({ 'v', 'V', t '<c-v>' }, mode)
 end
 
 local function get_topline(winid, bufnr, row, bar_height)
@@ -45,7 +45,7 @@ local function set_topline(winid, linenr)
     -- accommodate wrapped lines.
     local virtual_line = util.virtual_line_count(winid, topline, fn.line('.'))
     if virtual_line > 1 then
-      vim.cmd('keepjumps normal! ' .. (virtual_line - 1) .. t'<c-e>')
+      vim.cmd('keepjumps normal! ' .. (virtual_line - 1) .. t '<c-e>')
     end
     local _, botline = util.visible_line_range(winid)
     if botline == fn.line('$') then
@@ -81,13 +81,13 @@ local function getchar()
   local ok, char = pcall(fn.getchar)
   if not ok then
     -- E.g., <c-c>
-    char = t'<esc>'
+    char = t '<esc>'
   end
   -- For Vim on Cygwin, pressing <c-c> during getchar() does not raise
   -- "Vim:Interrupt". Handling for such a scenario is added here as a
   -- precaution, by converting to <esc>.
-  if char == t'<c-c>' then
-    char = t'<esc>'
+  if char == t '<c-c>' then
+    char = t '<esc>'
   end
   if type(char) == 'number' then
     char = tostring(char)
@@ -112,7 +112,7 @@ end
 local function read_input_stream()
   local chars = {}
   local chars_props = {}
-  local str_idx = 1  -- in bytes, 1-indexed
+  local str_idx = 1 -- in bytes, 1-indexed
   while true do
     local char = getchar()
     local charmod = fn.getcharmod()
@@ -142,9 +142,12 @@ local function read_input_stream()
       -- floating window's winid. Otherwise, mousepos.winid would correspond to
       -- an ordinary window ID (seemingly for the window below the tabline).
       local screenpos = fn.win_screenpos(1)
-      if screenpos[1] == 2 and screenpos[2] == 1  -- Checks for presence of a tabline.
-          and mousepos.screenrow == 1
-          and util.is_ordinary_window(mousepos.winid) then
+      if
+        screenpos[1] == 2
+        and screenpos[2] == 1 -- Checks for presence of a tabline.
+        and mousepos.screenrow == 1
+        and util.is_ordinary_window(mousepos.winid)
+      then
         mouse_winid = -2
         mouse_row = mousepos.screenrow
         mouse_col = mousepos.screencol
@@ -157,7 +160,7 @@ local function read_input_stream()
       charmod = charmod,
       mouse_winid = mouse_winid,
       mouse_row = mouse_row,
-      mouse_col = mouse_col
+      mouse_col = mouse_col,
     }
 
     str_idx = str_idx + string.len(char)
@@ -183,8 +186,8 @@ function M.handle_leftmouse()
     return
   end
   local count = 0
-  local winid  -- The target window ID for a mouse scroll.
-  local bufnr  -- The target buffer number.
+  local winid -- The target window ID for a mouse scroll.
+  local bufnr -- The target buffer number.
   local scrollbar_offset
   local idx = 1
   local input_string, chars_props = '', {}
@@ -193,7 +196,6 @@ function M.handle_leftmouse()
   -- since this could be an expensive operation (and the mouse could move).
   util.invalidate_virtual_topline_lookup()
   while true do
-
     while true do
       idx = idx + 1
       if idx > #chars_props then
@@ -208,19 +210,19 @@ function M.handle_leftmouse()
       mouse_col = char_props.mouse_col
       -- Break unless it's a mouse drag followed by another mouse drag, so
       -- that the first drag is skipped.
-      if mouse_winid == 0
-          or vim.tbl_contains({MOUSEDOWN, MOUSEUP}, char) then
+      if mouse_winid == 0 or vim.tbl_contains({ MOUSEDOWN, MOUSEUP }, char) then
         break
       end
-      if idx >= #char_props then break end
+      if idx >= #char_props then
+        break
+      end
       local next = chars_props[idx + 1]
-      if next.mouse_winid == 0
-          or vim.tbl_contains({MOUSEDOWN, MOUSEUP}, next.char) then
+      if next.mouse_winid == 0 or vim.tbl_contains({ MOUSEDOWN, MOUSEUP }, next.char) then
         break
       end
     end
 
-    if char == t'<esc>' then
+    if char == t '<esc>' then
       fn.feedkeys(string.sub(input_string, str_idx + #char), 'ni')
       return
     end
@@ -277,10 +279,12 @@ function M.handle_leftmouse()
         -- Add 1 cell horizontal left-padding for grabbing the scrollbar. Don't
         -- add right-padding as this would extend past the window and will
         -- interfere with dragging the vertical separator to resize the window.
-        if mouse_row < props.row
-            or mouse_row >= props.row + props.height
-            or mouse_col < props.col
-            or mouse_col > props.col + props.width then
+        if
+          mouse_row < props.row
+          or mouse_row >= props.row + props.height
+          or mouse_col < props.col
+          or mouse_col > props.col + props.width
+        then
           -- The click was not on a scrollbar.
           fn.feedkeys(string.sub(input_string, str_idx), 'ni')
           return
@@ -305,8 +309,7 @@ function M.handle_leftmouse()
           return
         end
 
-        if mouse_row < props.row
-            or mouse_row >= props.row + props.height then
+        if mouse_row < props.row or mouse_row >= props.row + props.height then
           while fn.getchar() ~= MOUSEUP do
           end
           return
@@ -315,7 +318,7 @@ function M.handle_leftmouse()
         -- By this point, the click on a scrollbar was successful.
         if is_visual_mode() then
           -- Exit visual mode.
-          vim.cmd('normal! ' .. t'<esc>')
+          vim.cmd('normal! ' .. t '<esc>')
         end
         winid = mouse_winid
         bufnr = api.nvim_win_get_buf(winid)

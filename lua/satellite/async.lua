@@ -1,7 +1,7 @@
 local co = coroutine
 
 local async_thread = {
-  threads = {}
+  threads = {},
 }
 
 local function threadtostring(x)
@@ -43,22 +43,27 @@ local function execute(async_fn, ...)
   local thread = async_thread.create(async_fn)
 
   local function step(...)
-    local ret = {co.resume(thread, ...)}
+    local ret = { co.resume(thread, ...) }
     local stat, err_or_fn, nargs = unpack(ret)
 
     if not stat then
-      error(string.format("The coroutine failed with this message: %s\n%s",
-        err_or_fn, debug.traceback(thread)))
+      error(
+        string.format(
+          'The coroutine failed with this message: %s\n%s',
+          err_or_fn,
+          debug.traceback(thread)
+        )
+      )
     end
 
     if async_thread.finished(thread) then
       return
     end
 
-    assert(type(err_or_fn) == 'function', "type error :: expected func")
+    assert(type(err_or_fn) == 'function', 'type error :: expected func')
 
     local ret_fn = err_or_fn
-    local args = {select(4, unpack(ret))}
+    local args = { select(4, unpack(ret)) }
     args[nargs] = step
     ret_fn(unpack(args, 1, nargs))
   end
@@ -110,7 +115,7 @@ local sleep = M.wrap(function(ms, callback)
 end, 2)
 
 local TARGET_MIN_FPS = 10
-local TARGET_FRAME_TIME = 1000/TARGET_MIN_FPS
+local TARGET_FRAME_TIME = 1000 / TARGET_MIN_FPS
 
 function M.event_control(start_time)
   local duration = vim.loop.now() - start_time

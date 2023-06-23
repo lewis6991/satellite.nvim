@@ -44,9 +44,9 @@ local user_config = {
       overlap = false,
       priority = 20,
       signs = {
-        add = "│",
-        change = "│",
-        delete = "-",
+        add = '│',
+        change = '│',
+        delete = '-',
       },
     },
     marks = {
@@ -69,7 +69,7 @@ local M = {}
 M.user_config = setmetatable({}, {
   __index = function(_, k)
     return user_config[k]
-  end
+  end,
 })
 
 ---@param config SatelliteConfig

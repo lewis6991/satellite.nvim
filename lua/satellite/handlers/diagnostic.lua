@@ -1,20 +1,20 @@
-local util = require'satellite.util'
+local util = require 'satellite.util'
 
 local diagnostic_hls = {
   [vim.diagnostic.severity.ERROR] = 'DiagnosticError',
-  [vim.diagnostic.severity.WARN]  = 'DiagnosticWarn',
-  [vim.diagnostic.severity.INFO]  = 'DiagnosticInfo',
-  [vim.diagnostic.severity.HINT]  = 'DiagnosticHint',
+  [vim.diagnostic.severity.WARN] = 'DiagnosticWarn',
+  [vim.diagnostic.severity.INFO] = 'DiagnosticInfo',
+  [vim.diagnostic.severity.HINT] = 'DiagnosticHint',
 }
 
 ---@type Handler
 local handler = {
-  name = 'diagnostic'
+  name = 'diagnostic',
 }
 
 local config = {
-  signs = {'-', '=', '≡'},
-  min_severity = vim.diagnostic.severity.HINT
+  signs = { '-', '=', '≡' },
+  min_severity = vim.diagnostic.severity.HINT,
 }
 
 function handler.init(config0)
@@ -25,7 +25,7 @@ function handler.init(config0)
     group = gid,
     callback = function()
       require('satellite.view').refresh_bars()
-    end
+    end,
   })
 end
 
@@ -35,7 +35,7 @@ function handler.update(bufnr, winid)
   for _, diag in ipairs(diags) do
     if diag.severity <= config.min_severity then
       local lnum = diag.lnum + 1
-      local pos = util.row_to_barpos(winid, lnum-1)
+      local pos = util.row_to_barpos(winid, lnum - 1)
 
       local count = 1
       if marks[pos] and marks[pos].count then
@@ -49,7 +49,7 @@ function handler.update(bufnr, winid)
 
       marks[pos] = {
         count = count,
-        severity = severity
+        severity = severity,
       }
     end
   end
@@ -57,10 +57,10 @@ function handler.update(bufnr, winid)
   local ret = {} ---@type SatelliteMark[]
 
   for pos, mark in pairs(marks) do
-    ret[#ret+1] = {
+    ret[#ret + 1] = {
       pos = pos,
       highlight = diagnostic_hls[mark.severity],
-      symbol = config.signs[mark.count] or config.signs[#config.signs]
+      symbol = config.signs[mark.count] or config.signs[#config.signs],
     }
   end
 

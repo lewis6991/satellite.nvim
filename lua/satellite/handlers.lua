@@ -1,4 +1,4 @@
-local user_config = require'satellite.config'.user_config
+local user_config = require 'satellite.config'.user_config
 
 ---@class SatelliteMark
 ---@field pos integer
@@ -39,14 +39,14 @@ end
 
 ---@param spec Handler
 function M.register(spec)
-  vim.validate{
-    spec   = {spec       , 'table'  },
-    name   = {spec.name  , 'string' },
-    init   = {spec.init  , 'function', true },
-    update = {spec.update, 'function' },
+  vim.validate {
+    spec = { spec, 'table' },
+    name = { spec.name, 'string' },
+    init = { spec.init, 'function', true },
+    update = { spec.update, 'function' },
   }
 
-  spec.ns = vim.api.nvim_create_namespace('satellite.Handler.'..spec.name)
+  spec.ns = vim.api.nvim_create_namespace('satellite.Handler.' .. spec.name)
 
   local h = setmetatable(spec, { __index = Handler })
 
@@ -57,7 +57,7 @@ function M.init()
   -- Load builtin handlers
   for _, name in ipairs(BUILTIN_HANDLERS) do
     if enabled(name) then
-      require('satellite.handlers.'..name)
+      require('satellite.handlers.' .. name)
     end
   end
 

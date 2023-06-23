@@ -1,10 +1,10 @@
 local fn, api = vim.fn, vim.api
 
-local util = require'satellite.util'
-local async = require'satellite.async'
-local Handlers = require'satellite.handlers'
+local util = require 'satellite.util'
+local async = require 'satellite.async'
+local Handlers = require 'satellite.handlers'
 
-local user_config = require'satellite.config'.user_config
+local user_config = require 'satellite.config'.user_config
 
 local ns = api.nvim_create_namespace('satellite')
 
@@ -17,7 +17,7 @@ local winids = {}
 
 local function set_winlocal_opt(win, opt, value)
   -- Set local=scope so options are never inherited in new windows
-  api.nvim_set_option_value(opt, value, { win = win, scope = 'local'})
+  api.nvim_set_option_value(opt, value, { win = win, scope = 'local' })
 end
 
 local function create_view(cfg)
@@ -37,8 +37,8 @@ local function create_view(cfg)
   -- bottom of the scrollbar.
   set_winlocal_opt(winid, 'winhighlight', 'Normal:Normal')
   set_winlocal_opt(winid, 'winblend', user_config.winblend)
-  set_winlocal_opt(winid, 'foldcolumn' , '0')
-  set_winlocal_opt(winid, 'wrap' , false)
+  set_winlocal_opt(winid, 'foldcolumn', '0')
+  set_winlocal_opt(winid, 'wrap', false)
 
   return bufnr, winid
 end
@@ -63,9 +63,9 @@ local function render_scrollbar(winid, bbufnr, row, height)
   end
 
   api.nvim_buf_clear_namespace(bbufnr, ns, 0, -1)
-  for i = row, row+height do
+  for i = row, row + height do
     pcall(api.nvim_buf_set_extmark, bbufnr, ns, i, 0, {
-      virt_text = { {' ', 'ScrollView'} },
+      virt_text = { { ' ', 'ScrollView' } },
       virt_text_pos = 'overlay',
       priority = 1,
     })
@@ -89,29 +89,32 @@ local function render_handler(bufnr, winid, bbufnr, handler)
     local pos, symbol = m.pos, m.symbol
 
     local opts = {
-      id = not m.unique and pos+1 or nil,
-      priority = handler_config.priority
+      id = not m.unique and pos + 1 or nil,
+      priority = handler_config.priority,
     }
 
     if handler_config.overlap ~= false then
-      opts.virt_text = {{symbol, m.highlight}}
+      opts.virt_text = { { symbol, m.highlight } }
       opts.virt_text_pos = 'overlay'
       opts.hl_mode = 'combine'
     else
       -- Signs are 2 chars so fill the first char with whitespace
-      opts.sign_text = ' '..symbol
+      opts.sign_text = ' ' .. symbol
       opts.sign_hl_group = m.highlight
     end
 
     local ok, err = pcall(api.nvim_buf_set_extmark, bbufnr, handler.ns, pos, 0, opts)
     if not ok then
-      print(string.format('error(satellite.nvim): handler=%s buf=%d row=%d opts=%s, err="%s"',
-        handler.name,
-        bbufnr,
-        pos,
-        vim.inspect(opts, {newline= ' ', indent=''}),
-        err
-      ))
+      print(
+        string.format(
+          'error(satellite.nvim): handler=%s buf=%d row=%d opts=%s, err="%s"',
+          handler.name,
+          bbufnr,
+          pos,
+          vim.inspect(opts, { newline = ' ', indent = '' }),
+          err
+        )
+      )
     end
   end
 end
@@ -136,9 +139,9 @@ local function reposition_bar(winid, bar_winid, toprow)
 
   api.nvim_win_set_config(bar_winid, cfg)
 
-  vim.w[bar_winid].col   = cfg.col
+  vim.w[bar_winid].col = cfg.col
   vim.w[bar_winid].width = cfg.width
-  vim.w[bar_winid].row   = toprow
+  vim.w[bar_winid].row = toprow
 end
 
 ---@param bbufnr integer
@@ -216,7 +219,7 @@ local function show_scrollbar(winid)
     height = winheight,
     width = 1,
     row = 0,
-    col = winwidth - 1
+    col = winwidth - 1,
   }
 
   local bar_winid = winids[winid]
@@ -266,9 +269,9 @@ function M.get_props(winid)
 
   return {
     height = vim.w[bar_winid].height,
-    row    = vim.w[bar_winid].row,
-    col    = vim.w[bar_winid].col,
-    width  = vim.w[bar_winid].width,
+    row = vim.w[bar_winid].row,
+    col = vim.w[bar_winid].col,
+    width = vim.w[bar_winid].width,
   }
 end
 
@@ -281,7 +284,7 @@ local function get_target_windows()
   local current_tab = api.nvim_get_current_tabpage()
   for _, winid in ipairs(api.nvim_list_wins()) do
     if util.is_ordinary_window(winid) and api.nvim_win_get_tabpage(winid) == current_tab then
-      target_wins[#target_wins+1] = winid
+      target_wins[#target_wins + 1] = winid
     end
   end
   return target_wins
@@ -324,7 +327,7 @@ function M.refresh_bars()
   if enabled then
     for _, winid in ipairs(get_target_windows()) do
       if show_scrollbar(winid) then
-        current_wins[#current_wins+1] = winids[winid]
+        current_wins[#current_wins + 1] = winids[winid]
       end
     end
   end

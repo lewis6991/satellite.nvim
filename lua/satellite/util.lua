@@ -12,7 +12,7 @@ local M = {}
 function M.debounce_trailing(f, ms)
   local timer = assert(vim.loop.new_timer())
   return function(...)
-    local argv = {...}
+    local argv = { ... }
     timer:start(ms or 100, 0, function()
       vim.schedule(function()
         timer:stop()
@@ -119,8 +119,8 @@ function M.virtual_topline_lookup(winid)
   local last_line = api.nvim_buf_line_count(bufnr)
 
   virtual_topline_lookup_cache[winid] = api.nvim_win_call(winid, function()
-    local result = {}  --- @type integer[] A list of line numbers
-    local count = 1  -- The count of virtual lines
+    local result = {} --- @type integer[] A list of line numbers
+    local count = 1 -- The count of virtual lines
     local line = 1
     local best = line
     local best_distance = math.huge
@@ -163,7 +163,6 @@ function M.virtual_topline_lookup(winid)
   return virtual_topline_lookup_cache[winid]
 end
 
-
 -- Round to the nearest integer.
 -- WARN: .5 rounds to the right on the number line, including for negatives
 -- (which would not result in rounding up in magnitude).
@@ -197,13 +196,13 @@ end
 ---@param augroup string|integer
 ---@param f function()
 function M.on_cmd(cmd, augroup, f)
-  api.nvim_create_autocmd({'CmdlineLeave'}, {
+  api.nvim_create_autocmd({ 'CmdlineLeave' }, {
     group = augroup,
     callback = function()
       if fn.getcmdtype() == ':' and vim.startswith(fn.getcmdline(), cmd) then
         f()
       end
-    end
+    end,
   })
 end
 
@@ -233,7 +232,7 @@ function M.visible_line_range(winid)
     -- than or equal to 1.
     local botline = math.max(fn.line('w$'), topline)
     ---@diagnostic disable-next-line:redundant-return-value
-    return {topline, botline}
+    return { topline, botline }
   end))
 end
 
@@ -255,6 +254,5 @@ function M.in_cmdline_win(winid)
   local bufnr = api.nvim_win_get_buf(winid)
   return api.nvim_buf_get_name(bufnr) == '[Command Line]'
 end
-
 
 return M
