@@ -25,7 +25,7 @@ local function create_view(cfg)
   vim.bo[bufnr].modifiable = false
   vim.bo[bufnr].buftype = 'nofile'
   vim.bo[bufnr].swapfile = false
-  vim.bo[bufnr].bufhidden = 'delete'
+  vim.bo[bufnr].bufhidden = 'wipe'
   vim.bo[bufnr].buflisted = false
   -- Don't store undo information to reduce memory usage
   vim.bo[bufnr].undolevels = -1
