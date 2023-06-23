@@ -72,19 +72,72 @@ local function render_scrollbar(winid, bbufnr, row, height)
   end
 end
 
----@param bufnr integer
 ---@param winid integer
----@param bbufnr integer
----@param handler Handler
-local function render_handler(bufnr, winid, bbufnr, handler)
-  local name = handler.name
+---@param bar_winid integer
+local function reposition_bar(winid, bar_winid)
+  local toprow = vim.w[bar_winid].row
+  local winwidth = api.nvim_win_get_width(winid)
+  local wininfo = vim.fn.getwininfo(bar_winid)[1]
 
+  --- @type integer
+  local signwidth = wininfo.textoff
+
+  local cfg = {
+    relative = 'win',
+    win = winid,
+    row = 0,
+    col = winwidth - signwidth - 1,
+    width = 1 + signwidth,
+  }
+
+  api.nvim_win_set_config(bar_winid, cfg)
+
+  vim.w[bar_winid].col = cfg.col
+  vim.w[bar_winid].width = cfg.width
+  vim.w[bar_winid].row = toprow
+end
+
+local function get_target_windows()
+  if user_config.current_only then
+    return { api.nvim_get_current_win() }
+  end
+
+  local target_wins = {} ---@type integer[]
+  local current_tab = api.nvim_get_current_tabpage()
+  for _, winid in ipairs(api.nvim_list_wins()) do
+    if util.is_ordinary_window(winid) and api.nvim_win_get_tabpage(winid) == current_tab then
+      target_wins[#target_wins + 1] = winid
+    end
+  end
+  return target_wins
+end
+
+---@param handler Handler
+---@param winid? integer
+function M.render_handler(handler, winid)
   if not handler:enabled() then
     return
   end
 
+  if not winid then
+    for _, w in ipairs(get_target_windows()) do
+      M.render_handler(handler, w)
+    end
+    return
+  end
+
+  local bwinid = winids[winid]
+  if not bwinid then
+    return
+  end
+
+  local bbufnr = api.nvim_win_get_buf(bwinid)
+
+  local name = handler.name
+
   local handler_config = user_config.handlers[name] or {}
 
+  local bufnr = api.nvim_win_get_buf(winid)
   api.nvim_buf_clear_namespace(bbufnr, handler.ns, 0, -1)
   for _, m in ipairs(handler.update(bufnr, winid)) do
     local pos, symbol = m.pos, m.symbol
@@ -118,50 +171,23 @@ local function render_handler(bufnr, winid, bbufnr, handler)
       )
     end
   end
-end
 
----@param winid integer
----@param bar_winid integer
----@param toprow integer
-local function reposition_bar(winid, bar_winid, toprow)
-  local winwidth = api.nvim_win_get_width(winid)
-  local wininfo = vim.fn.getwininfo(bar_winid)[1]
-
-  --- @type integer
-  local signwidth = wininfo.textoff
-
-  local cfg = {
-    relative = 'win',
-    win = winid,
-    row = 0,
-    col = winwidth - signwidth - 1,
-    width = 1 + signwidth,
-  }
-
-  api.nvim_win_set_config(bar_winid, cfg)
-
-  vim.w[bar_winid].col = cfg.col
-  vim.w[bar_winid].width = cfg.width
-  vim.w[bar_winid].row = toprow
+  vim.schedule(function()
+    reposition_bar(winid, bwinid)
+  end)
 end
 
 ---@param bbufnr integer
----@param bwinid integer
 ---@param winid integer
 ---@param row integer
 ---@param height integer
-local render = async.void(function(bbufnr, bwinid, winid, row, height)
+local render = async.void(function(bbufnr, winid, row, height)
   render_scrollbar(winid, bbufnr, row, height)
 
   -- Run handlers
-  local bufnr = api.nvim_win_get_buf(winid)
   for _, handler in ipairs(Handlers.handlers) do
-    render_handler(bufnr, winid, bbufnr, handler)
+    M.render_handler(handler, winid)
   end
-
-  -- if api.nvim_win_is_valid(winid) and api.nvim_win_is_valid(bwinid) then
-  --   reposition_bar(winid, bwinid, row)
-  -- end
 end)
 
 -- Show a scrollbar for the specified 'winid' window ID, using the specified
@@ -248,7 +274,7 @@ local function show_scrollbar(winid)
 
   local toprow = util.row_to_barpos(winid, topline - 1)
   local height = util.height_to_virtual(winid, topline - 1, botline - 1)
-  render(bar_bufnr, bar_winid, winid, toprow, height)
+  render(bar_bufnr, winid, toprow, height)
 
   vim.w[bar_winid].height = height
   vim.w[bar_winid].row = toprow
@@ -274,21 +300,6 @@ function M.get_props(winid)
     col = vim.w[bar_winid].col,
     width = vim.w[bar_winid].width,
   }
-end
-
-local function get_target_windows()
-  if user_config.current_only then
-    return { api.nvim_get_current_win() }
-  end
-
-  local target_wins = {} ---@type integer[]
-  local current_tab = api.nvim_get_current_tabpage()
-  for _, winid in ipairs(api.nvim_list_wins()) do
-    if util.is_ordinary_window(winid) and api.nvim_win_get_tabpage(winid) == current_tab then
-      target_wins[#target_wins + 1] = winid
-    end
-  end
-  return target_wins
 end
 
 local function close(winid)
