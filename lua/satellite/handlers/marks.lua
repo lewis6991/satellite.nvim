@@ -1,5 +1,4 @@
 local util = require 'satellite.util'
-local view = require 'satellite.view'
 
 local highlight = 'MarkSV'
 
@@ -34,7 +33,7 @@ local function mark_is_builtin(m)
   return false
 end
 
-function handler.init(config0, update)
+function handler.setup(config0, update)
   config = config0
 
   local group = api.nvim_create_augroup('satellite_marks', {})
@@ -49,7 +48,9 @@ function handler.init(config0, update)
   api.nvim_create_autocmd('User', {
     group = group,
     pattern = 'Mark',
-    callback = vim.schedule_wrap(update),
+    callback = vim.schedule_wrap(function()
+      update(api.nvim_get_current_win())
+    end)
   })
 end
 

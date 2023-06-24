@@ -17,7 +17,9 @@ function handler.setup(config0, update)
   api.nvim_create_autocmd('User', {
     pattern = 'GitSignsUpdate',
     group = group,
-    callback = update,
+    callback = function()
+      update()
+    end
   })
 end
 
