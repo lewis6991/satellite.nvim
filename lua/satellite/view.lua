@@ -12,15 +12,21 @@ local M = {}
 
 local enabled = false
 
---- @type table<integer,integer>
+--- @type table<integer,integer?>
 local winids = {}
 
+--- @param win integer
+--- @param opt string
+--- @param value string|boolean|integer
 local function set_winlocal_opt(win, opt, value)
   -- Set local=scope so options are never inherited in new windows
   api.nvim_set_option_value(opt, value, { win = win, scope = 'local' })
 end
 
-local function create_view(cfg)
+--- @param cfg table
+--- @return integer bufnr
+--- @return integer winid
+local create_view = util.noautocmd(function(cfg)
   local bufnr = api.nvim_create_buf(false, true)
   vim.bo[bufnr].modifiable = false
   vim.bo[bufnr].buftype = 'nofile'
@@ -41,7 +47,7 @@ local function create_view(cfg)
   set_winlocal_opt(winid, 'wrap', false)
 
   return bufnr, winid
-end
+end)
 
 ---@param winid integer
 ---@param bbufnr integer
@@ -146,11 +152,10 @@ local function reposition_bar(winid, bar_winid, toprow)
 end
 
 ---@param bbufnr integer
----@param bwinid integer
 ---@param winid integer
 ---@param row integer
 ---@param height integer
-local render = async.void(function(bbufnr, bwinid, winid, row, height)
+local render = async.void(function(bbufnr, winid, row, height)
   render_scrollbar(winid, bbufnr, row, height)
 
   -- Run handlers
@@ -159,6 +164,7 @@ local render = async.void(function(bbufnr, bwinid, winid, row, height)
     render_handler(bufnr, winid, bbufnr, handler)
   end
 
+  -- local bwinid = winids[winid]
   -- if api.nvim_win_is_valid(winid) and api.nvim_win_is_valid(bwinid) then
   --   reposition_bar(winid, bwinid, row)
   -- end
@@ -248,7 +254,7 @@ local function show_scrollbar(winid)
 
   local toprow = util.row_to_barpos(winid, topline - 1)
   local height = util.height_to_virtual(winid, topline - 1, botline - 1)
-  render(bar_bufnr, bar_winid, winid, toprow, height)
+  render(bar_bufnr, winid, toprow, height)
 
   vim.w[bar_winid].height = height
   vim.w[bar_winid].row = toprow
@@ -291,17 +297,19 @@ local function get_target_windows()
   return target_wins
 end
 
+--- @param winid integer
 local function close(winid)
   local bar_winid = winids[winid]
+  if not bar_winid then
+    return
+  end
   if not api.nvim_win_is_valid(bar_winid) then
     return
   end
   if util.in_cmdline_win(winid) then
     return
   end
-  util.noautocmd(function()
-    api.nvim_win_close(bar_winid, true)
-  end)
+  util.noautocmd(api.nvim_win_close)(bar_winid, true)
   winids[winid] = nil
 end
 

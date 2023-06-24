@@ -236,11 +236,17 @@ function M.visible_line_range(winid)
   end))
 end
 
+--- @generic F: function
+--- @param f F
+--- @return F
 function M.noautocmd(f)
-  local eventignore = vim.o.eventignore
-  vim.o.eventignore = 'all'
-  f()
-  vim.o.eventignore = eventignore
+  return function(...)
+    local eventignore = vim.o.eventignore
+    vim.o.eventignore = 'all'
+    local r = { f(...) }
+    vim.o.eventignore = eventignore
+    return unpack(r)
+  end
 end
 
 function M.in_cmdline_win(winid)
