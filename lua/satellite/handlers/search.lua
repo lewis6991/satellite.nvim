@@ -114,7 +114,7 @@ local function setup_hl()
   })
 end
 
-function handler.init(_config, update)
+function handler.setup(_config, update)
   local group = api.nvim_create_augroup('satellite_search', {})
 
   api.nvim_create_autocmd('ColorScheme', {

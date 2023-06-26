@@ -34,7 +34,7 @@ local function mark_is_builtin(m)
   return false
 end
 
-function handler.init(config0, update)
+function handler.setup(config0, update)
   config = config0
 
   local group = api.nvim_create_augroup('satellite_marks', {})
