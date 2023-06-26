@@ -90,7 +90,7 @@ TODO
 
 Documentation can be accessed with:
 
-```nvim
+```vim
 :help satellite
 ```
 

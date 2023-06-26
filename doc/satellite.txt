@@ -15,12 +15,12 @@ REQUIREMENTS                                          *satellite-requirements*
 USAGE                                                        *satellite-usage*
 
 For basic setup with all batteries included:
->
+>lua
     require('satellite').setup()
 
 Configuration can be passed to the setup function. Here is an example with most
 of the default settings:
->
+>lua
     require('satellite').setup {
       current_only = false,
       winblend = 50,
@@ -106,7 +106,7 @@ Name         Default   Description
 `ScrollView`   `Visual`    Color for the scrollbar
 
 The highlight groups can be customized. Example:
- >
+ >vim
     " Link ScrollView highlight to Pmenu highlight
     highlight link ScrollView Pmenu
 
