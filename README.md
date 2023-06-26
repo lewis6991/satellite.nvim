@@ -13,6 +13,7 @@ Therefore, this plugin is highly experimental and currently serves as a platform
 ## Features
 
 * Display marks for different kinds of decorations across the buffer. Builtin handlers include:
+  * Cursor
   * Search results
   * Diagnostic
   * Git hunks (via [gitsigns.nvim])
@@ -24,29 +25,11 @@ Therefore, this plugin is highly experimental and currently serves as a platform
 
 Neovim nightly
 
-## Installation
-
-[packer.nvim]:
-```lua
-use 'lewis6991/satellite.nvim'
-```
-
 ## Usage
 
 For basic setup with all batteries included:
 ```lua
 require('satellite').setup()
-```
-
-If using [packer.nvim] Satellite can be setup directly in the plugin spec:
-
-```lua
-use {
-  'lewis6991/satellite.nvim',
-  config = function()
-    require('satellite').setup()
-  end
-}
 ```
 
 Configuration can be passed to the setup function. Here is an example with most of
@@ -60,6 +43,9 @@ require('satellite').setup {
   excluded_filetypes = {},
   width = 2,
   handlers = {
+    cursor = {
+      enable = true,
+    },
     search = {
       enable = true,
     },

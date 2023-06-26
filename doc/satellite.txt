@@ -9,7 +9,7 @@ License:  MIT license
 REQUIREMENTS                                          *satellite-requirements*
 
 * Scrollbar mouse dragging requires mouse support (see |'mouse'|) and
-  `nvim>=0.7`.
+  `nvim>=0.9`.
 
 ==============================================================================
 USAGE                                                        *satellite-usage*
@@ -28,6 +28,9 @@ of the default settings:
       excluded_filetypes = {},
       width = 2,
       handlers = {
+        cursor = {
+          enable = true,
+        },
         search = {
           enable = true,
         },
@@ -130,10 +133,6 @@ ISSUES                                                      *satellite-issues*
   non-current window. This is because the |WinScrolled| event only corresponds
   to the current window. The scrollbars can be refreshed with
   |:SatelliteRefresh|, scrolling, or by changing the current window.
-
-* Scrollbars become out-of-sync after fold commands. Because there are no
-  |autocmd-events| for folding, the plugin is unable to refresh the
-  scrollbars.
 
 ============================================================================
  vim:tw=78:ts=4:ft=help:norl:

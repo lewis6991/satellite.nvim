@@ -136,6 +136,7 @@ local function apply_keymaps()
     ---@diagnostic disable-next-line: missing-parameter
     if vim.fn.maparg(seq) == '' then
       vim.keymap.set({ 'n', 'v' }, seq, function()
+        util.invalidate_virtual_line_count_cache(0)
         vim.schedule(view.refresh_bars)
         return seq
       end, { unique = true, expr = true })

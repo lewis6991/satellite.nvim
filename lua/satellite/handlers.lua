@@ -21,6 +21,7 @@ local BUILTIN_HANDLERS = {
   'diagnostic',
   'gitsigns',
   'marks',
+  'cursor',
 }
 
 ---@type Handler[]
