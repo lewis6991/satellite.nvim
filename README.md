@@ -106,4 +106,3 @@ This plugin was based on [nvim-scrollview] which provides a very good implementa
 [gitsigns.nvim]: https://github.com/lewis6991/gitsigns.nvim
 [nvim-scrollbar]: https://github.com/petertriho/nvim-scrollbar
 [nvim-scrollview]: https://github.com/dstein64/nvim-scrollview
-[packer.nvim]: https://github.com/wbthomason/packer.nvim
