@@ -169,8 +169,19 @@ end
 -- (e.g., round(3.5) == 3, round(-3.5) == -3 != -4)
 --- @param x number
 --- @return integer
-local function round(x)
+function M.round(x)
   return math.floor(x + 0.5)
+end
+
+--- @param winid integer
+--- @param row integer
+--- @param row2 integer
+--- @return number
+local function height_to_virtual(winid, row, row2)
+  local vlinecount0 = M.virtual_line_count(winid, 1) - 1
+  local vheight = M.virtual_line_count(winid, row, row2)
+  local winheight0 = M.get_winheight(winid) - 1
+  return winheight0 * vheight / vlinecount0
 end
 
 --- @param winid integer
@@ -178,17 +189,16 @@ end
 --- @param row2 integer
 --- @return integer
 function M.height_to_virtual(winid, row, row2)
-  local vlinecount0 = M.virtual_line_count(winid, 1) - 1
-  local vheight = M.virtual_line_count(winid, row, row2)
-  local winheight0 = M.get_winheight(winid) - 1
-  return round(winheight0 * vheight / vlinecount0)
+  return M.round(height_to_virtual(winid, row, row2))
 end
 
 --- @param winid integer
 --- @param row integer
---- @return integer
+--- @return integer, number
 function M.row_to_barpos(winid, row)
-  return M.height_to_virtual(winid, 1, row)
+  local v = height_to_virtual(winid, 1, row)
+  local vr = M.round(v)
+  return vr, vr - v
 end
 
 --- Run callback when command is run

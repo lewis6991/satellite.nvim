@@ -1,3 +1,5 @@
+local util = require('satellite.util')
+
 ---@type Handler
 local handler = {
   name = 'cursor',
@@ -10,15 +12,26 @@ function handler.setup(_config, update)
   })
 end
 
+local CURSOR_SYMBOLS = {'⎺', '⎻', '⎼', '⎽' }
+
+--- @param symbols string[]
+--- @param f number
+--- @return string
+local function get_symbol(symbols, f)
+  local total = #symbols
+  local index = math.max(1, util.round((0.5 - f) * total))
+  return symbols[index] or tostring(index)
+end
+
 function handler.update(_, winid)
   local cursor = vim.api.nvim_win_get_cursor(winid)
 
-  local util = require('satellite.util')
+  local pos, f = util.row_to_barpos(winid, cursor[1] - 1)
 
   return {{
-    pos = util.row_to_barpos(winid, cursor[1] - 1),
+    pos = pos,
     highlight = 'NonText',
-    symbol = '-'
+    symbol = get_symbol(CURSOR_SYMBOLS, f)
   }}
 end
 
