@@ -23,6 +23,7 @@ local BUILTIN_HANDLERS = {
   'gitsigns',
   'marks',
   'cursor',
+  'quickfix',
 }
 
 ---@type Handler[]

@@ -15,6 +15,7 @@ and because of this, this plugin implements fairly unideal and unoptimised worka
   * Diagnostic
   * Git hunks (via [gitsigns.nvim])
   * Marks
+  * Quickfix
 * Handling for folds
 * Mouse support
 
@@ -83,6 +84,11 @@ require('satellite').setup {
       -- Highlights:
       -- SatelliteMark (default links to Normal)
     },
+    quickfix = {
+      signs = { '-', '=', '≡' },
+      -- Highlights:
+      -- SatelliteQuickfix (default links to WarningMsg)
+    }
   },
 }
 ```
