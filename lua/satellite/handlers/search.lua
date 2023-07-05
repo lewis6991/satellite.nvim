@@ -51,7 +51,7 @@ end
 
 ---@param bufnr integer
 ---@param pattern? string
----@return integer[]
+---@return table<integer,integer>
 local function update_matches(bufnr, pattern)
   pattern = pattern or get_pattern()
   pattern = smartcaseify(pattern)
@@ -64,7 +64,7 @@ local function update_matches(bufnr, pattern)
     return cache[bufnr].matches
   end
 
-  local matches = {} ---@type integer[]
+  local matches = {} ---@type table<integer,integer>
 
   if pattern and pattern ~= '' then
     local lines = api.nvim_buf_get_lines(bufnr, 0, -1, true)
@@ -76,15 +76,15 @@ local function update_matches(bufnr, pattern)
         local ok, col = pcall(fn.match, line, pattern, 0, count)
         if not ok then
           -- Make sure no lines match any error-causing regex pattern.
-          matches = {}
+          matches[lnum] = 0
           break
         elseif col ~= -1 then
-          matches[#matches + 1] = lnum
+          matches[lnum] = (matches[lnum] or 0) + 1
         end
-        count = count + 1
         if count >= MAX_MATCH_PER_LINE then
           break
         end
+        count = count + 1
       until col == -1
 
       start_time = async.event_control(start_time)
@@ -148,12 +148,11 @@ function handler.update(bufnr, winid)
   local matches = update_matches(bufnr)
   local cursor_lnum = api.nvim_win_get_cursor(0)[1]
   local start_time = vim.loop.now()
-  for _, lnum in ipairs(matches) do
+  for lnum, count in pairs(matches) do
     local pos = util.row_to_barpos(winid, lnum - 1)
 
-    local count = 1
     if marks[pos] and marks[pos].count then
-      count = marks[pos].count + 1
+      count = count + marks[pos].count
     end
 
     if lnum == cursor_lnum then
