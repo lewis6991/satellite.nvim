@@ -6,6 +6,9 @@ local async = require 'satellite.async'
 
 require 'satellite.autocmd.search'
 
+local SYMBOLS = { '⠂', '⠅', '⠇', '⠗', '⠟', '⠿' }
+local MAX_MATCH_PER_LINE = #SYMBOLS
+
 ---@class CacheElem
 ---@field changedtick integer
 ---@field pattern string
@@ -42,10 +45,8 @@ end
 local function get_pattern()
   if is_search_mode() then
     return vim.fn.getcmdline()
-  else
-    ---@diagnostic disable-next-line: missing-parameter
-    return vim.v.hlsearch == 1 and fn.getreg('/') or ''
   end
+  return vim.v.hlsearch == 1 and fn.getreg('/') or ''
 end
 
 ---@param bufnr integer
@@ -81,6 +82,9 @@ local function update_matches(bufnr, pattern)
           matches[#matches + 1] = lnum
         end
         count = count + 1
+        if count >= MAX_MATCH_PER_LINE then
+          break
+        end
       until col == -1
 
       start_time = async.event_control(start_time)
@@ -133,8 +137,6 @@ function handler.setup(_config, update)
   })
 end
 
-local SYMBOLS = { '⠂', '⠅', '⠇', '⠗', '⠟', '⠿' }
-
 ---@class SearchMark
 ---@field count integer
 ---@field highlight string
@@ -160,7 +162,7 @@ function handler.update(bufnr, winid)
         highlight = 'SearchCurrent',
         unique = true,
       }
-    elseif count < 6 then
+    elseif count <= MAX_MATCH_PER_LINE then
       marks[pos] = {
         count = count,
       }

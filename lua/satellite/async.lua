@@ -105,25 +105,14 @@ end
 ---able to call the API.
 M.scheduler = M.wrap(vim.schedule, 1)
 
-local sleep = M.wrap(function(ms, callback)
-  local timer = vim.loop.new_timer()
-  vim.loop.timer_start(timer, ms, 0, function()
-    vim.loop.timer_stop(timer)
-    vim.loop.close(timer)
-    callback()
-  end)
-end, 2)
-
 local TARGET_MIN_FPS = 10
 local TARGET_FRAME_TIME = 1000 / TARGET_MIN_FPS
 
 function M.event_control(start_time)
-  local duration = vim.loop.now() - start_time
+  local duration = vim.loop.hrtime() - start_time
   if duration > TARGET_FRAME_TIME then
-    sleep(0)
     M.scheduler()
-    -- print(string.format('SLEEP duration=%d', duration))
-    return vim.loop.now()
+    return vim.loop.hrtime()
   end
   return start_time
 end
