@@ -90,7 +90,9 @@ end
 ---Use this to create a function which executes in an async context but
 ---called from a non-async context. Inherently this cannot return anything
 ---since it is non-blocking
----@param func function
+---@generic F : function
+---@param func F
+---@return F
 function M.void(func)
   return function(...)
     if async_thread.running() then
@@ -106,11 +108,11 @@ end
 M.scheduler = M.wrap(vim.schedule, 1)
 
 local TARGET_MIN_FPS = 10
-local TARGET_FRAME_TIME = 1000 / TARGET_MIN_FPS
+local TARGET_FRAME_TIME_NS = 10^9 / TARGET_MIN_FPS
 
 function M.event_control(start_time)
   local duration = vim.loop.hrtime() - start_time
-  if duration > TARGET_FRAME_TIME then
+  if duration > TARGET_FRAME_TIME_NS then
     M.scheduler()
     return vim.loop.hrtime()
   end
