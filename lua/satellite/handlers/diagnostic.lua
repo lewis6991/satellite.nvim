@@ -1,10 +1,12 @@
+local api = vim.api
+
 local util = require 'satellite.util'
 
 local diagnostic_hls = {
-  [vim.diagnostic.severity.ERROR] = 'DiagnosticError',
-  [vim.diagnostic.severity.WARN] = 'DiagnosticWarn',
-  [vim.diagnostic.severity.INFO] = 'DiagnosticInfo',
-  [vim.diagnostic.severity.HINT] = 'DiagnosticHint',
+  [vim.diagnostic.severity.ERROR] = 'SatelliteDiagnosticError',
+  [vim.diagnostic.severity.WARN] = 'SatelliteDiagnosticWarn',
+  [vim.diagnostic.severity.INFO] = 'SatelliteDiagnosticInfo',
+  [vim.diagnostic.severity.HINT] = 'SatelliteDiagnosticHint',
 }
 
 ---@type Handler
@@ -12,17 +14,41 @@ local handler = {
   name = 'diagnostic',
 }
 
+local function setup_hl()
+  for _, sfx in ipairs {'Error', 'Warn', 'Info', 'Hint' } do
+    api.nvim_set_hl(0, 'SatelliteDiagnostic' .. sfx, {
+      default = true,
+      link = 'Diagnostic' .. sfx
+    })
+  end
+end
+
+--- @class DiagnosticConfig: HandlerConfig
+--- @field signs string[]
+--- @field min_severity integer
 local config = {
+  enable = true,
+  overlap = true,
+  priority = 50,
   signs = { '-', '=', '≡' },
   min_severity = vim.diagnostic.severity.HINT,
 }
 
 function handler.setup(config0, update)
   config = vim.tbl_deep_extend('force', config, config0)
+  handler.config = config
 
-  local gid = vim.api.nvim_create_augroup('satellite_diagnostics', {})
-  vim.api.nvim_create_autocmd('DiagnosticChanged', {
-    group = gid,
+  local group = api.nvim_create_augroup('satellite_diagnostics', {})
+
+  api.nvim_create_autocmd('ColorScheme', {
+    group = group,
+    callback = setup_hl,
+  })
+
+  setup_hl()
+
+  api.nvim_create_autocmd('DiagnosticChanged', {
+    group = group,
     callback = update,
   })
 end

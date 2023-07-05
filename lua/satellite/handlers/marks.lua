@@ -1,10 +1,8 @@
-local util = require 'satellite.util'
-
-local highlight = 'MarkSV'
-
 local api = vim.api
 
-require 'satellite.autocmd.mark'
+local util = require 'satellite.util'
+
+local HIGHLIGHT = 'SatelliteMark'
 
 ---@type Handler
 local handler = {
@@ -12,15 +10,23 @@ local handler = {
 }
 
 local function setup_hl()
-  api.nvim_set_hl(0, highlight, {
+  api.nvim_set_hl(0, HIGHLIGHT, {
     default = true,
-    fg = api.nvim_get_hl_by_name('Normal', true).foreground,
+    fg = api.nvim_get_hl(0, { name = 'Normal' }).fg,
   })
 end
 
 local BUILTIN_MARKS = { "'.", "'^", "''", '\'"', "'<", "'>", "'[", "']" }
 
-local config = {}
+---@class MarksConfig: HandlerConfig
+---@field key    string
+---@field show_builtins boolean
+local config = {
+   key = 'm',
+   overlap = true,
+   priority = 60,
+   show_builtins = false,
+}
 
 ---@param m string mark name
 ---@return boolean
@@ -29,7 +35,10 @@ local function mark_is_builtin(m)
 end
 
 function handler.setup(config0, update)
-  config = config0
+  config = vim.tbl_deep_extend('force', config, config0)
+  handler.config = config
+
+  require('satellite.autocmd.mark')(config.key)
 
   local group = api.nvim_create_augroup('satellite_marks', {})
 
@@ -57,7 +66,7 @@ local function add_mark_to_bar(marks, mark, winid)
   if config and config.show_builtins or not mark_is_builtin(mark.mark) then
     marks[#marks + 1] = {
       pos = pos,
-      highlight = highlight,
+      highlight = HIGHLIGHT,
       -- first char of mark name is a single quote
       symbol = string.sub(mark.mark, 2, 3),
     }

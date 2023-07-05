@@ -7,12 +7,43 @@ local handler = {
   name = 'gitsigns',
 }
 
-local config = {}
+---@class GitsignsConfig: HandlerConfig
+---@field signs table<string, string>
+local config = {
+  enable = true,
+  overlap = false,
+  priority = 20,
+  signs = {
+    add = '│',
+    change = '│',
+    delete = '-',
+  },
+}
+
+local function setup_hl()
+  for _, sfx in ipairs {'Add', 'Delete', 'Change' } do
+    local target = 'GitSigns' .. sfx
+    if pcall(api.nvim_get_hl_id_by_name, target) then
+      api.nvim_set_hl(0, 'SatelliteGitSigns' .. sfx, {
+        default = true,
+        link = target
+      })
+    end
+  end
+end
 
 function handler.setup(config0, update)
-  config = config0
+  config = vim.tbl_deep_extend('force', config, config0)
+  handler.config = config
 
   local group = api.nvim_create_augroup('satellite_gitsigns', {})
+
+  api.nvim_create_autocmd('ColorScheme', {
+    group = group,
+    callback = setup_hl,
+  })
+
+  setup_hl()
 
   api.nvim_create_autocmd('User', {
     pattern = 'GitSignsUpdate',
@@ -33,13 +64,11 @@ function handler.update(bufnr, winid)
 
   for _, hunk in ipairs(hunks or {}) do
     for i = hunk.added.start, hunk.added.start + math.max(0, hunk.added.count - 1) do
-      local hl = hunk.type == 'add' and 'GitSignsAdd'
-        or hunk.type == 'delete' and 'GitSignsDelete'
-        or 'GitSignsChange'
+      local hl = hunk.type == 'add' and 'SatelliteGitSignsAdd'
+        or hunk.type == 'delete' and 'SatelliteGitSignsDelete'
+        or 'SatelliteGitSignsChange'
       local lnum = math.max(1, i)
       local pos = util.row_to_barpos(winid, lnum - 1)
-
-      ---@type string
       local symbol = config.signs[hunk.type]
       if not symbol or type(symbol) ~= 'string' then
         symbol = hunk.type == 'delete' and '-' or '│'

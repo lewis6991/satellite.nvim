@@ -6,8 +6,16 @@ local async = require 'satellite.async'
 
 require 'satellite.autocmd.search'
 
-local SYMBOLS = { '⠂', '⠅', '⠇', '⠗', '⠟', '⠿' }
-local MAX_MATCH_PER_LINE = #SYMBOLS
+local HIGHLIGHT = 'SatelliteSearch'
+local HIGHLIGHT_CURRENT = 'SatelliteSearchCurrent'
+
+--- @class SearchConfig: HandlerConfig
+local config = {
+  enable = true,
+  overlap = true,
+  priority = 10,
+  symbols = { '⠂', '⠅', '⠇', '⠗', '⠟', '⠿' }
+}
 
 ---@class CacheElem
 ---@field changedtick integer
@@ -81,7 +89,7 @@ local function update_matches(bufnr, pattern)
         elseif col ~= -1 then
           matches[lnum] = (matches[lnum] or 0) + 1
         end
-        if count >= MAX_MATCH_PER_LINE then
+        if count >= #config.symbols then
           break
         end
         count = count + 1
@@ -112,13 +120,24 @@ local handler = {
 }
 
 local function setup_hl()
-  api.nvim_set_hl(0, 'SearchSV', {
+  api.nvim_set_hl(0, HIGHLIGHT, {
     default = true,
     fg = api.nvim_get_hl_by_name('Search', true).background,
   })
+
+  local has_sc, sc_hl = pcall(api.nvim_get_hl_by_name, 'SearchCurrent', true)
+  if has_sc then
+    api.nvim_set_hl(0, HIGHLIGHT_CURRENT, {
+      default = true,
+      fg = sc_hl.background
+    })
+  end
 end
 
-function handler.setup(_config, update)
+function handler.setup(config0, update)
+  config = vim.tbl_deep_extend('force', config, config0)
+  handler.config = config
+
   local group = api.nvim_create_augroup('satellite_search', {})
 
   api.nvim_create_autocmd('ColorScheme', {
@@ -158,10 +177,10 @@ function handler.update(bufnr, winid)
     if lnum == cursor_lnum then
       marks[pos] = {
         count = count,
-        highlight = 'SearchCurrent',
+        highlight = HIGHLIGHT_CURRENT,
         unique = true,
       }
-    elseif count <= MAX_MATCH_PER_LINE then
+    elseif count <= #config.symbols then
       marks[pos] = {
         count = count,
       }
@@ -175,8 +194,8 @@ function handler.update(bufnr, winid)
     ret[#ret + 1] = {
       pos = pos,
       unique = mark.unique,
-      highlight = mark.highlight or 'SearchSV',
-      symbol = mark.symbol or SYMBOLS[mark.count] or SYMBOLS[#SYMBOLS],
+      highlight = mark.highlight or HIGHLIGHT,
+      symbol = mark.symbol or config.symbols[mark.count] or config.symbols[#config.symbols],
     }
   end
 

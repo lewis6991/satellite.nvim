@@ -19,6 +19,8 @@ The API for the handler is as follows:
 ---
 --- @field enabled fun(): boolean
 --- Whether the handler is enabled or not.
+---
+--- @field config HandlerConfig
 ```
 
 Handlers can accept any configuration but must also support the following

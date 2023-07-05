@@ -92,8 +92,7 @@ local function render_handler(bufnr, winid, bbufnr, handler)
   end
 
   local max_pos = api.nvim_buf_line_count(bbufnr) - 1
-  local name = handler.name
-  local handler_config = user_config.handlers[name] or {}
+  local handler_config = handler.config or {}
 
   api.nvim_buf_clear_namespace(bbufnr, handler.ns, 0, -1)
   for _, m in ipairs(handler.update(bufnr, winid)) do

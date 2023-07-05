@@ -10,9 +10,10 @@ local user_config = require 'satellite.config'.user_config
 ---@class Handler
 ---@field name string
 ---@field ns integer
----@field setup fun(config: HandlerConfig, update: fun())
+---@field setup fun(user_config: HandlerConfig, update: fun())
 ---@field update fun(bufnr: integer, winid: integer): SatelliteMark[]
 ---@field enabled fun(): boolean
+---@field config HandlerConfig
 
 local M = {}
 
@@ -67,7 +68,7 @@ function M.init()
   -- Initialize handlers
   for _, h in ipairs(M.handlers) do
     if h:enabled() and h.setup then
-      h.setup(user_config.handlers[h.name], update)
+      h.setup(user_config.handlers[h.name] or {}, update)
     end
   end
 end

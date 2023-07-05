@@ -103,7 +103,6 @@ end
 local function apply_keymaps()
   -- === Fold command synchronization workarounds ===
   -- zf takes a motion in normal mode, so it requires a g@ mapping.
-  ---@diagnostic disable-next-line: missing-parameter
   if vim.fn.maparg('zf') == '' then
     vim.keymap.set('n', 'zf', function()
       vim.o.operatorfunc = 'v:lua:package.loaded.satellite.zf_operator'
@@ -133,7 +132,6 @@ local function apply_keymaps()
     'zN',
     'zi',
   } do
-    ---@diagnostic disable-next-line: missing-parameter
     if vim.fn.maparg(seq) == '' then
       vim.keymap.set({ 'n', 'v' }, seq, function()
         util.invalidate_virtual_line_count_cache(0)
@@ -143,7 +141,6 @@ local function apply_keymaps()
     end
   end
 
-  ---@diagnostic disable-next-line: missing-parameter
   if vim.fn.maparg('<leftmouse>') == '' then
     vim.keymap.set({ 'n', 'v', 'o', 'i' }, '<leftmouse>', function()
       require 'satellite.mouse'.handle_leftmouse()
