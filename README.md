@@ -1,5 +1,3 @@
-# 🚧 WIP and EXPERIMENTAL 🚧
-
 # satellite.nvim
 
 `satellite.nvim` is a Neovim plugin that displays decorated scrollbars.
@@ -8,7 +6,6 @@
 
 **NOTE**: Many API's required to implement a decorated scrollbar in Neovim do not yet exist,
 and because of this, this plugin implements fairly unideal and unoptimised workarounds to get desired behaviours.
-Therefore, this plugin is highly experimental and currently serves as a platform to experiment, investigate and design the required API's that are needed to be implemented in Neovim core.
 
 ## Features
 
@@ -84,7 +81,7 @@ for details.
 
 ## Handlers
 
-TODO
+Satellite provides an API to implement handlers for the scrollbar, see [HANDLERS](HANDLERS.md) for more details.
 
 ## Documentation
 

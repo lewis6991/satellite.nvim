@@ -83,73 +83,79 @@ end
 ---@param bbufnr integer
 ---@param handler Handler
 local function render_handler(bufnr, winid, bbufnr, handler)
-  local name = handler.name
-
   if not handler:enabled() then
     return
   end
 
+  if not api.nvim_buf_is_loaded(bbufnr) then
+    return
+  end
+
+  local max_pos = api.nvim_buf_line_count(bbufnr) - 1
+  local name = handler.name
   local handler_config = user_config.handlers[name] or {}
 
   api.nvim_buf_clear_namespace(bbufnr, handler.ns, 0, -1)
   for _, m in ipairs(handler.update(bufnr, winid)) do
     local pos, symbol = m.pos, m.symbol
 
-    local opts = {
-      id = not m.unique and pos + 1 or nil,
-      priority = handler_config.priority,
-    }
+    if pos <= max_pos then
+      local opts = {
+        id = not m.unique and pos + 1 or nil,
+        priority = handler_config.priority,
+      }
 
-    if handler_config.overlap ~= false then
-      opts.virt_text = { { symbol, m.highlight } }
-      opts.virt_text_pos = 'overlay'
-      opts.hl_mode = 'combine'
-    else
-      -- Signs are 2 chars so fill the first char with whitespace
-      opts.sign_text = ' ' .. symbol
-      opts.sign_hl_group = m.highlight
-    end
+      if handler_config.overlap ~= false then
+        opts.virt_text = { { symbol, m.highlight } }
+        opts.virt_text_pos = 'overlay'
+        opts.hl_mode = 'combine'
+      else
+        -- Signs are 2 chars so fill the first char with whitespace
+        opts.sign_text = ' ' .. symbol
+        opts.sign_hl_group = m.highlight
+      end
 
-    local ok, err = pcall(api.nvim_buf_set_extmark, bbufnr, handler.ns, pos, 0, opts)
-    if not ok then
-      print(
-        string.format(
-          'error(satellite.nvim): handler=%s buf=%d row=%d opts=%s, err="%s"',
-          handler.name,
-          bbufnr,
-          pos,
-          vim.inspect(opts, { newline = ' ', indent = '' }),
-          err
+      local ok, err = pcall(api.nvim_buf_set_extmark, bbufnr, handler.ns, pos, 0, opts)
+      if not ok then
+        print(
+          string.format(
+            'error(satellite.nvim): handler=%s buf=%d row=%d opts=%s, err="%s"',
+            handler.name,
+            bbufnr,
+            pos,
+            vim.inspect(opts, { newline = ' ', indent = '' }),
+            err
+          )
         )
-      )
+      end
     end
   end
 end
 
----@param winid integer
----@param bar_winid integer
----@param toprow integer
-local function reposition_bar(winid, bar_winid, toprow)
-  local winwidth = api.nvim_win_get_width(winid)
-  local wininfo = vim.fn.getwininfo(bar_winid)[1]
+-----@param winid integer
+-----@param bar_winid integer
+-----@param toprow integer
+--local function reposition_bar(winid, bar_winid, toprow)
+--  local winwidth = api.nvim_win_get_width(winid)
+--  local wininfo = vim.fn.getwininfo(bar_winid)[1]
 
-  --- @type integer
-  local signwidth = wininfo.textoff
+--  --- @type integer
+--  local signwidth = wininfo.textoff
 
-  local cfg = {
-    relative = 'win',
-    win = winid,
-    row = 0,
-    col = winwidth - signwidth - 1,
-    width = 1 + signwidth,
-  }
+--  local cfg = {
+--    relative = 'win',
+--    win = winid,
+--    row = 0,
+--    col = winwidth - signwidth - 1,
+--    width = 1 + signwidth,
+--  }
 
-  api.nvim_win_set_config(bar_winid, cfg)
+--  api.nvim_win_set_config(bar_winid, cfg)
 
-  vim.w[bar_winid].col = cfg.col
-  vim.w[bar_winid].width = cfg.width
-  vim.w[bar_winid].row = toprow
-end
+--  vim.w[bar_winid].col = cfg.col
+--  vim.w[bar_winid].width = cfg.width
+--  vim.w[bar_winid].row = toprow
+--end
 
 ---@param bbufnr integer
 ---@param winid integer

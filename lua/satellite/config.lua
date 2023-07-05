@@ -22,7 +22,7 @@
 ---@field marks MarksConfig
 
 ---@class SatelliteConfig
----@field handlers HandlerConfigs
+---@field handlers HandlerConfigs ssss
 ---@field current_only boolean
 ---@field winblend integer
 ---@field zindex integer
