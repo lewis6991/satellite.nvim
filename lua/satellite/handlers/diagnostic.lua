@@ -32,8 +32,7 @@ function handler.update(bufnr, winid)
   local diags = vim.diagnostic.get(bufnr)
   for _, diag in ipairs(diags) do
     if diag.severity <= config.min_severity then
-      local lnum = diag.lnum + 1
-      local pos = util.row_to_barpos(winid, lnum - 1)
+      local pos = util.row_to_barpos(winid, diag.lnum)
 
       local count = 1
       if marks[pos] and marks[pos].count then

@@ -346,6 +346,7 @@ function M.handle_leftmouse()
             M.refresh_bars()
           end
           view.move_scrollbar(winid, row0)
+          vim.cmd.redraw()
         end
       end
       count = count + 1

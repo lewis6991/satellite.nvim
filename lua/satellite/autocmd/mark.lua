@@ -1,8 +1,4 @@
 --- This module implements a user autocmd for Mark events
----
---- The data fields is populated depending on the specific search event:
---- ...
----
 
 local util = require 'satellite.util'
 local config = require 'satellite.config'
@@ -21,7 +17,6 @@ local group = api.nvim_create_augroup('satellite_autocmd_mark', {})
 ---@param m string mark name
 local function mark_set_keymap(m)
   local key = config.user_config.handlers.marks.key .. m
-  ---@diagnostic disable-next-line: missing-parameter
   if fn.maparg(key) == '' then
     vim.keymap.set({ 'n', 'x' }, key, function()
       exec_autocmd { key = key }
@@ -30,13 +25,11 @@ local function mark_set_keymap(m)
   end
 end
 
--- range over A-Z
-for code = 65, 90 do
+for code = string.byte('A'), string.byte('Z') do
   mark_set_keymap(string.char(code))
 end
 
--- -- range over a-z
-for code = 97, 122 do
+for code = string.byte('a'), string.byte('z') do
   mark_set_keymap(string.char(code))
 end
 

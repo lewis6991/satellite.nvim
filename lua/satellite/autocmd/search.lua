@@ -35,7 +35,6 @@ end)
 
 -- Refresh when activating search nav mappings
 for _, seq in ipairs { 'n', 'N', '&', '*' } do
-  ---@diagnostic disable-next-line: missing-parameter
   if fn.maparg(seq) == '' then
     vim.keymap.set('n', seq, function()
       exec_autocmd { key = seq }
@@ -45,15 +44,10 @@ for _, seq in ipairs { 'n', 'N', '&', '*' } do
 end
 
 local function is_search_mode()
-  if
-    vim.o.incsearch
+  return vim.o.incsearch
     and vim.o.hlsearch
     and api.nvim_get_mode().mode == 'c'
     and vim.tbl_contains({ '/', '?' }, fn.getcmdtype())
-  then
-    return true
-  end
-  return false
 end
 
 local group = api.nvim_create_augroup('satellite_autocmd_search', {})

@@ -1,5 +1,4 @@
 local util = require 'satellite.util'
-local view = require 'satellite.view'
 
 local highlight = 'MarkSV'
 
@@ -26,12 +25,7 @@ local config = {}
 ---@param m string mark name
 ---@return boolean
 local function mark_is_builtin(m)
-  for _, mark in pairs(BUILTIN_MARKS) do
-    if mark == m then
-      return true
-    end
-  end
-  return false
+  return vim.list_contains(BUILTIN_MARKS, m)
 end
 
 function handler.setup(config0, update)

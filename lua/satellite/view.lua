@@ -165,7 +165,7 @@ local render = async.void(function(bbufnr, winid, row, height)
   end
 
   -- local bwinid = winids[winid]
-  -- if api.nvim_win_is_valid(winid) and api.nvim_win_is_valid(bwinid) then
+  -- if bwinid and api.nvim_win_is_valid(winid) and api.nvim_win_is_valid(bwinid) then
   --   reposition_bar(winid, bwinid, row)
   -- end
 end)
@@ -327,7 +327,7 @@ function M.move_scrollbar(winid, row)
   local height = api.nvim_win_get_var(bar_winid, 'height')
 
   local bar_bufnr0 = api.nvim_win_get_buf(bar_winid)
-  render(bar_bufnr0, bar_winid, winid, row, height)
+  render(bar_bufnr0, winid, row, height)
 end
 
 function M.refresh_bars()
