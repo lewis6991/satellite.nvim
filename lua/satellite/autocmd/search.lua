@@ -20,7 +20,10 @@ local last_hlsearch = vim.v.hlsearch
 
 local timer = assert(vim.loop.new_timer())
 
-timer:start(0, vim.o.updatetime, function()
+-- default value of 'updatetime' is too long (4s). Make it 1s at most.
+local interval = math.min(vim.o.updatetime, 1000)
+
+timer:start(0, interval, function()
   -- Regularly check v:hlsearch
   if vim.v.hlsearch ~= last_hlsearch then
     last_hlsearch = vim.v.hlsearch
