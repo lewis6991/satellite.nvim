@@ -296,7 +296,8 @@ function M.handle_leftmouse()
         -- approach was deemed preferable to refreshing scrollbars initially, as
         -- that could result in unintended clicking/dragging where there is no
         -- scrollbar.
-        view.refresh_bars()
+        api.nvim_exec_autocmds('WinScrolled', {})
+        vim.cmd.redraw()
 
         -- Don't restore toplines whenever a scrollbar was clicked. This
         -- prevents the window where a scrollbar is dragged from having its
@@ -342,10 +343,7 @@ function M.handle_leftmouse()
         -- Only update scrollbar if the row changed.
         if props.row ~= row0 then
           set_topline(winid, get_topline(winid, bufnr, row0, props.height))
-          if vim.wo[winid].scrollbind or vim.wo[winid].cursorbind then
-            M.refresh_bars()
-          end
-          view.move_scrollbar(winid, row0)
+          api.nvim_exec_autocmds('WinScrolled', {})
           vim.cmd.redraw()
         end
       end
