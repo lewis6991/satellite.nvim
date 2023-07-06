@@ -44,20 +44,26 @@ end
 --- @param vend? integer
 --- @return integer
 function M.virtual_line_count(winid, start, vend)
-  local buf = api.nvim_win_get_buf(winid)
-  vend = vend or api.nvim_buf_line_count(buf)
+  if not vend then
+    local buf = api.nvim_win_get_buf(winid)
+    vend = api.nvim_buf_line_count(buf)
+  end
+
+  if vend == 0 then
+    return 0
+  end
+
   local cached = rawget(virtual_line_count_cache[winid][start], vend)
   if cached then
     return cached
   end
 
-  -- Don't use ffi, as most of the perf is gained by caching as much as possible
-  -- do
-  --   local w = ffi.C.find_window_by_handle(winid, 0)
-  --   local ret = ffi.C.plines_m_win(w, start, vend)
-  --   virtual_line_count_cache[winid][start][vend] = ret
-  --   return ret
-  -- end
+  -- Unmerged when this code was added: https://github.com/neovim/neovim/pull/24236
+  if api.nvim_win_get_text_height then
+    local res = api.nvim_win_get_text_height(winid, start, vend, {})
+    virtual_line_count_cache[winid][start][vend] = res
+    return res
+  end
 
   return api.nvim_win_call(winid, function()
     local vline = 0
