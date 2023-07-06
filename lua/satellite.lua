@@ -149,6 +149,12 @@ local function apply_keymaps()
 end
 
 function M.setup(cfg)
+  local version = vim.version()
+  if version.major == 0 and version.minor < 10 then
+    vim.notify('satellite.nvim only supports nvim 0.10 and newer', vim.log.levels.ERROR)
+    return
+  end
+
   Config.apply(cfg)
 
   Handlers.init()
