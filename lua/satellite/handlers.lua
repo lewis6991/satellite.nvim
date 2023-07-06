@@ -127,7 +127,15 @@ function M.register(spec)
   table.insert(M.handlers, h)
 end
 
+local did_init = false
+
 function M.init()
+  if did_init then
+    return
+  end
+
+  did_init = true
+
   -- Load builtin handlers
   for _, name in ipairs(BUILTIN_HANDLERS) do
     if enabled(name) then

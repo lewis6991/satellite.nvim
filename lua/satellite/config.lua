@@ -33,7 +33,7 @@ M.user_config = setmetatable({}, {
   end,
 })
 
----@param config SatelliteConfig
+---@param config? SatelliteConfig
 function M.apply(config)
   user_config = vim.tbl_deep_extend('force', user_config, config or {})
 end

@@ -1,7 +1,6 @@
 local fn, api = vim.fn, vim.api
 
 local util = require 'satellite.util'
-local Handlers = require 'satellite.handlers'
 
 local user_config = require 'satellite.config'.user_config
 
@@ -132,6 +131,10 @@ local function render(bwinid, winid)
   util.invalidate_virtual_line_count_cache(winid)
 
   render_scrollbar(winid, bwinid)
+
+  local Handlers = require 'satellite.handlers'
+
+  Handlers.init()
 
   -- Run handlers
   for _, handler in ipairs(Handlers.handlers) do

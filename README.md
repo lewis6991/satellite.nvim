@@ -25,13 +25,8 @@ Neovim nightly
 
 ## Usage
 
-For basic setup with all batteries included:
-```lua
-require('satellite').setup()
-```
-
-Configuration can be passed to the setup function. Here is an example with most of
-the default settings:
+Enabled by default. Configuration can optionally be passed to the `setup()`
+function. Here is an example with most of the default settings:
 
 ```lua
 require('satellite').setup {

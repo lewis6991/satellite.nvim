@@ -1,7 +1,5 @@
 local api = vim.api
 
-local Handlers = require('satellite.handlers')
-local Config = require 'satellite.config'
 local util = require 'satellite.util'
 local view = require 'satellite.view'
 
@@ -148,17 +146,25 @@ local function apply_keymaps()
   end
 end
 
---- @param cfg SatelliteConfig
+local did_setup = false
+
+--- @param cfg? SatelliteConfig
 function M.setup(cfg)
+  if cfg then
+    require('satellite.config').apply(cfg)
+  end
+
+  if did_setup then
+    return
+  end
+
+  did_setup = true
+
   local version = vim.version()
   if version.major == 0 and version.minor < 10 then
     vim.notify('satellite.nvim only supports nvim 0.10 and newer', vim.log.levels.ERROR)
     return
   end
-
-  Config.apply(cfg)
-
-  Handlers.init()
 
   apply_keymaps()
 
