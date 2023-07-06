@@ -1,18 +1,21 @@
 local co = coroutine
 
 local async_thread = {
+  --- @type table<string,true>
   threads = {},
 }
 
+--- @param x thread
+--- @return string
 local function threadtostring(x)
   if jit then
     return string.format('%p', x)
-  else
-    return tostring(x):match('thread: (.*)')
   end
+  return tostring(x):match('thread: (.*)')
 end
 
 -- Are we currently running inside an async thread
+--- @return true?
 function async_thread.running()
   local thread = co.running()
   local id = threadtostring(thread)
@@ -20,6 +23,8 @@ function async_thread.running()
 end
 
 -- Create an async thread
+--- @param fn function
+--- @return thread
 function async_thread.create(fn)
   local thread = co.create(fn)
   local id = threadtostring(thread)
@@ -28,6 +33,8 @@ function async_thread.create(fn)
 end
 
 -- Is the async thread finished
+--- @param x thread
+--- @return boolean
 function async_thread.finished(x)
   if co.status(x) == 'dead' then
     local id = threadtostring(x)
@@ -39,11 +46,13 @@ end
 
 ---Executes a future with a callback when it is done
 ---@param async_fn function: the future to execute
+---@param ... any
 local function execute(async_fn, ...)
   local thread = async_thread.create(async_fn)
 
   local function step(...)
     local ret = { co.resume(thread, ...) }
+    --- @type boolean, string|function, integer
     local stat, err_or_fn, nargs = unpack(ret)
 
     if not stat then
@@ -62,10 +71,9 @@ local function execute(async_fn, ...)
 
     assert(type(err_or_fn) == 'function', 'type error :: expected func')
 
-    local ret_fn = err_or_fn
     local args = { select(4, unpack(ret)) }
     args[nargs] = step
-    ret_fn(unpack(args, 1, nargs))
+    err_or_fn(unpack(args, 1, nargs))
   end
 
   step(...)
@@ -83,6 +91,7 @@ function M.wrap(func, argc)
       -- print(debug.traceback('Warning: calling async function in non-async context', 2))
       return func(...)
     end
+    --- @diagnostic disable-next-line:await-in-sync
     return co.yield(func, argc, ...)
   end
 end
@@ -110,6 +119,8 @@ M.scheduler = M.wrap(vim.schedule, 1)
 local TARGET_MIN_FPS = 10
 local TARGET_FRAME_TIME_NS = 10 ^ 9 / TARGET_MIN_FPS
 
+--- @param start_time integer
+--- @return integer new_start_time
 function M.event_control(start_time)
   local duration = vim.loop.hrtime() - start_time
   if duration > TARGET_FRAME_TIME_NS then

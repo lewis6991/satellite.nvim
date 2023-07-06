@@ -3,20 +3,10 @@ local fn, api = vim.fn, vim.api
 local util = require 'satellite.util'
 local view = require 'satellite.view'
 
--- Replace termcodes.
---- @param str string
---- @return string
-local function t(str)
-  return api.nvim_replace_termcodes(str, true, true, true)
-end
+local t = vim.keycode
 
-local MOUSEDOWN = t('<leftmouse>')
-local MOUSEUP = t('<leftrelease>')
-
-local function is_visual_mode()
-  local mode = fn.mode()
-  return vim.tbl_contains({ 'v', 'V', t '<c-v>' }, mode)
-end
+local LEFTMOUSE = t '<leftmouse>'
+local LEFTRELEASE = t '<leftrelease>'
 
 local function get_topline(winid, bufnr, row, bar_height)
   if row == 0 then
@@ -35,7 +25,9 @@ local function get_topline(winid, bufnr, row, bar_height)
   return math.max(1, util.virtual_topline_lookup(winid)[row])
 end
 
--- Scrolls the window so that the specified line number is at the top.
+--- Scrolls the window so that the specified line number is at the top.
+--- @param winid integer
+--- @param linenr integer
 local function set_topline(winid, linenr)
   api.nvim_win_call(winid, function()
     local init_line = fn.line('.')
@@ -77,46 +69,42 @@ local function set_topline(winid, linenr)
   end)
 end
 
+--- @return string
 local function getchar()
-  local ok, char = pcall(fn.getchar)
-  if not ok then
-    -- E.g., <c-c>
-    char = t '<esc>'
-  end
+  local ok, char0 = pcall(fn.getchar)
+  local char = ok and tostring(char0) or t '<esc>'
   -- For Vim on Cygwin, pressing <c-c> during getchar() does not raise
   -- "Vim:Interrupt". Handling for such a scenario is added here as a
   -- precaution, by converting to <esc>.
   if char == t '<c-c>' then
     char = t '<esc>'
   end
-  if type(char) == 'number' then
-    char = tostring(char)
-  end
   return char
 end
 
--- Get input characters---including mouse clicks and drags---from the input
--- stream. Characters are read until the input stream is empty. Returns a
--- 2-tuple with a string representation of the characters, along with a list of
--- dictionaries that include the following fields:
---   1) char
---   2) str_idx
---   3) charmod
---   4) mouse_winid
---   5) mouse_row
---   6) mouse_col
--- The mouse values are 0 when there was no mouse event or getmousepos is not
--- available. The mouse_winid is set to -1 when a mouse event was on the
--- command line. The mouse_winid is set to -2 when a mouse event was on the
--- tabline.
+--- @class Satellite.Mouse.Pos
+--- @field screencol integer
+--- @field screenrow integer
+--- @field winrow integer
+--- @field wincol integer
+--- @field winid integer
+
+--- Get input characters---including mouse clicks and drags---from the input
+--- stream. Characters are read until the input stream is empty.
+---
+--- The mouse values are 0 when there was no mouse event. The winid is set to
+--- -1 when a mouse event was on the command line. The winid is set to -2 when
+--- a mouse event was on the tabline.
+--- @return string characters
+--- @return Satellite.Mouse.Props[] props
 local function read_input_stream()
-  local chars = {}
-  local chars_props = {}
+  local chars = {} --- @type string[]
+  local chars_props = {} --- @type Satellite.Mouse.Props[]
   local str_idx = 1 -- in bytes, 1-indexed
   while true do
     local char = getchar()
-    local charmod = fn.getcharmod()
-    table.insert(chars, char)
+    chars[#chars + 1] = char
+
     local mouse_winid = 0
     local mouse_row = 0
     local mouse_col = 0
@@ -126,9 +114,9 @@ local function read_input_stream()
     -- v:mousewinid is non-zero.
     if vim.v.mouse_winid ~= 0 then
       mouse_winid = vim.v.mouse_winid
-      local mousepos = fn.getmousepos()
-      mouse_row = mousepos.winrow
-      mouse_col = mousepos.wincol
+      local mousepos = fn.getmousepos() --- @type Satellite.Mouse.Pos
+      mouse_row = mousepos.winrow --- @type integer
+      mouse_col = mousepos.wincol --- @type integer
 
       -- Handle a mouse event on the command line.
       if mousepos.screenrow > vim.go.lines - vim.go.cmdheight then
@@ -154,76 +142,184 @@ local function read_input_stream()
       end
     end
 
-    local char_props = {
+    chars_props[#chars_props + 1] = {
       char = char,
       str_idx = str_idx,
-      charmod = charmod,
-      mouse_winid = mouse_winid,
-      mouse_row = mouse_row,
-      mouse_col = mouse_col,
+      winid = mouse_winid,
+      row = mouse_row,
+      col = mouse_col,
     }
 
-    str_idx = str_idx + string.len(char)
-    table.insert(chars_props, char_props)
+    str_idx = str_idx + char:len()
+
     -- Break if there are no more items on the input stream.
     if fn.getchar(1) == 0 then
       break
     end
   end
-  local string = table.concat(chars, '')
-  return string, chars_props
+
+  return table.concat(chars, ''), chars_props
+end
+
+--- @param winid integer
+--- @return integer
+local function get_winrow(winid)
+  return fn.getwininfo(winid)[1].winrow --- @type integer
 end
 
 local M = {}
 
+--- @param count integer
+--- @param char string
+local function handle_leftrelease(count, char)
+  if count == 0 then
+    -- No initial MOUSEDOWN was captured.
+    fn.feedkeys(char, 'ni')
+  elseif count == 1 then
+    -- A scrollbar was clicked, but there was no corresponding drag.
+    -- Allow the interaction to be processed as it would be with no
+    -- scrollbar.
+    fn.feedkeys(LEFTMOUSE .. char, 'ni')
+  else
+    -- A scrollbar was clicked and there was a corresponding drag.
+    -- 'feedkeys' is not called, since the full mouse interaction has
+    -- already been processed. The current window (from prior to
+    -- scrolling) is not changed.
+    view.refresh_bars()
+  end
+end
+
+--- @class Satellite.Mouse.Props
+--- @field str_idx integer
+--- @field char string
+--- @field row integer
+--- @field col integer
+--- @field winid integer
+
+--- @param idx integer
+--- @param input_string string
+--- @param chars_props Satellite.Mouse.Props[]
+--- @return integer
+--- @return string
+--- @return Satellite.Mouse.Props[]
+local function update_mouse_props(idx, input_string, chars_props)
+  while true do
+    idx = idx + 1
+    if idx > #chars_props then
+      idx = 1
+      input_string, chars_props = read_input_stream()
+    end
+    local mouse_props = chars_props[idx]
+
+    -- Break unless it's a mouse drag followed by another mouse drag, so
+    -- that the first drag is skipped.
+    if mouse_props.winid == 0 or vim.tbl_contains({ LEFTMOUSE, LEFTRELEASE }, mouse_props.char) then
+      break
+    end
+
+    if idx >= #mouse_props then
+      break
+    end
+
+    local next = chars_props[idx + 1]
+
+    if next.winid == 0 or vim.tbl_contains({ LEFTMOUSE, LEFTRELEASE }, next.char) then
+      break
+    end
+  end
+
+  return idx, input_string, chars_props
+end
+
+--- @param char string
+--- @param mouse_props Satellite.Mouse.Props
+--- @return boolean
+local function handle_initial_leftmouse_event(char, mouse_props)
+  if mouse_props.winid < 0 then
+    -- The mouse event was on the tabline or command line.
+    fn.feedkeys(char, 'ni')
+    return false
+  end
+
+  local props = view.get_props(mouse_props.winid)
+  if not props then
+    fn.feedkeys(char, 'ni')
+    return false
+  end
+
+  -- Add 1 cell horizontal left-padding for grabbing the scrollbar. Don't
+  -- add right-padding as this would extend past the window and will
+  -- interfere with dragging the vertical separator to resize the window.
+  if
+    mouse_props.row < props.row
+    or mouse_props.row >= props.row + props.height
+    or mouse_props.col < props.col
+    or mouse_props.col > props.col + props.width
+  then
+    -- The click was not on a scrollbar.
+    fn.feedkeys(char, 'ni')
+    return false
+  end
+
+  -- The click was on a scrollbar.
+  -- Refresh the scrollbars and check if the mouse is still over a
+  -- scrollbar. If not, ignore all mouse events until a LEFTRELEASE. This
+  -- approach was deemed preferable to refreshing scrollbars initially, as
+  -- that could result in unintended clicking/dragging where there is no
+  -- scrollbar.
+  api.nvim_exec_autocmds('WinScrolled', {})
+  vim.cmd.redraw()
+
+  -- Don't restore toplines whenever a scrollbar was clicked. This
+  -- prevents the window where a scrollbar is dragged from having its
+  -- topline restored to the pre-drag position. This also prevents
+  -- restoring windows that may have had their windows shifted during the
+  -- course of scrollbar clicking/dragging, to prevent jumpiness in the
+  -- display.
+  props = view.get_props(mouse_props.winid)
+  if not props then
+    return false
+  end
+
+  if mouse_props.row < props.row or mouse_props.row >= props.row + props.height then
+    while fn.getchar() ~= LEFTRELEASE do
+    end
+    return false
+  end
+
+  return true
+end
+
 function M.handle_leftmouse()
   -- Re-send the click, so its position can be obtained through
   -- read_input_stream().
-  fn.feedkeys(MOUSEDOWN, 'ni')
+  fn.feedkeys(LEFTMOUSE, 'ni')
   if not view.enabled() then
     -- disabled. Process the click as it would ordinarily be
     -- processed
     return
   end
-  local count = 0
-  local winid -- The target window ID for a mouse scroll.
-  local bufnr -- The target buffer number.
-  local scrollbar_offset
-  local idx = 1
-  local input_string, chars_props = '', {}
-  local str_idx, char, mouse_winid, mouse_row, mouse_col
+
   -- Computing this prior to the first mouse event could distort the location
   -- since this could be an expensive operation (and the mouse could move).
   util.invalidate_virtual_topline_lookup()
+
+  local count = 0
+  local winid --- @type integer The target window ID for a mouse scroll.
+  local scrollbar_offset --- @type integer
+
+  --- @type integer, string, Satellite.Mouse.Props[]
+  local idx, input_string, chars_props = 1, '', {}
+
   while true do
-    while true do
-      idx = idx + 1
-      if idx > #chars_props then
-        idx = 1
-        input_string, chars_props = read_input_stream()
-      end
-      local char_props = chars_props[idx]
-      str_idx = char_props.str_idx
-      char = char_props.char
-      mouse_winid = char_props.mouse_winid
-      mouse_row = char_props.mouse_row
-      mouse_col = char_props.mouse_col
-      -- Break unless it's a mouse drag followed by another mouse drag, so
-      -- that the first drag is skipped.
-      if mouse_winid == 0 or vim.tbl_contains({ MOUSEDOWN, MOUSEUP }, char) then
-        break
-      end
-      if idx >= #char_props then
-        break
-      end
-      local next = chars_props[idx + 1]
-      if next.mouse_winid == 0 or vim.tbl_contains({ MOUSEDOWN, MOUSEUP }, next.char) then
-        break
-      end
-    end
+    idx, input_string, chars_props = update_mouse_props(idx, input_string, chars_props)
+    local mouse_props = chars_props[idx]
+    local str_idx = mouse_props.str_idx
+    local char = mouse_props.char
+    local mouse_winid = mouse_props.winid
 
     if char == t '<esc>' then
-      fn.feedkeys(string.sub(input_string, str_idx + #char), 'ni')
+      fn.feedkeys(input_string:sub(str_idx + #char), 'ni')
       return
     end
 
@@ -237,103 +333,37 @@ function M.handle_leftmouse()
     -- c54f347d63bcca97ead673d01ac6b59914bb04e5/src/getchar.c#L2660-L2672)
     -- Ignore this character after scrolling has started.
     -- NOTE: "\x80\xf5X" (hex) ==# "\200\365X" (octal)
-    if not (char == '\x80\xf5X' and count > 0) then
+    if char ~= '\x80\xf5X' or count == 0 then
+      local input_char = input_string:sub(str_idx)
+
       if mouse_winid == 0 then
         -- There was no mouse event.
-        fn.feedkeys(string.sub(input_string, str_idx), 'ni')
+        fn.feedkeys(input_char, 'ni')
         return
       end
 
-      if char == MOUSEUP then
-        if count == 0 then
-          -- No initial MOUSEDOWN was captured.
-          fn.feedkeys(string.sub(input_string, str_idx), 'ni')
-        elseif count == 1 then
-          -- A scrollbar was clicked, but there was no corresponding drag.
-          -- Allow the interaction to be processed as it would be with no
-          -- scrollbar.
-          fn.feedkeys(MOUSEDOWN .. string.sub(input_string, str_idx), 'ni')
-        else
-          -- A scrollbar was clicked and there was a corresponding drag.
-          -- 'feedkeys' is not called, since the full mouse interaction has
-          -- already been processed. The current window (from prior to
-          -- scrolling) is not changed.
-          view.refresh_bars()
-        end
+      if char == LEFTRELEASE then
+        handle_leftrelease(count, input_char)
         return
       end
 
       if count == 0 then
-        if mouse_winid < 0 then
-          -- The mouse event was on the tabline or command line.
-          fn.feedkeys(string.sub(input_string, str_idx), 'ni')
+        if not handle_initial_leftmouse_event(input_char, mouse_props) then
           return
         end
-
-        local props = view.get_props(mouse_winid)
-        if not props then
-          fn.feedkeys(string.sub(input_string, str_idx), 'ni')
-          return
-        end
-
-        -- Add 1 cell horizontal left-padding for grabbing the scrollbar. Don't
-        -- add right-padding as this would extend past the window and will
-        -- interfere with dragging the vertical separator to resize the window.
-        if
-          mouse_row < props.row
-          or mouse_row >= props.row + props.height
-          or mouse_col < props.col
-          or mouse_col > props.col + props.width
-        then
-          -- The click was not on a scrollbar.
-          fn.feedkeys(string.sub(input_string, str_idx), 'ni')
-          return
-        end
-
-        -- The click was on a scrollbar.
-        -- Refresh the scrollbars and check if the mouse is still over a
-        -- scrollbar. If not, ignore all mouse events until a MOUSEUP. This
-        -- approach was deemed preferable to refreshing scrollbars initially, as
-        -- that could result in unintended clicking/dragging where there is no
-        -- scrollbar.
-        api.nvim_exec_autocmds('WinScrolled', {})
-        vim.cmd.redraw()
-
-        -- Don't restore toplines whenever a scrollbar was clicked. This
-        -- prevents the window where a scrollbar is dragged from having its
-        -- topline restored to the pre-drag position. This also prevents
-        -- restoring windows that may have had their windows shifted during the
-        -- course of scrollbar clicking/dragging, to prevent jumpiness in the
-        -- display.
-        props = view.get_props(mouse_winid)
-        if not props then
-          return
-        end
-
-        if mouse_row < props.row or mouse_row >= props.row + props.height then
-          while fn.getchar() ~= MOUSEUP do
-          end
-          return
-        end
-
-        -- By this point, the click on a scrollbar was successful.
-        if is_visual_mode() then
-          -- Exit visual mode.
-          vim.cmd('normal! ' .. t '<esc>')
-        end
+        local props = assert(view.get_props(mouse_winid))
         winid = mouse_winid
-        bufnr = api.nvim_win_get_buf(winid)
-        scrollbar_offset = props.row - mouse_row
+        scrollbar_offset = props.row - mouse_props.row
       end
 
       -- Only consider a scrollbar update for mouse events on windows (i.e.,
       -- not on the tabline or command line).
       if mouse_winid > 0 then
         local winheight = util.get_winheight(winid)
-        local mouse_winrow = fn.getwininfo(mouse_winid)[1].winrow
-        local winrow = fn.getwininfo(winid)[1].winrow
+        local mouse_winrow = get_winrow(mouse_winid)
+        local winrow = get_winrow(winid)
         local window_offset = mouse_winrow - winrow
-        local row = mouse_row + window_offset + scrollbar_offset
+        local row = mouse_props.row + window_offset + scrollbar_offset
         local props = view.get_props(winid)
         if not props then
           return
@@ -342,6 +372,7 @@ function M.handle_leftmouse()
         local row0 = math.max(0, math.min(row - 1, winheight - props.height))
         -- Only update scrollbar if the row changed.
         if props.row ~= row0 then
+          local bufnr = api.nvim_win_get_buf(winid)
           set_topline(winid, get_topline(winid, bufnr, row0, props.height))
           api.nvim_exec_autocmds('WinScrolled', {})
           vim.cmd.redraw()
