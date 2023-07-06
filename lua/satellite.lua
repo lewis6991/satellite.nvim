@@ -148,6 +148,7 @@ local function apply_keymaps()
   end
 end
 
+--- @param cfg SatelliteConfig
 function M.setup(cfg)
   local version = vim.version()
   if version.major == 0 and version.minor < 10 then

@@ -4,7 +4,7 @@ local util = require 'satellite.util'
 
 local HIGHLIGHT = 'SatelliteMark'
 
----@type Handler
+---@type Satellite.Handler
 local handler = {
   name = 'marks',
 }
@@ -18,14 +18,14 @@ end
 
 local BUILTIN_MARKS = { "'.", "'^", "''", '\'"', "'<", "'>", "'[", "']" }
 
----@class MarksConfig: HandlerConfig
+---@class Satellite.Handlers.MarksConfig: Satellite.Handlers.BaseConfig
 ---@field key    string
 ---@field show_builtins boolean
 local config = {
-   key = 'm',
-   overlap = true,
-   priority = 60,
-   show_builtins = false,
+  key = 'm',
+  overlap = true,
+  priority = 60,
+  show_builtins = false,
 }
 
 ---@param m string mark name
@@ -56,7 +56,7 @@ function handler.setup(config0, update)
   })
 end
 
----@param marks SatelliteMark[]
+---@param marks Satellite.Mark[]
 ---@param mark {pos: {[1]:integer, [2]:integer}, mark: string}
 ---@param winid integer
 local function add_mark_to_bar(marks, mark, winid)

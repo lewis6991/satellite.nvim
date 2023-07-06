@@ -4,12 +4,12 @@ local util = require('satellite.util')
 
 local HIGHLIGHT = 'SatelliteQuickfix'
 
----@type Handler
+---@type Satellite.Handler
 local handler = {
   name = 'quickfix',
 }
 
----@class QuickfixConfig: HandlerConfig
+---@class Satellite.Handlers.QuickfixConfig: Satellite.Handlers.BaseConfig
 ---@field symbols string[]
 local config = {
   priority = 60,
@@ -35,7 +35,7 @@ function handler.setup(config0, update)
 
   vim.api.nvim_create_autocmd('QuickFixCmdPost', {
     group = group,
-    callback = update
+    callback = update,
   })
 end
 
@@ -56,7 +56,7 @@ function handler.update(bufnr, winid)
     end
   end
 
-  local ret = {} ---@type SatelliteMark[]
+  local ret = {} ---@type Satellite.Mark[]
 
   for pos, mark in pairs(marks) do
     ret[#ret + 1] = {

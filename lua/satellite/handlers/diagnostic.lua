@@ -9,21 +9,21 @@ local diagnostic_hls = {
   [vim.diagnostic.severity.HINT] = 'SatelliteDiagnosticHint',
 }
 
----@type Handler
+---@type Satellite.Handler
 local handler = {
   name = 'diagnostic',
 }
 
 local function setup_hl()
-  for _, sfx in ipairs {'Error', 'Warn', 'Info', 'Hint' } do
+  for _, sfx in ipairs { 'Error', 'Warn', 'Info', 'Hint' } do
     api.nvim_set_hl(0, 'SatelliteDiagnostic' .. sfx, {
       default = true,
-      link = 'Diagnostic' .. sfx
+      link = 'Diagnostic' .. sfx,
     })
   end
 end
 
---- @class DiagnosticConfig: HandlerConfig
+--- @class Satellite.Handlers.DiagnosticConfig: Satellite.Handlers.BaseConfig
 --- @field signs string[]
 --- @field min_severity integer
 local config = {
@@ -77,7 +77,7 @@ function handler.update(bufnr, winid)
     end
   end
 
-  local ret = {} ---@type SatelliteMark[]
+  local ret = {} ---@type Satellite.Mark[]
 
   for pos, mark in pairs(marks) do
     ret[#ret + 1] = {

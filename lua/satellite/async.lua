@@ -108,7 +108,7 @@ end
 M.scheduler = M.wrap(vim.schedule, 1)
 
 local TARGET_MIN_FPS = 10
-local TARGET_FRAME_TIME_NS = 10^9 / TARGET_MIN_FPS
+local TARGET_FRAME_TIME_NS = 10 ^ 9 / TARGET_MIN_FPS
 
 function M.event_control(start_time)
   local duration = vim.loop.hrtime() - start_time

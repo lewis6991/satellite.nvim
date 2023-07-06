@@ -4,18 +4,18 @@ local util = require('satellite.util')
 
 local HIGHLIGHT = 'SatelliteCursor'
 
----@type Handler
+---@type Satellite.Handler
 local handler = {
   name = 'cursor',
 }
 
----@class CursorConfig: HandlerConfig
+---@class Satellite.Handlers.CursorConfig: Satellite.Handlers.BaseConfig
 ---@field symbols string[]
 local config = {
   enable = true,
   overlap = true,
   priority = 100,
-  symbols = { '⎺', '⎻', '⎼', '⎽' }
+  symbols = { '⎺', '⎻', '⎼', '⎽' },
 }
 
 local function setup_hl()
@@ -38,9 +38,9 @@ function handler.setup(config0, update)
 
   setup_hl()
 
-  vim.api.nvim_create_autocmd({'CursorMoved', 'CursorMovedI' }, {
+  vim.api.nvim_create_autocmd({ 'CursorMoved', 'CursorMovedI' }, {
     group = group,
-    callback = update
+    callback = update,
   })
 end
 
@@ -58,11 +58,13 @@ function handler.update(_, winid)
 
   local pos, f = util.row_to_barpos(winid, cursor[1] - 1)
 
-  return {{
-    pos = pos,
-    highlight = HIGHLIGHT,
-    symbol = get_symbol(config.symbols, f)
-  }}
+  return {
+    {
+      pos = pos,
+      highlight = HIGHLIGHT,
+      symbol = get_symbol(config.symbols, f),
+    },
+  }
 end
 
 require('satellite.handlers').register(handler)

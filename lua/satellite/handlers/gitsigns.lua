@@ -2,12 +2,12 @@ local api = vim.api
 
 local util = require 'satellite.util'
 
----@type Handler
+---@type Satellite.Handler
 local handler = {
   name = 'gitsigns',
 }
 
----@class GitsignsConfig: HandlerConfig
+---@class Satellite.Handlers.GitsignsConfig: Satellite.Handlers.BaseConfig
 ---@field signs table<string, string>
 local config = {
   enable = true,
@@ -21,12 +21,12 @@ local config = {
 }
 
 local function setup_hl()
-  for _, sfx in ipairs {'Add', 'Delete', 'Change' } do
+  for _, sfx in ipairs { 'Add', 'Delete', 'Change' } do
     local target = 'GitSigns' .. sfx
     if pcall(api.nvim_get_hl_id_by_name, target) then
       api.nvim_set_hl(0, 'SatelliteGitSigns' .. sfx, {
         default = true,
-        link = target
+        link = target,
       })
     end
   end
@@ -57,7 +57,7 @@ function handler.update(bufnr, winid)
     return {}
   end
 
-  local marks = {} ---@type SatelliteMark[]
+  local marks = {} ---@type Satellite.Mark[]
 
   ---@type {type:string, added:{start: integer, count: integer}}[]
   local hunks = require 'gitsigns'.get_hunks(bufnr)
@@ -81,7 +81,7 @@ function handler.update(bufnr, winid)
     end
   end
 
-  local ret = {} ---@type SatelliteMark[]
+  local ret = {} ---@type Satellite.Mark[]
 
   for pos, mark in pairs(marks) do
     ret[#ret + 1] = {

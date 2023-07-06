@@ -81,7 +81,7 @@ end
 ---@param bufnr integer
 ---@param winid integer
 ---@param bbufnr integer
----@param handler Handler
+---@param handler Satellite.Handler
 local function render_handler(bufnr, winid, bbufnr, handler)
   if not handler:enabled() then
     return

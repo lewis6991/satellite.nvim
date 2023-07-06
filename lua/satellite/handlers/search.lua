@@ -9,20 +9,20 @@ require 'satellite.autocmd.search'
 local HIGHLIGHT = 'SatelliteSearch'
 local HIGHLIGHT_CURRENT = 'SatelliteSearchCurrent'
 
---- @class SearchConfig: HandlerConfig
+--- @class Satellite.Handlers.SearchConfig: Satellite.Handlers.BaseConfig
 local config = {
   enable = true,
   overlap = true,
   priority = 10,
-  symbols = { '⠂', '⠅', '⠇', '⠗', '⠟', '⠿' }
+  symbols = { '⠂', '⠅', '⠇', '⠗', '⠟', '⠿' },
 }
 
----@class CacheElem
+---@class Satellite.Handlers.Search.CacheElem
 ---@field changedtick integer
 ---@field pattern string
 ---@field matches integer[]
 
----@type table<integer, CacheElem>
+---@type table<integer, Satellite.Handlers.Search.CacheElem>
 local cache = {}
 
 local function is_search_mode()
@@ -114,7 +114,7 @@ local refresh = async.void(function(update)
   update()
 end)
 
----@type Handler
+---@type Satellite.Handler
 local handler = {
   name = 'search',
 }
@@ -129,7 +129,7 @@ local function setup_hl()
   if has_sc then
     api.nvim_set_hl(0, HIGHLIGHT_CURRENT, {
       default = true,
-      fg = sc_hl.background
+      fg = sc_hl.background,
     })
   end
 end
@@ -188,7 +188,7 @@ function handler.update(bufnr, winid)
     start_time = async.event_control(start_time)
   end
 
-  local ret = {} ---@type SatelliteMark[]
+  local ret = {} ---@type Satellite.Mark[]
 
   for pos, mark in pairs(marks) do
     ret[#ret + 1] = {

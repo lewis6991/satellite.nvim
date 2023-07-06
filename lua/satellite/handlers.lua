@@ -1,19 +1,19 @@
 local user_config = require 'satellite.config'.user_config
 
----@class SatelliteMark
+---@class Satellite.Mark
 ---@field pos integer
 ---@field highlight string
 ---@field symbol string
 ---@field unique boolean
 ---@field count integer
 
----@class Handler
+---@class Satellite.Handler
 ---@field name string
 ---@field ns integer
----@field setup fun(user_config: HandlerConfig, update: fun())
----@field update fun(bufnr: integer, winid: integer): SatelliteMark[]
+---@field setup fun(user_config: Satellite.Handlers.BaseConfig, update: fun())
+---@field update fun(bufnr: integer, winid: integer): Satellite.Mark[]
 ---@field enabled fun(): boolean
----@field config HandlerConfig
+---@field config Satellite.Handlers.BaseConfig
 
 local M = {}
 
@@ -26,7 +26,7 @@ local BUILTIN_HANDLERS = {
   'quickfix',
 }
 
----@type Handler[]
+---@type Satellite.Handler[]
 M.handlers = {}
 
 local Handler = {}
@@ -40,7 +40,7 @@ function Handler:enabled()
   return enabled(self.name)
 end
 
----@param spec Handler
+---@param spec Satellite.Handler
 function M.register(spec)
   vim.validate {
     spec = { spec, 'table' },
