@@ -71,7 +71,7 @@ local function render_scrollbar(winid, bwinid)
   api.nvim_buf_clear_namespace(bbufnr, ns, 0, -1)
   for i = row, row + height do
     pcall(api.nvim_buf_set_extmark, bbufnr, ns, i, 0, {
-      virt_text = { { ' ', 'ScrollView' } },
+      virt_text = { { ' ', 'SatelliteBar' } },
       virt_text_pos = 'overlay',
       priority = 1,
     })

@@ -175,10 +175,10 @@ function M.setup(cfg)
   -- The default highlight group is specified below.
   -- Change this default by defining or linking an alternative highlight group.
   -- E.g., the following will use the Pmenu highlight.
-  --   :highlight link ScrollView Pmenu
+  --   :highlight link SatelliteBar Pmenu
   -- E.g., the following will use custom highlight colors.
-  --   :highlight ScrollView ctermbg=159 guibg=LightCyan
-  api.nvim_set_hl(0, 'ScrollView', { default = true, link = 'Visual' })
+  --   :highlight SatelliteBar ctermbg=159 guibg=LightCyan
+  api.nvim_set_hl(0, 'SatelliteBar', { default = true, link = 'Visual' })
 
   enable()
 end

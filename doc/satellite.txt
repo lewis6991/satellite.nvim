@@ -103,17 +103,17 @@ colors.
 
 Name         Default   Description
 ----         -------   -----------
-`ScrollView`   `Visual`    Color for the scrollbar
+`SatelliteBar`   `Visual`    Color for the scrollbar
 
 The highlight groups can be customized. Example:
  >vim
-    " Link ScrollView highlight to Pmenu highlight
-    highlight link ScrollView Pmenu
+    " Link SatelliteBar highlight to Pmenu highlight
+    highlight link SatelliteBar Pmenu
 
-    " Specify custom highlighting for ScrollView
-    highlight ScrollView ctermbg=159 guibg=LightCyan
+    " Specify custom highlighting for SatelliteBar
+    highlight SatelliteBar ctermbg=159 guibg=LightCyan
 
-Mouse Support (experimental) ~
+Mouse Support ~
                                                     *satellite-mouse-support*
 
 A |<LeftMouse>| mapping is automatically created for interactive mouse
