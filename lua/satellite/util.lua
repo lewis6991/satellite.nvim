@@ -46,7 +46,7 @@ end
 function M.virtual_line_count(winid, start, vend)
   if not vend then
     local buf = api.nvim_win_get_buf(winid)
-    vend = api.nvim_buf_line_count(buf)
+    vend = api.nvim_buf_line_count(buf) - 1
   end
 
   if vend == 0 then
@@ -58,9 +58,11 @@ function M.virtual_line_count(winid, start, vend)
     return cached
   end
 
-  -- Unmerged when this code was added: https://github.com/neovim/neovim/pull/24236
-  if api.nvim_win_get_text_height then
-    local res = api.nvim_win_get_text_height(winid, start, vend, {})
+  if api.nvim_win_text_height then
+    local res = api.nvim_win_text_height(winid, {
+      start_row = start,
+      end_row = vend
+    })
     virtual_line_count_cache[winid][start][vend] = res
     return res
   end
