@@ -221,6 +221,7 @@ end
 
 --- @param winid integer
 local function close(winid)
+  util.invalidate_virtual_line_count_cache(winid)
   local bar_winid = winids[winid]
   if not bar_winid then
     return
