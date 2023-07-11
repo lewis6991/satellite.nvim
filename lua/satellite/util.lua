@@ -59,12 +59,14 @@ function M.virtual_line_count(winid, start, vend)
   end
 
   if api.nvim_win_text_height then
-    local res = api.nvim_win_text_height(winid, {
+    local ok, res = pcall(api.nvim_win_text_height, winid, {
       start_row = start,
       end_row = vend
     })
-    virtual_line_count_cache[winid][start][vend] = res
-    return res
+    if ok then
+      virtual_line_count_cache[winid][start][vend] = res
+      return res
+    end
   end
 
   return api.nvim_win_call(winid, function()
