@@ -64,6 +64,9 @@ function M.virtual_line_count(winid, start, vend)
       end_row = vend
     })
     if ok then
+      if type(res) == 'table' then
+        res = res.all
+      end
       virtual_line_count_cache[winid][start][vend] = res
       return res
     end
