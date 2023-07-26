@@ -60,38 +60,34 @@ function handler.update(bufnr, winid)
   local marks = {} ---@type Satellite.Mark[]
 
   ---@type {type:string, added:{start: integer, count: integer}}[]
-  local hunks = require 'gitsigns'.get_hunks(bufnr)
+  local hunks = require('gitsigns').get_hunks(bufnr)
 
   for _, hunk in ipairs(hunks or {}) do
-    for i = hunk.added.start, hunk.added.start + math.max(0, hunk.added.count - 1) do
-      local hl = hunk.type == 'add' and 'SatelliteGitSignsAdd'
-        or hunk.type == 'delete' and 'SatelliteGitSignsDelete'
-        or 'SatelliteGitSignsChange'
-      local lnum = math.max(1, i)
-      local pos = util.row_to_barpos(winid, lnum - 1)
-      local symbol = config.signs[hunk.type]
-      if not symbol or type(symbol) ~= 'string' then
-        symbol = hunk.type == 'delete' and '-' or '│'
-      end
+    local hl = hunk.type == 'add' and 'SatelliteGitSignsAdd'
+      or hunk.type == 'delete' and 'SatelliteGitSignsDelete'
+      or 'SatelliteGitSignsChange'
 
-      marks[pos] = {
+    local symbol = config.signs[hunk.type]
+    if not symbol or type(symbol) ~= 'string' then
+      symbol = hunk.type == 'delete' and '-' or '│'
+    end
+
+    local min_lnum = math.max(1, hunk.added.start)
+    local min_pos = util.row_to_barpos(winid, min_lnum - 1)
+
+    local max_lnum = math.max(1, hunk.added.start + math.max(0, hunk.added.count - 1))
+    local max_pos = util.row_to_barpos(winid, max_lnum - 1)
+
+    for pos = min_pos, max_pos do
+      marks[#marks+1] = {
+        pos = pos,
         symbol = symbol,
         highlight = hl,
       }
     end
   end
 
-  local ret = {} ---@type Satellite.Mark[]
-
-  for pos, mark in pairs(marks) do
-    ret[#ret + 1] = {
-      pos = pos,
-      highlight = mark.highlight,
-      symbol = mark.symbol,
-    }
-  end
-
-  return ret
+  return marks
 end
 
 require('satellite.handlers').register(handler)
