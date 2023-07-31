@@ -102,7 +102,12 @@ Handler.render = async.void(function(self, winid, bwinid)
   local bufnr = api.nvim_win_get_buf(winid)
   local max_pos = api.nvim_buf_line_count(bbufnr) - 1
 
+  -- async
   local marks = self.update(bufnr, winid)
+
+  if not api.nvim_buf_is_loaded(bufnr) then
+    return
+  end
 
   api.nvim_buf_clear_namespace(bbufnr, self.ns, 0, -1)
 
