@@ -105,7 +105,7 @@ Handler.render = async.void(function(self, winid, bwinid)
   -- async
   local marks = self.update(bufnr, winid)
 
-  if not api.nvim_buf_is_loaded(bufnr) then
+  if not api.nvim_buf_is_loaded(bbufnr) then
     return
   end
 
