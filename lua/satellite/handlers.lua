@@ -8,9 +8,10 @@ local async = require 'satellite.async'
 ---@field highlight string
 ---@field symbol string
 ---@field unique boolean
----@field count integer
+---@field count? integer
 
 ---@class Satellite.Handler
+---@field ns integer
 ---@field name string
 ---@field setup fun(user_config: Satellite.Handlers.BaseConfig, update: fun())
 ---@field update fun(bufnr: integer, winid: integer): Satellite.Mark[]
@@ -105,7 +106,7 @@ Handler.render = async.void(function(self, winid, bwinid)
   -- async
   local marks = self.update(bufnr, winid)
 
-  if not api.nvim_buf_is_loaded(bbufnr) then
+  if not api.nvim_buf_is_loaded(bbufnr) or not api.nvim_buf_is_valid(bufnr) then
     return
   end
 

@@ -50,11 +50,12 @@ local function smartcaseify(pattern)
   return pattern
 end
 
+--- @return string
 local function get_pattern()
   if is_search_mode() then
     return vim.fn.getcmdline()
   end
-  return vim.v.hlsearch == 1 and fn.getreg('/') or ''
+  return vim.v.hlsearch == 1 and fn.getreg('/') --[[@as string]] or ''
 end
 
 ---@param bufnr integer
@@ -96,6 +97,9 @@ local function update_matches(bufnr, pattern)
       until col == -1
 
       start_time = async.event_control(start_time)
+      if not api.nvim_buf_is_valid(bufnr) then
+        return {}
+      end
     end
   end
 
@@ -114,7 +118,7 @@ local refresh = async.void(function(update)
   update()
 end)
 
----@type Satellite.Handler
+--- @type Satellite.Handler
 local handler = {
   name = 'search',
 }
@@ -158,14 +162,19 @@ end
 
 ---@class SearchMark
 ---@field count integer
----@field highlight string
----@field unique boolean
----@field symbol string
+---@field highlight? string
+---@field unique? boolean
+---@field symbol? string
 
 function handler.update(bufnr, winid)
   local marks = {} ---@type SearchMark[]
   local matches = update_matches(bufnr)
-  local cursor_lnum = api.nvim_win_get_cursor(0)[1]
+
+  if not api.nvim_buf_is_valid(bufnr) or not api.nvim_win_is_valid(winid) then
+    return {}
+  end
+
+  local cursor_lnum = api.nvim_win_get_cursor(winid)[1]
   local start_time = vim.loop.now()
   for lnum, count in pairs(matches) do
     local pos = util.row_to_barpos(winid, lnum - 1)
@@ -186,9 +195,12 @@ function handler.update(bufnr, winid)
       }
     end
     start_time = async.event_control(start_time)
+    if not api.nvim_win_is_valid(winid) then
+      return {}
+    end
   end
 
-  local ret = {} ---@type Satellite.Mark[]
+  local ret = {} --- @type Satellite.Mark[]
 
   for pos, mark in pairs(marks) do
     ret[#ret + 1] = {
