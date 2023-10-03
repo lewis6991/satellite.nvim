@@ -174,12 +174,12 @@ local M = {}
 local function handle_leftrelease(count, char)
   if count == 0 then
     -- No initial MOUSEDOWN was captured.
-    fn.feedkeys(char, 'ni')
+    api.nvim_feedkeys(char, 'ni', false)
   elseif count == 1 then
     -- A scrollbar was clicked, but there was no corresponding drag.
     -- Allow the interaction to be processed as it would be with no
     -- scrollbar.
-    fn.feedkeys(LEFTMOUSE .. char, 'ni')
+    api.nvim_feedkeys(LEFTMOUSE .. char, 'ni', false)
   else
     -- A scrollbar was clicked and there was a corresponding drag.
     -- 'feedkeys' is not called, since the full mouse interaction has
@@ -237,13 +237,13 @@ end
 local function handle_initial_leftmouse_event(char, mouse_props)
   if mouse_props.winid < 0 then
     -- The mouse event was on the tabline or command line.
-    fn.feedkeys(char, 'ni')
+    api.nvim_feedkeys(char, 'ni', false)
     return false
   end
 
   local props = view.get_props(mouse_props.winid)
   if not props then
-    fn.feedkeys(char, 'ni')
+    api.nvim_feedkeys(char, 'ni', false)
     return false
   end
 
@@ -257,7 +257,7 @@ local function handle_initial_leftmouse_event(char, mouse_props)
     or mouse_props.col > props.col + props.width
   then
     -- The click was not on a scrollbar.
-    fn.feedkeys(char, 'ni')
+    api.nvim_feedkeys(char, 'ni', false)
     return false
   end
 
@@ -293,7 +293,7 @@ end
 function M.handle_leftmouse()
   -- Re-send the click, so its position can be obtained through
   -- read_input_stream().
-  fn.feedkeys(LEFTMOUSE, 'ni')
+  api.nvim_feedkeys(LEFTMOUSE, 'ni', false)
   if not view.enabled() then
     -- disabled. Process the click as it would ordinarily be
     -- processed
@@ -319,7 +319,7 @@ function M.handle_leftmouse()
     local mouse_winid = mouse_props.winid
 
     if char == t '<esc>' then
-      fn.feedkeys(input_string:sub(str_idx + #char), 'ni')
+      api.nvim_feedkeys(input_string:sub(str_idx + #char), 'ni', false)
       return
     end
 
@@ -338,7 +338,7 @@ function M.handle_leftmouse()
 
       if mouse_winid == 0 then
         -- There was no mouse event.
-        fn.feedkeys(input_char, 'ni')
+        api.nvim_feedkeys(input_char, 'ni', false)
         return
       end
 
