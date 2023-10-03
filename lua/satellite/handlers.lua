@@ -7,7 +7,7 @@ local async = require 'satellite.async'
 ---@field pos integer
 ---@field highlight string
 ---@field symbol string
----@field unique boolean
+---@field unique? boolean
 ---@field count? integer
 
 ---@class Satellite.Handler
