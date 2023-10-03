@@ -1,5 +1,7 @@
 local co = coroutine
 
+local api = vim.api
+
 local async_thread = {
   --- @type table<string,true>
   threads = {},
@@ -112,22 +114,103 @@ function M.void(func)
   end
 end
 
----An async function that when called will yield to the Neovim scheduler to be
----able to call the API.
+--- An async function that when called will yield to the Neovim scheduler to be
+--- able to call the API.
 M.scheduler = M.wrap(vim.schedule, 1)
 
-local TARGET_MIN_FPS = 10
+--- Abandon an async thread
+M.kill = M.wrap(function() end, 1)
+
+local TARGET_MIN_FPS = 60
 local TARGET_FRAME_TIME_NS = 10 ^ 9 / TARGET_MIN_FPS
 
+--- Automatically yield an async thread after a certain
+--- amount of time.
 --- @param start_time integer
+--- @param pred? fun()
 --- @return integer new_start_time
-function M.event_control(start_time)
+function M.event_control(start_time, pred)
   local duration = vim.loop.hrtime() - start_time
   if duration > TARGET_FRAME_TIME_NS then
     M.scheduler()
+
+    if pred and pred() == false then
+      M.kill()
+    end
+
     return vim.loop.hrtime()
   end
   return start_time
+end
+
+--- Predicate function to check whether a bufnr and winid are valid.
+--- @param bufnr? integer
+--- @param winid? integer
+--- @return fun(): false?
+function M.winbuf_pred(bufnr, winid)
+  local buftick = vim.b[bufnr].changedtick
+
+  return function()
+    if bufnr then
+      if not api.nvim_buf_is_valid(bufnr) then
+        return false
+      end
+      if vim.b[bufnr].changedtick ~= buftick then
+        return false
+      end
+    end
+
+    if winid and not api.nvim_win_is_valid(winid) then
+      return false
+    end
+  end
+end
+
+--- Async version of `ipairs` which internally calls async.event_control between
+--- iterations.
+--- @generic T
+--- @param a T[]
+--- @param pred fun(): false? Predicate function to check whether the context is
+--- valid after scheduling.
+--- @return fun(): integer, T
+--- @return any
+--- @return integer
+function M.ipairs(a, pred)
+  local start_time = vim.loop.hrtime()
+
+  --- @param i integer
+  --- @return integer?, any?
+  local function iter(_, i)
+    start_time = M.event_control(start_time, pred)
+
+    i = i + 1
+    local v = a[i]
+    if v then
+      return i, v
+    end
+  end
+
+  return iter, a, 0
+end
+
+--- Async version of `pairs` which internally calls async.event_control between
+--- iterations.
+--- @generic K, V
+--- @param t table<K, V>
+--- @param pred fun(): false? Predicate function to check whether the context is
+--- valid after scheduling.
+--- @return fun(): K, V
+--- @return any
+--- @return K?
+function M.pairs(t, pred)
+  local start_time = vim.loop.hrtime()
+
+  local function iter(_, k)
+    start_time = M.event_control(start_time, pred)
+    return next(t, k)
+  end
+
+  return iter, t, nil
 end
 
 return M

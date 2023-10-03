@@ -63,9 +63,9 @@ function handler.update(bufnr, winid)
   ---@type {type:string, added:{start: integer, count: integer}}[]
   local hunks = require('gitsigns').get_hunks(bufnr)
 
-  local start_time = vim.loop.now()
-  local buftick = vim.b[bufnr].changedtick
-  for _, hunk in ipairs(hunks or {}) do
+  local pred = async.winbuf_pred(bufnr, winid)
+
+  for _, hunk in async.ipairs(hunks or {}, pred) do
     local hl = hunk.type == 'add' and 'SatelliteGitSignsAdd'
       or hunk.type == 'delete' and 'SatelliteGitSignsDelete'
       or 'SatelliteGitSignsChange'
@@ -88,13 +88,6 @@ function handler.update(bufnr, winid)
         highlight = hl,
       }
     end
-
-    start_time = async.event_control(start_time)
-    if vim.b[bufnr].changedtick ~= buftick or
-      not api.nvim_win_is_valid(winid) or not api.nvim_buf_is_valid(bufnr) then
-      return {}
-    end
-    buftick = vim.b[bufnr].changedtick
   end
 
   return marks
