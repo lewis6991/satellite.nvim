@@ -78,9 +78,9 @@ local function update_matches(bufnr, pattern)
   if pattern and pattern ~= '' then
     local lines = api.nvim_buf_get_lines(bufnr, 0, -1, true)
 
-    local start_time = vim.loop.now()
-    local buftick = vim.b[bufnr].changedtick
-    for lnum, line in ipairs(lines) do
+    local pred = async.winbuf_pred(bufnr)
+
+    for lnum, line in async.ipairs(lines, pred) do
       local count = 1
       repeat
         local ok, col = pcall(fn.match, line, pattern, 0, count)
@@ -96,13 +96,6 @@ local function update_matches(bufnr, pattern)
         end
         count = count + 1
       until col == -1
-
-      start_time = async.event_control(start_time)
-      if vim.b[bufnr].changedtick ~= buftick or
-        not api.nvim_buf_is_valid(bufnr) then
-        return {}
-      end
-      buftick = vim.b[bufnr].changedtick
     end
   end
 
@@ -178,9 +171,10 @@ function handler.update(bufnr, winid)
   end
 
   local cursor_lnum = api.nvim_win_get_cursor(winid)[1]
-  local start_time = vim.loop.now()
-  local buftick = vim.b[bufnr].changedtick
-  for lnum, count in pairs(matches) do
+
+  local pred = async.winbuf_pred(bufnr, winid)
+
+  for lnum, count in async.pairs(matches, pred) do
     local pos = util.row_to_barpos(winid, lnum - 1)
 
     if marks[pos] and marks[pos].count then
@@ -198,12 +192,6 @@ function handler.update(bufnr, winid)
         count = count,
       }
     end
-    start_time = async.event_control(start_time)
-    if vim.b[bufnr].changedtick ~= buftick or
-      not api.nvim_win_is_valid(winid) or not api.nvim_buf_is_valid(bufnr) then
-      return {}
-    end
-    buftick = vim.b[bufnr].changedtick
   end
 
   local ret = {} --- @type Satellite.Mark[]

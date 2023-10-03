@@ -135,6 +135,18 @@ end
 
 local did_init = false
 
+---@param bwinid integer
+---@param winid integer
+function M.render(bwinid, winid)
+  M.init()
+
+  -- Run handlers
+  -- Each render function is a void async function so this loop should finish immediately
+  for _, handler in ipairs(M.handlers) do
+    handler:render(winid, bwinid)
+  end
+end
+
 function M.init()
   if did_init then
     return

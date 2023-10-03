@@ -1,6 +1,7 @@
 local api = vim.api
 
 local util = require 'satellite.util'
+local async = require 'satellite.async'
 
 local diagnostic_hls = {
   [vim.diagnostic.severity.ERROR] = 'SatelliteDiagnosticError',
@@ -56,7 +57,8 @@ end
 function handler.update(bufnr, winid)
   local marks = {} ---@type {count: integer, severity: integer}[]
   local diags = vim.diagnostic.get(bufnr)
-  for _, diag in ipairs(diags) do
+  local pred = async.winbuf_pred(bufnr, winid)
+  for _, diag in async.ipairs(diags, pred) do
     if diag.severity <= config.min_severity then
       local pos = util.row_to_barpos(winid, diag.lnum)
 

@@ -132,14 +132,9 @@ local function render(bwinid, winid)
 
   render_scrollbar(winid, bwinid)
 
-  local Handlers = require 'satellite.handlers'
+  local Handlers = require('satellite.handlers')
 
-  Handlers.init()
-
-  -- Run handlers
-  for _, handler in ipairs(Handlers.handlers) do
-    handler:render(winid, bwinid)
-  end
+  Handlers.render(bwinid, winid)
 end
 
 local function is_terminal(winid)
