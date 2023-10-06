@@ -89,11 +89,6 @@ local M = {}
 --- @return function: Returns an async function
 function M.wrap(func, argc)
   return function(...)
-    if not async_thread.running() then
-      -- print(debug.traceback('Warning: calling async function in non-async context', 2))
-      return func(...)
-    end
-    --- @diagnostic disable-next-line:await-in-sync
     return co.yield(func, argc, ...)
   end
 end
@@ -106,10 +101,6 @@ end
 --- @return F
 function M.void(func)
   return function(...)
-    if async_thread.running() then
-      -- print(debug.traceback('Warning: calling void function in async context', 2))
-      return func(...)
-    end
     execute(func, ...)
   end
 end

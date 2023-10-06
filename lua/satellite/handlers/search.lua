@@ -111,7 +111,8 @@ end
 --- @param update fun()
 local refresh = async.void(function(update)
   update_matches(api.nvim_get_current_buf())
-  update()
+  -- Run update outside of an async context.
+  vim.schedule(update)
 end)
 
 --- @type Satellite.Handler
