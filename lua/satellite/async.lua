@@ -47,8 +47,8 @@ function async_thread.finished(x)
 end
 
 ---Executes a future with a callback when it is done
----@param async_fn function: the future to execute
----@param ... any
+--- @param async_fn function: the future to execute
+--- @param ... any
 local function execute(async_fn, ...)
   local thread = async_thread.create(async_fn)
 
@@ -84,9 +84,9 @@ end
 local M = {}
 
 ---Creates an async function with a callback style function.
----@param func function: A callback style function to be converted. The last argument must be the callback.
----@param argc number: The number of arguments of func. Must be included.
----@return function: Returns an async function
+--- @param func function: A callback style function to be converted. The last argument must be the callback.
+--- @param argc number: The number of arguments of func. Must be included.
+--- @return function: Returns an async function
 function M.wrap(func, argc)
   return function(...)
     if not async_thread.running() then
@@ -101,9 +101,9 @@ end
 ---Use this to create a function which executes in an async context but
 ---called from a non-async context. Inherently this cannot return anything
 ---since it is non-blocking
----@generic F : function
----@param func F
----@return F
+--- @generic F : function
+--- @param func F
+--- @return F
 function M.void(func)
   return function(...)
     if async_thread.running() then

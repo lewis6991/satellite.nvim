@@ -1,14 +1,12 @@
--- local ffi = require'ffi'
-
 local api = vim.api
 local fn = vim.fn
 
 local M = {}
 
----@generic F: function
----@param f F
----@param ms integer
----@return F
+--- @generic F: function
+--- @param f F
+--- @param ms integer
+--- @return F
 function M.debounce_trailing(f, ms)
   local timer = assert(vim.loop.new_timer())
   return function(...)
@@ -22,23 +20,16 @@ function M.debounce_trailing(f, ms)
   end
 end
 
----@type table<integer,table<integer,table<integer,integer>>>
+--- @type table<integer,table<integer,table<integer,integer>>>
 local virtual_line_count_cache = vim.defaulttable()
 
 function M.invalidate_virtual_line_count_cache(winid)
   virtual_line_count_cache[winid] = nil
 end
 
--- ffi.cdef[[
---   typedef int32_t linenr_T;
---   typedef void win_T;
---   win_T* find_window_by_handle(int window, int err);
---   int plines_m_win(win_T *wp, linenr_T first, linenr_T last);
--- ]]
-
--- Returns the count of virtual lines between the specified start and end lines
--- (both inclusive), in the specified window. A closed fold counts as one
--- virtual line.
+--- Returns the count of virtual lines between the specified start and end lines
+--- (both inclusive), in the specified window. A closed fold counts as one
+--- virtual line.
 --- @param winid integer
 --- @param start integer
 --- @param vend? integer
@@ -85,19 +76,18 @@ function M.virtual_line_count(winid, start, vend)
       virtual_line_count_cache[winid][start][line] = vline
       line = line + 1
     end
-    ---@diagnostic disable-next-line:redundant-return-value
     return vline
   end)
 end
 
----@type table<integer,integer[]>
+--- @type table<integer,integer[]>
 local virtual_topline_lookup_cache = vim.defaulttable()
 
 function M.invalidate_virtual_topline_lookup()
   virtual_topline_lookup_cache = vim.defaulttable()
 end
 
--- Returns the height of a window excluding the winbar
+--- Returns the height of a window excluding the winbar
 --- @param winid integer
 --- @return integer
 function M.get_winheight(winid)
@@ -110,10 +100,10 @@ function M.get_winheight(winid)
   return winheight
 end
 
--- Returns an array that maps window rows to the topline that corresponds to a
--- scrollbar at that row under virtual satellite mode, in the current window.
--- The computation primarily loops over lines, but may loop over virtual spans
--- as part of calling 'virtual_line_count', so the cursor may be moved.
+--- Returns an array that maps window rows to the topline that corresponds to a
+--- scrollbar at that row under virtual satellite mode, in the current window.
+--- The computation primarily loops over lines, but may loop over virtual spans
+--- as part of calling 'virtual_line_count', so the cursor may be moved.
 --- @param winid integer
 --- @return table<integer,integer>
 function M.virtual_topline_lookup(winid)
@@ -169,17 +159,16 @@ function M.virtual_topline_lookup(winid)
       end
       table.insert(result, value)
     end
-    ---@diagnostic disable-next-line:redundant-return-value
     return result
   end)
 
   return virtual_topline_lookup_cache[winid]
 end
 
--- Round to the nearest integer.
--- WARN: .5 rounds to the right on the number line, including for negatives
--- (which would not result in rounding up in magnitude).
--- (e.g., round(3.5) == 3, round(-3.5) == -3 != -4)
+--- Round to the nearest integer.
+--- WARN: .5 rounds to the right on the number line, including for negatives
+--- (which would not result in rounding up in magnitude).
+--- (e.g., round(3.5) == 3, round(-3.5) == -3 != -4)
 --- @param x number
 --- @return integer
 function M.round(x)
@@ -215,11 +204,11 @@ function M.row_to_barpos(winid, row)
 end
 
 --- Run callback when command is run
----@param cmd string
----@param augroup string|integer
----@param f function()
+--- @param cmd string
+--- @param augroup string|integer
+--- @param f function()
 function M.on_cmd(cmd, augroup, f)
-  api.nvim_create_autocmd({ 'CmdlineLeave' }, {
+  api.nvim_create_autocmd('CmdlineLeave', {
     group = augroup,
     callback = function()
       if fn.getcmdtype() == ':' and vim.startswith(fn.getcmdline(), cmd) then
@@ -229,10 +218,10 @@ function M.on_cmd(cmd, augroup, f)
   })
 end
 
--- Returns true for ordinary windows (not floating and not external), and false
--- otherwise.
----@param winid integer
----@return boolean
+--- Returns true for ordinary windows (not floating and not external), and false
+--- otherwise.
+--- @param winid integer
+--- @return boolean
 function M.is_ordinary_window(winid)
   local cfg = api.nvim_win_get_config(winid)
   local not_external = not cfg['external']
@@ -240,21 +229,20 @@ function M.is_ordinary_window(winid)
   return not_external and not_floating
 end
 
--- Return top line and bottom line in window. For folds, the top line
--- represents the start of the fold and the bottom line represents the end of
--- the fold.
----@param winid integer
----@return integer, integer
+--- Return top line and bottom line in window. For folds, the top line
+--- represents the start of the fold and the bottom line represents the end of
+--- the fold.
+--- @param winid integer
+--- @return integer, integer
 function M.visible_line_range(winid)
   -- WARN: getwininfo(winid)[1].botline is not properly updated for some
   -- movements (Neovim Issue #13510), so this is implemeneted as a workaround.
-  ---@return {[1]: integer, [2]: integer}
   return unpack(api.nvim_win_call(winid, function()
     local topline = fn.line('w0')
     -- line('w$') returns 0 in silent Ex mode, but line('w0') is always greater
     -- than or equal to 1.
     local botline = math.max(fn.line('w$'), topline)
-    ---@diagnostic disable-next-line:redundant-return-value
+    --- @diagnostic disable-next-line:redundant-return-value
     return { topline, botline }
   end))
 end

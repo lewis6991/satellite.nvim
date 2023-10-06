@@ -3,24 +3,44 @@ local api = vim.api
 local user_config = require 'satellite.config'.user_config
 local async = require 'satellite.async'
 
----@class Satellite.Mark
----@field pos integer
----@field highlight string
----@field symbol string
----@field unique? boolean
----@field count? integer
+--- @class Satellite.Mark
+--- Row of the mark, use `require('satellite.util').row_to_barpos(winid, lnum)`
+--- to translate an `lnum` from window `winid` to its respective scrollbar row.
+--- @field pos integer
+---
+--- Highlight group of the mark.
+--- @field highlight string
+---
+--- Symbol of the mark. Must be a single character.
+--- @field symbol string
+---
+--- By default, for each position in the scrollbar, Satellite will only use the
+--- last mark with that position. This field indicates the mark is special and
+--- must be rendered even if there is another mark at the same position from the
+--- handler.
+--- @field unique? boolean
+---
+--- @field count? integer
 
----@class Satellite.Handler
----@field ns integer
----@field name string
----@field setup fun(user_config: Satellite.Handlers.BaseConfig, update: fun())
----@field update fun(bufnr: integer, winid: integer): Satellite.Mark[]
----@field enabled fun(): boolean
----@field config Satellite.Handlers.BaseConfig
-
----@class Satellite.HandlerRenderer: Satellite.Handler
----@field ns integer
----@field render fun(self: Satellite.Handler, winid: integer, bwinid: integer)
+--- @class Satellite.Handler
+---
+--- Name of the Handler
+--- @field name string
+---
+--- @field config Satellite.Handlers.BaseConfig
+---
+--- Whether the handler is enabled or not.
+--- @field enabled fun(self: Satellite.Handler): boolean
+---
+--- Setup the handler and autocmds that are required to trigger the handler.
+--- @field setup? fun(user_config: Satellite.Handlers.BaseConfig, update: fun())
+---
+--- This function is called when the handler needs to update. It must return
+--- a list of SatelliteMark's
+--- @field update fun(bufnr: integer, winid: integer): Satellite.Mark[]
+---
+--- @field package ns integer
+local Handler = {}
 
 local M = {}
 
@@ -33,11 +53,11 @@ local BUILTIN_HANDLERS = {
   'quickfix',
 }
 
----@type Satellite.HandlerRenderer[]
+---@type Satellite.Handler[]
 M.handlers = {}
 
-local Handler = {}
-
+--- @param name string
+--- @return boolean
 local function enabled(name)
   local handler_config = user_config.handlers[name]
   return not handler_config or handler_config.enable ~= false
@@ -47,21 +67,23 @@ function Handler:enabled()
   return enabled(self.name)
 end
 
+--- @package
+--- @param self Satellite.Handler
 --- @param bufnr integer
---- @param handler Satellite.HandlerRenderer
 --- @param m Satellite.Mark
 --- @param max_pos integer
-local function apply_handler_mark(bufnr, handler, m, max_pos)
+function Handler:apply_mark(bufnr, m, max_pos)
   if m.pos > max_pos then
     return
   end
 
+  --- @type vim.api.keyset.set_extmark
   local opts = {
     id = not m.unique and m.pos + 1 or nil,
-    priority = handler.config.priority,
+    priority = self.config.priority,
   }
 
-  if handler.config.overlap ~= false then
+  if self.config.overlap ~= false then
     opts.virt_text = { { m.symbol, m.highlight } }
     opts.virt_text_pos = 'overlay'
     opts.hl_mode = 'combine'
@@ -71,12 +93,12 @@ local function apply_handler_mark(bufnr, handler, m, max_pos)
     opts.sign_hl_group = m.highlight
   end
 
-  local ok, err = pcall(api.nvim_buf_set_extmark, bufnr, handler.ns, m.pos, 0, opts)
+  local ok, err = pcall(api.nvim_buf_set_extmark, bufnr, self.ns, m.pos, 0, opts)
   if not ok then
     print(
       string.format(
         'error(satellite.nvim): handler=%s buf=%d row=%d opts=%s, err="%s"',
-        handler.name,
+        self.name,
         bufnr,
         m.pos,
         vim.inspect(opts, { newline = ' ', indent = '' }),
@@ -86,9 +108,10 @@ local function apply_handler_mark(bufnr, handler, m, max_pos)
   end
 end
 
----@param self Satellite.HandlerRenderer
----@param winid integer
----@param bwinid integer
+--- @package
+--- @param self Satellite.Handler
+--- @param winid integer
+--- @param bwinid integer
 Handler.render = async.void(function(self, winid, bwinid)
   if not self:enabled() then
     return
@@ -113,7 +136,7 @@ Handler.render = async.void(function(self, winid, bwinid)
   api.nvim_buf_clear_namespace(bbufnr, self.ns, 0, -1)
 
   for _, m in ipairs(marks) do
-    apply_handler_mark(bbufnr, self, m, max_pos)
+    self:apply_mark(bbufnr, m, max_pos)
   end
 end)
 
@@ -127,10 +150,9 @@ function M.register(spec)
   }
 
   spec.ns = api.nvim_create_namespace('satellite.Handler.' .. spec.name)
+  setmetatable(spec, { __index = Handler })
 
-  local h = setmetatable(spec, { __index = Handler })
-
-  table.insert(M.handlers, h)
+  table.insert(M.handlers, spec)
 end
 
 local did_init = false

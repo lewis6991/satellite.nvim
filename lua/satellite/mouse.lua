@@ -82,13 +82,6 @@ local function getchar()
   return char
 end
 
---- @class Satellite.Mouse.Pos
---- @field screencol integer
---- @field screenrow integer
---- @field winrow integer
---- @field wincol integer
---- @field winid integer
-
 --- Get input characters---including mouse clicks and drags---from the input
 --- stream. Characters are read until the input stream is empty.
 ---
@@ -114,9 +107,9 @@ local function read_input_stream()
     -- v:mousewinid is non-zero.
     if vim.v.mouse_winid ~= 0 then
       mouse_winid = vim.v.mouse_winid
-      local mousepos = fn.getmousepos() --- @type Satellite.Mouse.Pos
-      mouse_row = mousepos.winrow --- @type integer
-      mouse_col = mousepos.wincol --- @type integer
+      local mousepos = fn.getmousepos()
+      mouse_row = mousepos.winrow
+      mouse_col = mousepos.wincol
 
       -- Handle a mouse event on the command line.
       if mousepos.screenrow > vim.go.lines - vim.go.cmdheight then

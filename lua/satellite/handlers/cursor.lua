@@ -4,13 +4,13 @@ local util = require('satellite.util')
 
 local HIGHLIGHT = 'SatelliteCursor'
 
----@type Satellite.Handler
+--- @type Satellite.Handler
 local handler = {
   name = 'cursor',
 }
 
----@class Satellite.Handlers.CursorConfig: Satellite.Handlers.BaseConfig
----@field symbols string[]
+--- @class Satellite.Handlers.CursorConfig: Satellite.Handlers.BaseConfig
+--- @field symbols string[]
 local config = {
   enable = true,
   overlap = true,
@@ -25,11 +25,13 @@ local function setup_hl()
   })
 end
 
-function handler.setup(config0, update)
-  config = vim.tbl_deep_extend('force', config, config0)
+--- @param user_config Satellite.Handlers.CursorConfig
+--- @param update fun()
+function handler.setup(user_config, update)
+  config = vim.tbl_deep_extend('force', config, user_config)
   handler.config = config
 
-  local group = vim.api.nvim_create_augroup('satellite_cursor', {})
+  local group = api.nvim_create_augroup('satellite_cursor', {})
 
   api.nvim_create_autocmd('ColorScheme', {
     group = group,
@@ -38,7 +40,7 @@ function handler.setup(config0, update)
 
   setup_hl()
 
-  vim.api.nvim_create_autocmd({ 'CursorMoved', 'CursorMovedI' }, {
+  api.nvim_create_autocmd({ 'CursorMoved', 'CursorMovedI' }, {
     group = group,
     callback = update,
   })
@@ -54,7 +56,7 @@ local function get_symbol(symbols, f)
 end
 
 function handler.update(_, winid)
-  local cursor = vim.api.nvim_win_get_cursor(winid)
+  local cursor = api.nvim_win_get_cursor(winid)
 
   local pos, f = util.row_to_barpos(winid, cursor[1] - 1)
 

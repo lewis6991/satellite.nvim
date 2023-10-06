@@ -9,6 +9,7 @@
 
 local api, fn = vim.api, vim.fn
 
+--- @param data any
 local function exec_autocmd(data)
   api.nvim_exec_autocmds('User', {
     pattern = 'Search',
@@ -43,6 +44,7 @@ for _, seq in ipairs { 'n', 'N', '&', '*' } do
   end
 end
 
+--- @return boolean
 local function is_search_mode()
   return vim.o.incsearch
     and vim.o.hlsearch

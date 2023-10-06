@@ -47,8 +47,8 @@ local create_view = util.noautocmd(function(cfg)
   return winid
 end)
 
----@param winid integer
----@param bwinid integer
+--- @param winid integer
+--- @param bwinid integer
 local function render_scrollbar(winid, bwinid)
   local bbufnr = api.nvim_win_get_buf(bwinid)
   local winheight = util.get_winheight(winid)
@@ -99,7 +99,6 @@ local function get_or_create_view(winid)
     local bar_wininfo = vim.fn.getwininfo(bar_winid)[1]
     -- wininfo can be nil when pressing <C-w>o in help buffers
     if bar_wininfo then
-      ---@type integer
       local signwidth = bar_wininfo.textoff
       cfg.col = cfg.col - signwidth
       cfg.width = cfg.width + signwidth
@@ -125,8 +124,8 @@ local function get_or_create_view(winid)
   return bar_winid
 end
 
----@param bwinid integer
----@param winid integer
+--- @param bwinid integer
+--- @param winid integer
 local function render(bwinid, winid)
   util.invalidate_virtual_line_count_cache(winid)
 
@@ -141,8 +140,8 @@ local function is_terminal(winid)
   return fn.getwininfo(winid)[1].terminal ~= 0
 end
 
----@param winid integer
----@return boolean
+--- @param winid integer
+--- @return boolean
 local function can_show_scrollbar(winid)
   local bufnr = api.nvim_win_get_buf(winid)
   local buf_filetype = vim.bo[bufnr].filetype
@@ -199,6 +198,7 @@ function M.get_props(winid)
   }
 end
 
+--- @return integer[]
 local function get_target_windows()
   if user_config.current_only then
     return { api.nvim_get_current_win() }

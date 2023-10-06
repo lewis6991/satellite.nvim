@@ -4,6 +4,7 @@ local util = require 'satellite.util'
 
 local api, fn = vim.api, vim.fn
 
+--- @param data any
 local function exec_autocmd(data)
   api.nvim_exec_autocmds('User', {
     pattern = 'Mark',

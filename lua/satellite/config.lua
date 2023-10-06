@@ -1,7 +1,14 @@
----@class Satellite.Handlers.BaseConfig
----@field enable boolean
----@field overlap boolean
----@field priority integer
+--- @class Satellite.Handlers.BaseConfig
+---
+--- Whether the handler is enabled
+--- @field enable boolean
+---
+--- If `true` decorations are rendered on top of the scrollbar. If `false` the
+--- decorations are rendered in a separate column to the right of the scrollbar.
+--- @field overlap boolean
+---
+--- Priority of the decorations from the handler.
+--- @field priority integer
 
 ---@class HandlerConfigs
 ---@field [string] Satellite.Handlers.BaseConfig

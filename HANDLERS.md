@@ -5,7 +5,7 @@ Satellite provides an API to implement handlers for the scrollbar.
 The API for the handler is as follows:
 
 ```lua
---- @class Handler
+--- @class Satellite.Handler
 ---
 --- @field name string
 --- Name of the handler
@@ -27,7 +27,7 @@ Handlers can accept any configuration but must also support the following
 base class:
 
 ```lua
---- @class HandlerConfig
+--- @class Satellite.Handlers.BaseConfig
 ---
 --- @field enable boolean
 --- Whether the handler is enabled
@@ -40,10 +40,10 @@ base class:
 --- Priority of the decorations from the handler.
 ```
 
-The handlers `update()` method returns a list of `SatelliteMark`'s which is defined as:
+The handlers `update()` method returns a list of `Satellite.Mark`'s which is defined as:
 
 ```lua
---- @class SatelliteMark
+--- @class Satellite.Mark
 ---
 --- @field pos integer
 --- Row of the mark, use `require('satellite.util').row_to_barpos(winid, lnum)`
