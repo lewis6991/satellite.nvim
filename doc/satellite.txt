@@ -9,7 +9,7 @@ License:  MIT license
 REQUIREMENTS                                          *satellite-requirements*
 
 * Scrollbar mouse dragging requires mouse support (see |'mouse'|) and
-  `nvim>=0.9`.
+  `nvim>=0.10`.
 
 ==============================================================================
 USAGE                                                        *satellite-usage*
