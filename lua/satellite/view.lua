@@ -53,7 +53,7 @@ local function render_scrollbar(winid, bwinid)
   local bbufnr = api.nvim_win_get_buf(bwinid)
   local winheight = util.get_winheight(winid)
 
-  -- only set populate lines if we need to
+  -- Initialise buffer lines if needed
   if api.nvim_buf_line_count(bbufnr) ~= winheight then
     local lines = {} --- @type string[]
     for i = 1, winheight do
@@ -69,13 +69,21 @@ local function render_scrollbar(winid, bwinid)
   local row = vim.w[bwinid].row --- @type integer
 
   api.nvim_buf_clear_namespace(bbufnr, ns, 0, -1)
-  for i = row, row + height do
-    pcall(api.nvim_buf_set_extmark, bbufnr, ns, i, 0, {
-      virt_text = { { ' ', 'SatelliteBar' } },
-      virt_text_pos = 'overlay',
-      priority = 1,
-    })
-  end
+  -- Set bar colors with virtual text for each line.
+  for i = 0, winheight-1 do
+      -- Background color
+      local style = 'SatelliteBackground'
+      -- Bar color
+      if i >= row and i < row + height then
+        style = 'SatelliteBar'
+      end
+
+      pcall(api.nvim_buf_set_extmark, bbufnr, ns, i, 0, {
+        virt_text = { { ' ', style } },
+        virt_text_pos = 'overlay',
+        priority = 1,
+      })
+    end
 end
 
 --- Get or retrieve a bar window id for a given window
