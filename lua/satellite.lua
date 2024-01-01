@@ -179,7 +179,6 @@ function M.setup(cfg)
   -- E.g., the following will use custom highlight colors.
   --   :highlight SatelliteBar ctermbg=159 guibg=LightCyan
   api.nvim_set_hl(0, 'SatelliteBar', { default = true, link = 'Visual' })
-  api.nvim_set_hl(0, 'SatelliteBackground', { default = true, link = 'ColorColumn'})
 
   enable()
 end

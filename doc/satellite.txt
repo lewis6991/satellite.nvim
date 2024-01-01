@@ -101,10 +101,10 @@ Highlight Groups ~
 The following highlight group can be configured to change |satellite.nvim|'s
 colors.
 
-Name                   Default          Description
-----                   -------        -----------
-`SatelliteBar`           `Visual`         Color for the scrollbar
-`SatelliteBackground`    `ColorColumn`    Color for the scrollbar background
+Name                   Default      Description
+----                   -------      -----------
+`SatelliteBar`           `Visual`       Color for the scrollbar
+`SatelliteBackground`    `NONE`         Color for the scrollbar background
 
 The highlight groups can be customized. Example:
  >vim
