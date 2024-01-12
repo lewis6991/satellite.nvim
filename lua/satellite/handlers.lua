@@ -53,7 +53,7 @@ local BUILTIN_HANDLERS = {
   'quickfix',
 }
 
----@type Satellite.Handler[]
+--- @type Satellite.Handler[]
 M.handlers = {}
 
 --- @param name string
@@ -140,7 +140,7 @@ Handler.render = async.void(function(self, winid, bwinid)
   end
 end)
 
----@param spec Satellite.Handler
+--- @param spec Satellite.Handler
 function M.register(spec)
   vim.validate {
     spec = { spec, 'table' },
@@ -157,8 +157,8 @@ end
 
 local did_init = false
 
----@param bwinid integer
----@param winid integer
+--- @param bwinid integer
+--- @param winid integer
 function M.render(bwinid, winid)
   M.init()
 

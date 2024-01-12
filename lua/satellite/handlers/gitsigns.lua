@@ -3,13 +3,13 @@ local api = vim.api
 local util = require 'satellite.util'
 local async = require 'satellite.async'
 
----@type Satellite.Handler
+--- @type Satellite.Handler
 local handler = {
   name = 'gitsigns',
 }
 
----@class Satellite.Handlers.GitsignsConfig: Satellite.Handlers.BaseConfig
----@field signs table<string, string>
+--- @class Satellite.Handlers.GitsignsConfig: Satellite.Handlers.BaseConfig
+--- @field signs table<string, string>
 local config = {
   enable = true,
   overlap = false,
@@ -58,9 +58,9 @@ function handler.update(bufnr, winid)
     return {}
   end
 
-  local marks = {} ---@type Satellite.Mark[]
+  local marks = {} --- @type Satellite.Mark[]
 
-  ---@type {type:string, added:{start: integer, count: integer}}[]
+  --- @type {type:string, added:{start: integer, count: integer}}[]
   local hunks = require('gitsigns').get_hunks(bufnr)
 
   local pred = async.winbuf_pred(bufnr, winid)

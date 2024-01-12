@@ -12,8 +12,8 @@ local function exec_autocmd(data)
   })
 end
 
----@param key string
----@param m string mark name
+--- @param key string
+--- @param m string mark name
 local function mark_set_keymap(key, m)
   local mkey = key .. m
   if fn.maparg(mkey) == '' then

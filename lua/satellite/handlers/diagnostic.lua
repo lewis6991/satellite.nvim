@@ -10,7 +10,7 @@ local diagnostic_hls = {
   [vim.diagnostic.severity.HINT] = 'SatelliteDiagnosticHint',
 }
 
----@type Satellite.Handler
+--- @type Satellite.Handler
 local handler = {
   name = 'diagnostic',
 }
@@ -64,7 +64,7 @@ function handler.setup(config0, update)
 end
 
 function handler.update(bufnr, winid)
-  local marks = {} ---@type {count: integer, severity: integer}[]
+  local marks = {} --- @type {count: integer, severity: integer}[]
   local diags = buf_diags[bufnr] or {}
   local pred = async.winbuf_pred(bufnr, winid)
   for _, diag in async.ipairs(diags, pred) do
@@ -88,7 +88,7 @@ function handler.update(bufnr, winid)
     end
   end
 
-  local ret = {} ---@type Satellite.Mark[]
+  local ret = {} --- @type Satellite.Mark[]
 
   for pos, mark in pairs(marks) do
     ret[#ret + 1] = {

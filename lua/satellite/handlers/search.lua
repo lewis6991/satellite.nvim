@@ -17,12 +17,12 @@ local config = {
   symbols = { '⠂', '⠅', '⠇', '⠗', '⠟', '⠿' },
 }
 
----@class Satellite.Handlers.Search.CacheElem
----@field changedtick integer
----@field pattern string
----@field matches integer[]
+--- @class Satellite.Handlers.Search.CacheElem
+--- @field changedtick integer
+--- @field pattern string
+--- @field matches integer[]
 
----@type table<integer, Satellite.Handlers.Search.CacheElem>
+--- @type table<integer, Satellite.Handlers.Search.CacheElem>
 local cache = {}
 
 local function is_search_mode()
@@ -37,8 +37,8 @@ local function is_search_mode()
   return false
 end
 
----@param pattern string
----@return string
+--- @param pattern string
+--- @return string
 local function smartcaseify(pattern)
   if pattern and vim.o.ignorecase and vim.o.smartcase then
     -- match() does not use 'smartcase' so we must handle it
@@ -58,9 +58,9 @@ local function get_pattern()
   return vim.v.hlsearch == 1 and fn.getreg('/') --[[@as string]] or ''
 end
 
----@param bufnr integer
----@param pattern? string
----@return table<integer,integer>
+--- @param bufnr integer
+--- @param pattern? string
+--- @return table<integer,integer>
 local function update_matches(bufnr, pattern)
   pattern = pattern or get_pattern()
   pattern = smartcaseify(pattern)
@@ -73,7 +73,7 @@ local function update_matches(bufnr, pattern)
     return cache[bufnr].matches
   end
 
-  local matches = {} ---@type table<integer,integer>
+  local matches = {} --- @type table<integer,integer>
 
   if pattern and pattern ~= '' then
     local lines = api.nvim_buf_get_lines(bufnr, 0, -1, true)
@@ -157,14 +157,14 @@ function handler.setup(config0, update)
   })
 end
 
----@class SearchMark
----@field count integer
----@field highlight? string
----@field unique? boolean
----@field symbol? string
+--- @class SearchMark
+--- @field count integer
+--- @field highlight? string
+--- @field unique? boolean
+--- @field symbol? string
 
 function handler.update(bufnr, winid)
-  local marks = {} ---@type SearchMark[]
+  local marks = {} --- @type SearchMark[]
   local matches = update_matches(bufnr)
 
   if not api.nvim_buf_is_valid(bufnr) or not api.nvim_win_is_valid(winid) then

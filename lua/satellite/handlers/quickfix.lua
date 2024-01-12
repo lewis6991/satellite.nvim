@@ -4,13 +4,13 @@ local util = require('satellite.util')
 
 local HIGHLIGHT = 'SatelliteQuickfix'
 
----@type Satellite.Handler
+--- @type Satellite.Handler
 local handler = {
   name = 'quickfix',
 }
 
----@class Satellite.Handlers.QuickfixConfig: Satellite.Handlers.BaseConfig
----@field symbols string[]
+--- @class Satellite.Handlers.QuickfixConfig: Satellite.Handlers.BaseConfig
+--- @field symbols string[]
 local config = {
   priority = 60,
   signs = { '-', '=', '≡' },
@@ -40,7 +40,7 @@ function handler.setup(config0, update)
 end
 
 function handler.update(bufnr, winid)
-  local marks = {} ---@type {count: integer, severity: integer}[]
+  local marks = {} --- @type {count: integer, severity: integer}[]
   for _, item in ipairs(vim.fn.getqflist()) do
     if item.bufnr == bufnr then
       local pos = util.row_to_barpos(winid, item.lnum)
@@ -56,7 +56,7 @@ function handler.update(bufnr, winid)
     end
   end
 
-  local ret = {} ---@type Satellite.Mark[]
+  local ret = {} --- @type Satellite.Mark[]
 
   for pos, mark in pairs(marks) do
     ret[#ret + 1] = {

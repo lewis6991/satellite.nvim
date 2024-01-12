@@ -4,7 +4,7 @@ local util = require 'satellite.util'
 
 local HIGHLIGHT = 'SatelliteMark'
 
----@type Satellite.Handler
+--- @type Satellite.Handler
 local handler = {
   name = 'marks',
 }
@@ -18,9 +18,9 @@ end
 
 local BUILTIN_MARKS = { "'.", "'^", "''", '\'"', "'<", "'>", "'[", "']" }
 
----@class Satellite.Handlers.MarksConfig: Satellite.Handlers.BaseConfig
----@field key    string
----@field show_builtins boolean
+--- @class Satellite.Handlers.MarksConfig: Satellite.Handlers.BaseConfig
+--- @field key    string
+--- @field show_builtins boolean
 local config = {
   key = 'm',
   overlap = true,
@@ -28,8 +28,8 @@ local config = {
   show_builtins = false,
 }
 
----@param m string mark name
----@return boolean
+--- @param m string mark name
+--- @return boolean
 local function mark_is_builtin(m)
   return vim.list_contains(BUILTIN_MARKS, m)
 end
@@ -56,9 +56,9 @@ function handler.setup(config0, update)
   })
 end
 
----@param marks Satellite.Mark[]
----@param mark {pos: {[1]:integer, [2]:integer}, mark: string}
----@param winid integer
+--- @param marks Satellite.Mark[]
+--- @param mark {pos: {[1]:integer, [2]:integer}, mark: string}
+--- @param winid integer
 local function add_mark_to_bar(marks, mark, winid)
   local lnum = mark.pos[2]
   local pos = util.row_to_barpos(winid, lnum - 1)

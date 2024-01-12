@@ -212,7 +212,7 @@ local function get_target_windows()
     return { api.nvim_get_current_win() }
   end
 
-  local target_wins = {} ---@type integer[]
+  local target_wins = {} --- @type integer[]
   local current_tab = api.nvim_get_current_tabpage()
   for _, winid in ipairs(api.nvim_list_wins()) do
     if util.is_ordinary_window(winid) and api.nvim_win_get_tabpage(winid) == current_tab then
@@ -240,7 +240,7 @@ local function close(winid)
 end
 
 function M.refresh_bars()
-  local current_bar_wins = {} ---@type integer[]
+  local current_bar_wins = {} --- @type integer[]
 
   if enabled then
     for _, winid in ipairs(get_target_windows()) do
