@@ -35,6 +35,8 @@ local config = {
   min_severity = vim.diagnostic.severity.HINT,
 }
 
+local buf_diags = {} --- @type table<integer,Diagnostic[]>
+
 function handler.setup(config0, update)
   config = vim.tbl_deep_extend('force', config, config0)
   handler.config = config
@@ -50,13 +52,20 @@ function handler.setup(config0, update)
 
   api.nvim_create_autocmd('DiagnosticChanged', {
     group = group,
-    callback = update,
+    callback = function(args)
+      --- vim.diagnostic.get() is expensive as it runs vim.deepcopy() on every
+      --- call. Keep a local copy that is only updated when diagnostics change.
+      local bufnr = args.buf
+      buf_diags[bufnr] = args.data.diagnostics
+
+      update()
+    end
   })
 end
 
 function handler.update(bufnr, winid)
   local marks = {} ---@type {count: integer, severity: integer}[]
-  local diags = vim.diagnostic.get(bufnr)
+  local diags = buf_diags[bufnr] or {}
   local pred = async.winbuf_pred(bufnr, winid)
   for _, diag in async.ipairs(diags, pred) do
     if diag.severity <= config.min_severity then
