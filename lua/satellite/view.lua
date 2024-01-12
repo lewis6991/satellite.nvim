@@ -70,20 +70,20 @@ local function render_scrollbar(winid, bwinid)
 
   api.nvim_buf_clear_namespace(bbufnr, ns, 0, -1)
   -- Set bar colors with virtual text for each line.
-  for i = 0, winheight-1 do
-      -- Background color
-      local style = 'SatelliteBackground'
-      -- Bar color
-      if i >= row and i < row + height then
-        style = 'SatelliteBar'
-      end
-
-      pcall(api.nvim_buf_set_extmark, bbufnr, ns, i, 0, {
-        virt_text = { { ' ', style } },
-        virt_text_pos = 'overlay',
-        priority = 1,
-      })
+  for i = 0, winheight - 1 do
+    -- Background color
+    local style = 'SatelliteBackground'
+    -- Bar color
+    if i >= row and i < row + height then
+      style = 'SatelliteBar'
     end
+
+    pcall(api.nvim_buf_set_extmark, bbufnr, ns, i, 0, {
+      virt_text = { { ' ', style } },
+      virt_text_pos = 'overlay',
+      priority = 1,
+    })
+  end
 end
 
 --- Get or retrieve a bar window id for a given window

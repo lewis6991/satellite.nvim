@@ -52,7 +52,7 @@ function M.virtual_line_count(winid, start, vend)
   if api.nvim_win_text_height then
     local ok, res = pcall(api.nvim_win_text_height, winid, {
       start_row = start,
-      end_row = vend
+      end_row = vend,
     })
     if ok then
       if type(res) == 'table' then
