@@ -191,7 +191,11 @@ end
 --- @param row2 integer
 --- @return integer
 function M.height_to_virtual(winid, row, row2)
-  return M.round(height_to_virtual(winid, row, row2))
+  local height = M.round(height_to_virtual(winid, row, row2))
+  if height < 1 then
+    height = 1
+  end
+  return height
 end
 
 --- @param winid integer
