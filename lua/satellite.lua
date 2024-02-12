@@ -89,7 +89,7 @@ function M.zf_operator(optype)
   -- e.g., with 'char' handling, zfG won't include the last line in the fold if
   vim.o.operatorfunc = 'v:lua:package.loaded.satellite.zf_operator<cr>g@'
   if optype == 'char' then
-    vim.cmd 'silent normal! `[zf`]'
+    vim.cmd "silent normal! '[zf']"
   elseif optype == 'line' then
     vim.cmd "silent normal! '[zf']"
   else
