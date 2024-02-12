@@ -89,7 +89,7 @@ function M.zf_operator(optype)
   -- e.g., with 'char' handling, zfG won't include the last line in the fold if
   vim.o.operatorfunc = 'v:lua:package.loaded.satellite.zf_operator<cr>g@'
   if optype == 'char' then
-    vim.cmd 'silent normal! `[zf`]'
+    vim.cmd "silent normal! '[zf']"
   elseif optype == 'line' then
     vim.cmd "silent normal! '[zf']"
   else
@@ -103,9 +103,9 @@ local function apply_keymaps()
   -- zf takes a motion in normal mode, so it requires a g@ mapping.
   if vim.fn.maparg('zf') == '' then
     vim.keymap.set('n', 'zf', function()
-      vim.o.operatorfunc = 'v:lua:package.loaded.satellite.zf_operator'
+      vim.o.operatorfunc = 'v:lua.package.loaded.satellite.zf_operator'
       return 'g@'
-    end, { unique = true })
+    end, { unique = true, expr = true })
   end
 
   for _, seq in ipairs {
