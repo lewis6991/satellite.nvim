@@ -131,7 +131,7 @@ local function apply_keymaps()
     'zi',
   } do
     if vim.fn.maparg(seq) == '' then
-      vim.keymap.set({ 'n', 'v' }, seq, function()
+      vim.keymap.set({ 'n', 'x' }, seq, function()
         util.invalidate_virtual_line_count_cache(0)
         vim.schedule(view.refresh_bars)
         return seq
