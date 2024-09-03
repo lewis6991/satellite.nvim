@@ -362,7 +362,7 @@ function M.handle_leftmouse()
           return
         end
         -- row is 1-based (see getmousepos()), so need to pass in 0-based
-        local row0 = math.max(0, math.min(row - 1, winheight - props.height))
+        local row0 = math.max(0, math.min(row, winheight - props.height))
         -- Only update scrollbar if the row changed.
         if props.row ~= row0 then
           local bufnr = api.nvim_win_get_buf(winid)
