@@ -361,7 +361,6 @@ function M.handle_leftmouse()
         if not props then
           return
         end
-        -- row is 1-based (see getmousepos()), so need to pass in 0-based
         local row0 = math.max(0, math.min(row, winheight - props.height))
         -- Only update scrollbar if the row changed.
         if props.row ~= row0 then
