@@ -180,8 +180,9 @@ local function can_show_scrollbar(winid)
   end
 
   -- Don't show the position bar when all lines are on screen.
+  -- Will show the bar if `show_always` is true regardless of lines on screen.
   local topline, botline = util.visible_line_range(winid)
-  if botline - topline + 1 == line_count then
+  if not user_config.show_always and botline - topline + 1 == line_count then
     return false
   end
 
