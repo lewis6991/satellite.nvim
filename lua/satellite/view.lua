@@ -245,9 +245,14 @@ function M.refresh_bars()
   if enabled then
     for _, winid in ipairs(get_target_windows()) do
       if can_show_scrollbar(winid) then
-        local bwinid = get_or_create_view(winid)
-        render(bwinid, winid)
-        current_bar_wins[#current_bar_wins + 1] = bwinid
+        -- pcall in case the window cannot be changed (#76)
+        local ok, bwinid_or_err = pcall(get_or_create_view, winid)
+        if ok then
+          render(bwinid_or_err, winid)
+          current_bar_wins[#current_bar_wins + 1] = bwinid_or_err
+        else
+          vim.notify(debug.traceback('satellite.nvim: unable to get a view'), vim.log.levels.ERROR)
+        end
       end
     end
   end
