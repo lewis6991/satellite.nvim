@@ -258,9 +258,12 @@ function M.noautocmd(f)
   return function(...)
     local eventignore = vim.o.eventignore
     vim.o.eventignore = 'all'
-    local r = { f(...) }
+    local r = { pcall(f, ...) }
     vim.o.eventignore = eventignore
-    return unpack(r)
+    if not r[1] then
+      error(r[2])
+    end
+    return unpack(r, 2, table.maxn(r))
   end
 end
 
