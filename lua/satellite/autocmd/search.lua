@@ -11,10 +11,7 @@ local api, fn = vim.api, vim.fn
 
 --- @param data any
 local function exec_autocmd(data)
-  api.nvim_exec_autocmds('User', {
-    pattern = 'Search',
-    data = data,
-  })
+  api.nvim_exec_autocmds('User', { pattern = 'Search', data = data })
 end
 
 local last_hlsearch = vim.v.hlsearch
@@ -34,15 +31,11 @@ timer:start(0, interval, function()
   end
 end)
 
--- Refresh when activating search nav mappings
-for _, seq in ipairs { 'n', 'N', '&', '*' } do
-  if fn.maparg(seq) == '' then
-    vim.keymap.set('n', seq, function()
-      exec_autocmd { key = seq }
-      return seq
-    end, { expr = true })
+vim.on_key(function(key)
+  if api.nvim_get_mode().mode == 'n' and key:match('[nN&*]') then
+    exec_autocmd { key = key }
   end
-end
+end)
 
 --- @return boolean
 local function is_search_mode()
