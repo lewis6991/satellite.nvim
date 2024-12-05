@@ -31,7 +31,12 @@ local config = {
   enable = true,
   overlap = true,
   priority = 50,
-  signs = { '-', '=', '≡' },
+  signs = {
+    error = { '-', '=', '≡' },
+    warn = { '-', '=', '≡' },
+    info = { '-', '=', '≡' },
+    hint = { '-', '=', '≡' },
+  },
   min_severity = vim.diagnostic.severity.HINT,
 }
 
@@ -59,8 +64,28 @@ function handler.setup(config0, update)
       buf_diags[bufnr] = args.data.diagnostics
 
       vim.schedule(update)
-    end
+    end,
   })
+end
+
+local function get_mark(severity, count)
+  -- Backward compatibility
+  if config.signs[1] then
+    return config.signs[count] or config.signs[#config.signs]
+  end
+
+  -- Per severity signs
+  local diag_type = 'hint'
+  if severity == vim.diagnostic.severity.ERROR then
+    diag_type = 'error'
+  elseif severity == vim.diagnostic.severity.WARN then
+    diag_type = 'warn'
+  elseif severity == vim.diagnostic.severity.INFO then
+    diag_type = 'info'
+  elseif severity == vim.diagnostic.severity.HINT then
+    diag_type = 'hint'
+  end
+  return config.signs[diag_type][count] or config.signs[diag_type][#config.signs[diag_type]]
 end
 
 function handler.update(bufnr, winid)
@@ -94,7 +119,7 @@ function handler.update(bufnr, winid)
     ret[#ret + 1] = {
       pos = pos,
       highlight = diagnostic_hls[mark.severity],
-      symbol = config.signs[mark.count] or config.signs[#config.signs],
+      symbol = get_mark(mark.severity, mark.count),
     }
   end
 
