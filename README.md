@@ -13,7 +13,7 @@ and because of this, this plugin implements fairly unideal and unoptimised worka
   * Cursor
   * Search results
   * Diagnostic
-  * Git hunks (via [gitsigns.nvim])
+  * Git hunks (via [gitsigns.nvim] or [mini.diff])
   * Marks
   * Quickfix
 * Handling for folds
@@ -79,6 +79,18 @@ require('satellite').setup {
       -- Highlights:
       -- SatelliteMark (default links to Normal)
     },
+    minidiff = {
+      enable = true,
+      signs = { -- can only be a single character (multibyte is okay)
+        add = "│",
+        change = "│",
+        delete = "-",
+      },
+      -- Highlights:
+      -- SatelliteMiniDiffAdd (default links to MiniDiffSignAdd)
+      -- SatelliteMiniDiffChange (default links to MiniDiffSignChange)
+      -- SatelliteMiniDiffDelete (default links to MiniDiffSignDelete)
+    },
     quickfix = {
       signs = { '-', '=', '≡' },
       -- Highlights:
@@ -122,5 +134,6 @@ This plugin was based on [nvim-scrollview] which provides a very good implementa
 - [nvim-scrollbar]
 
 [gitsigns.nvim]: https://github.com/lewis6991/gitsigns.nvim
+[mini.diff]: https://github.com/echasnovski/mini.diff
 [nvim-scrollbar]: https://github.com/petertriho/nvim-scrollbar
 [nvim-scrollview]: https://github.com/dstein64/nvim-scrollview
