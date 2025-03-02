@@ -40,7 +40,7 @@ local config = {
   min_severity = vim.diagnostic.severity.HINT,
 }
 
-local buf_diags = {} --- @type table<integer,Diagnostic[]>
+local buf_diags = {} --- @type table<integer,vim.Diagnostic[]>
 
 function handler.setup(config0, update)
   config = vim.tbl_deep_extend('force', config, config0)

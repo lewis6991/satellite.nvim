@@ -12,10 +12,10 @@
 
 --- @class HandlerConfigs
 --- @field [string] Satellite.Handlers.BaseConfig
---- @field diagnostic Satellite.Handlers.DiagnosticConfig
---- @field gitsigns Satellite.Handlers.GitsignsConfig
---- @field search Satellite.Handlers.SearchConfig
---- @field marks Satellite.Handlers.MarksConfig
+--- @field diagnostic? Satellite.Handlers.DiagnosticConfig
+--- @field gitsigns? Satellite.Handlers.GitsignsConfig
+--- @field search? Satellite.Handlers.SearchConfig
+--- @field marks? Satellite.Handlers.MarksConfig
 
 --- @class SatelliteConfig
 --- @field handlers HandlerConfigs
