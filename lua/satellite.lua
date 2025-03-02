@@ -98,51 +98,69 @@ function M.zf_operator(optype)
   view.refresh_bars()
 end
 
+local foldmaps = {
+  zF = true,
+  zd = true,
+  zD = true,
+  zE = true,
+  zo = true,
+  zO = true,
+  zc = true,
+  zC = true,
+  za = true,
+  zA = true,
+  zv = true,
+  zx = true,
+  zX = true,
+  zm = true,
+  zM = true,
+  zr = true,
+  zR = true,
+  zn = true,
+  zN = true,
+  zi = true,
+}
+
 local function apply_keymaps()
-  -- === Fold command synchronization workarounds ===
-  -- zf takes a motion in normal mode, so it requires a g@ mapping.
-  if vim.fn.maparg('zf') == '' then
-    vim.keymap.set('n', 'zf', function()
-      vim.o.operatorfunc = 'v:lua.package.loaded.satellite.zf_operator'
-      return 'g@'
-    end, { unique = true, expr = true })
-  end
-
-  for _, seq in ipairs {
-    'zF',
-    'zd',
-    'zD',
-    'zE',
-    'zo',
-    'zO',
-    'zc',
-    'zC',
-    'za',
-    'zA',
-    'zv',
-    'zx',
-    'zX',
-    'zm',
-    'zM',
-    'zr',
-    'zR',
-    'zn',
-    'zN',
-    'zi',
-  } do
-    if vim.fn.maparg(seq) == '' then
-      vim.keymap.set({ 'n', 'x' }, seq, function()
-        util.invalidate_virtual_line_count_cache(0)
-        vim.schedule(view.refresh_bars)
-        return seq
-      end, { unique = true, expr = true })
-    end
-  end
-
   if vim.fn.maparg('<leftmouse>') == '' then
     vim.keymap.set({ 'n', 'v', 'o', 'i' }, '<leftmouse>', function()
       require 'satellite.mouse'.handle_leftmouse()
     end)
+  end
+
+  local version = vim.version()
+  if version.major == 0 and version.minor >= 11 then
+    local prev = ''
+    vim.on_key(function(_, typed)
+      if typed == 'z' then
+        prev = 'z'
+        return
+      end
+      local seq = prev .. typed
+      if foldmaps[seq] or seq == 'zf' then
+        util.invalidate_virtual_line_count_cache(0)
+        vim.schedule(view.refresh_bars)
+      end
+      prev = ''
+    end)
+  else
+    -- === Fold command synchronization workarounds ===
+    -- zf takes a motion in normal mode, so it requires a g@ mapping.
+    if vim.fn.maparg('zf') == '' then
+      vim.keymap.set('n', 'zf', function()
+        vim.o.operatorfunc = 'v:lua.package.loaded.satellite.zf_operator'
+        return 'g@'
+      end, { unique = true, expr = true })
+    end
+    for seq in pairs(foldmaps) do
+      if vim.fn.maparg(seq) == '' then
+        vim.keymap.set({ 'n', 'x' }, seq, function()
+          util.invalidate_virtual_line_count_cache(0)
+          vim.schedule(view.refresh_bars)
+          return seq
+        end, { unique = true, expr = true })
+      end
+    end
   end
 end
 
