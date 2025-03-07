@@ -61,7 +61,7 @@ function handler.setup(config0, update)
       --- vim.diagnostic.get() is expensive as it runs vim.deepcopy() on every
       --- call. Keep a local copy that is only updated when diagnostics change.
       local bufnr = args.buf
-      buf_diags[bufnr] = args.data.diagnostics
+      buf_diags[bufnr] = vim.diagnostic.get(bufnr)
 
       vim.schedule(update)
     end,
