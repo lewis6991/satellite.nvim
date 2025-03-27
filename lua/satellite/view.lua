@@ -94,6 +94,7 @@ local function get_or_create_view(winid)
     win = winid,
     relative = 'win',
     style = 'minimal',
+    border = 'none',
     focusable = false,
     zindex = user_config.zindex,
     width = 1,
