@@ -279,4 +279,27 @@ function M.in_cmdline_win(winid)
   return api.nvim_buf_get_name(bufnr) == '[Command Line]'
 end
 
+--- Predicate function to check whether a bufnr and winid are valid.
+--- @param bufnr? integer
+--- @param winid? integer
+--- @return fun(): false?
+function M.winbuf_pred(bufnr, winid)
+  local buftick = vim.b[bufnr].changedtick
+
+  return function()
+    if bufnr then
+      if not api.nvim_buf_is_valid(bufnr) then
+        return false
+      end
+      if vim.b[bufnr].changedtick ~= buftick then
+        return false
+      end
+    end
+
+    if winid and not api.nvim_win_is_valid(winid) then
+      return false
+    end
+  end
+end
+
 return M

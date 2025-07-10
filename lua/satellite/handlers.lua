@@ -37,7 +37,7 @@ local async = require 'satellite.async'
 ---
 --- This function is called when the handler needs to update. It must return
 --- a list of SatelliteMark's
---- @field update fun(bufnr: integer, winid: integer): Satellite.Mark[]
+--- @field update async fun(bufnr: integer, winid: integer): Satellite.Mark[]
 ---
 --- @field package ns integer
 local Handler = {}
@@ -109,10 +109,11 @@ function Handler:apply_mark(bufnr, m, max_pos)
 end
 
 --- @package
+--- @async
 --- @param self Satellite.Handler
 --- @param winid integer
 --- @param bwinid integer
-Handler.render = async.void(function(self, winid, bwinid)
+function Handler:render(winid, bwinid)
   if not self:enabled() then
     return
   end
@@ -125,8 +126,6 @@ Handler.render = async.void(function(self, winid, bwinid)
 
   local bufnr = api.nvim_win_get_buf(winid)
   local max_pos = api.nvim_buf_line_count(bbufnr) - 1
-
-  -- async
   local marks = self.update(bufnr, winid)
 
   if not api.nvim_buf_is_loaded(bbufnr) or not api.nvim_buf_is_valid(bufnr) then
@@ -138,7 +137,7 @@ Handler.render = async.void(function(self, winid, bwinid)
   for _, m in ipairs(marks) do
     self:apply_mark(bbufnr, m, max_pos)
   end
-end)
+end
 
 --- @param spec Satellite.Handler
 function M.register(spec)
@@ -165,7 +164,9 @@ function M.render(bwinid, winid)
   -- Run handlers
   -- Each render function is a void async function so this loop should finish immediately
   for _, handler in ipairs(M.handlers) do
-    handler:render(winid, bwinid)
+    async.run(function()
+      handler:render(winid, bwinid)
+    end)
   end
 end
 

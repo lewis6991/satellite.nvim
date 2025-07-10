@@ -91,8 +91,11 @@ end
 function handler.update(bufnr, winid)
   local marks = {} --- @type {count: integer, severity: integer}[]
   local diags = buf_diags[bufnr] or {}
-  local pred = async.winbuf_pred(bufnr, winid)
-  for _, diag in async.ipairs(diags, pred) do
+  local pred = util.winbuf_pred(bufnr, winid)
+  for _, diag in async.ipairs(diags) do
+    if pred() == false then
+      return {}
+    end
     if diag.severity <= config.min_severity then
       local pos = util.row_to_barpos(winid, diag.lnum)
 

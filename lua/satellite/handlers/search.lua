@@ -78,9 +78,12 @@ local function update_matches(bufnr, pattern)
   if pattern and pattern ~= '' then
     local lines = api.nvim_buf_get_lines(bufnr, 0, -1, true)
 
-    local pred = async.winbuf_pred(bufnr)
+    local pred = util.winbuf_pred(bufnr)
 
-    for lnum, line in async.ipairs(lines, pred) do
+    for lnum, line in async.ipairs(lines) do
+      if pred() == false then
+        return {}
+      end
       local count = 1
       repeat
         local ok, col = pcall(fn.match, line, pattern, 0, count)
@@ -108,12 +111,13 @@ local function update_matches(bufnr, pattern)
   return matches
 end
 
+--- @async
 --- @param update fun()
-local refresh = async.void(function(update)
+local function refresh(update)
   update_matches(api.nvim_get_current_buf())
   -- Run update outside of an async context.
   vim.schedule(update)
-end)
+end
 
 --- @type Satellite.Handler
 local handler = {
@@ -154,7 +158,7 @@ function handler.setup(config0, update)
     group = group,
     pattern = 'Search',
     callback = vim.schedule_wrap(function()
-      refresh(update)
+      async.run(refresh, update)
     end),
   })
 end
@@ -165,6 +169,7 @@ end
 --- @field unique? boolean
 --- @field symbol? string
 
+--- @async
 function handler.update(bufnr, winid)
   local marks = {} --- @type SearchMark[]
   local matches = update_matches(bufnr)
@@ -175,9 +180,12 @@ function handler.update(bufnr, winid)
 
   local cursor_lnum = api.nvim_win_get_cursor(winid)[1]
 
-  local pred = async.winbuf_pred(bufnr, winid)
+  local pred = util.winbuf_pred(bufnr, winid)
 
-  for lnum, count in async.pairs(matches, pred) do
+  for lnum, count in async.pairs(matches) do
+    if pred() == false then
+      return {}
+    end
     local pos = util.row_to_barpos(winid, lnum - 1)
 
     if marks[pos] and marks[pos].count then
