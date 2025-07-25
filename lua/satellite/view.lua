@@ -160,6 +160,10 @@ local function can_show_scrollbar(winid)
     return false
   end
 
+  if vim.wo[winid].winfixbuf then
+    return false
+  end
+
   -- Don't show in terminal mode, since the bar won't be properly updated for
   -- insertions.
   if is_terminal(winid) then

@@ -1,5 +1,3 @@
-local api = vim.api
-
 local M = {}
 
 local yield_marker = {}
