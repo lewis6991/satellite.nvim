@@ -4,7 +4,7 @@ local util = require('satellite.util')
 
 local HIGHLIGHT = 'SatelliteCursor'
 
---- @type Satellite.Handler
+--- @class Satellite.Handler.Cursor : Satellite.Handler
 local handler = {
   name = 'cursor',
 }

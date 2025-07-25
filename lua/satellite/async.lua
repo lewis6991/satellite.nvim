@@ -30,7 +30,7 @@ local function resume(thread, ...)
 end
 
 ---Executes a future with a callback when it is done
---- @param async_fn function: the future to execute
+--- @param async_fn async fun() the future to execute
 --- @param ... any
 function M.run(async_fn, ...)
   resume(coroutine.create(async_fn), ...)
@@ -43,6 +43,7 @@ local function check(err, ...)
   return ...
 end
 
+--- @async
 function M.await(argc, func, ...)
   if type(argc) == 'function' then
     func = argc
@@ -61,8 +62,8 @@ end
 --- Creates an async function with a callback style function.
 --- @param argc integer The number of arguments of func. Must be included.
 --- @param func function A callback style function to be converted. The last argument must be the callback.
---- @return function: Returns an async function
---- @overload fun(func: function): function
+--- @return async fun(...)
+--- @overload fun(func: function): async fun()
 function M.wrap(argc, func)
   if type(argc) == 'function' then
     func = argc
@@ -70,6 +71,7 @@ function M.wrap(argc, func)
   end
   assert(type(argc) == 'number')
   assert(type(func) == 'function')
+  --- @async
   return function(...)
     return M.await(argc, func, ...)
   end
@@ -110,6 +112,7 @@ end
 function M.ipairs(a)
   local start_time = vim.uv.hrtime()
 
+  --- @async
   --- @param i integer
   --- @return integer?, any?
   local function iter(_, i)
@@ -136,6 +139,7 @@ end
 function M.pairs(t)
   local start_time = vim.uv.hrtime()
 
+  --- @async
   local function iter(_, k)
     start_time = M.event_control(start_time)
     return next(t, k)

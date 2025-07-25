@@ -55,9 +55,11 @@ local function get_pattern()
   if is_search_mode() then
     return vim.fn.getcmdline()
   end
-  return vim.v.hlsearch == 1 and fn.getreg('/') --[[@as string]] or ''
+  return vim.v.hlsearch == 1 and fn.getreg('/') --[[@as string]]
+    or ''
 end
 
+--- @async
 --- @param bufnr integer
 --- @param pattern? string
 --- @return table<integer,integer>
@@ -119,7 +121,7 @@ local function refresh(update)
   vim.schedule(update)
 end
 
---- @type Satellite.Handler
+--- @class Satellite.Handler.Search : Satellite.Handler
 local handler = {
   name = 'search',
 }
@@ -171,12 +173,13 @@ end
 
 --- @async
 function handler.update(bufnr, winid)
-  local marks = {} --- @type SearchMark[]
   local matches = update_matches(bufnr)
 
   if not api.nvim_buf_is_valid(bufnr) or not api.nvim_win_is_valid(winid) then
     return {}
   end
+
+  local marks = {} --- @type SearchMark[]
 
   local cursor_lnum = api.nvim_win_get_cursor(winid)[1]
 
@@ -188,19 +191,20 @@ function handler.update(bufnr, winid)
     end
     local pos = util.row_to_barpos(winid, lnum - 1)
 
+    local count0 = count
     if marks[pos] and marks[pos].count then
-      count = count + marks[pos].count
+      count0 = count0 + marks[pos].count
     end
 
     if lnum == cursor_lnum then
       marks[pos] = {
-        count = count,
+        count = count0,
         highlight = HIGHLIGHT_CURRENT,
         unique = true,
       }
-    elseif count <= #config.symbols then
+    elseif count0 <= #config.symbols then
       marks[pos] = {
-        count = count,
+        count = count0,
       }
     end
   end
@@ -212,7 +216,7 @@ function handler.update(bufnr, winid)
       pos = pos,
       unique = mark.unique,
       highlight = mark.highlight or HIGHLIGHT,
-      symbol = mark.symbol or config.symbols[mark.count] or config.symbols[#config.symbols],
+      symbol = mark.symbol or config.symbols[mark.count] or assert(config.symbols[#config.symbols]),
     }
   end
 

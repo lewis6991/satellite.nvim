@@ -146,7 +146,7 @@ local function render(bwinid, winid)
 end
 
 local function is_terminal(winid)
-  return fn.getwininfo(winid)[1].terminal ~= 0
+  return assert(fn.getwininfo(winid)[1]).terminal ~= 0
 end
 
 --- @param winid integer
@@ -253,6 +253,7 @@ function M.refresh_bars()
         -- pcall in case the window cannot be changed (#76)
         local ok, bwinid_or_err = pcall(get_or_create_view, winid)
         if ok then
+          --- @cast bwinid_or_err -string
           render(bwinid_or_err, winid)
           current_bar_wins[#current_bar_wins + 1] = bwinid_or_err
         else

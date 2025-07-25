@@ -10,7 +10,7 @@ local diagnostic_hls = {
   [vim.diagnostic.severity.HINT] = 'SatelliteDiagnosticHint',
 }
 
---- @type Satellite.Handler
+--- @class satellite.Handler.Diagnostic: Satellite.Handler
 local handler = {
   name = 'diagnostic',
 }
@@ -25,8 +25,6 @@ local function setup_hl()
 end
 
 --- @class Satellite.Handlers.DiagnosticConfig: Satellite.Handlers.BaseConfig
---- @field signs string[]
---- @field min_severity integer
 local config = {
   enable = true,
   overlap = true,
@@ -68,6 +66,9 @@ function handler.setup(config0, update)
   })
 end
 
+--- @param severity integer
+--- @param count integer
+--- @return string
 local function get_mark(severity, count)
   -- Backward compatibility
   if config.signs[1] then
@@ -85,7 +86,8 @@ local function get_mark(severity, count)
   elseif severity == vim.diagnostic.severity.HINT then
     diag_type = 'hint'
   end
-  return config.signs[diag_type][count] or config.signs[diag_type][#config.signs[diag_type]]
+  local dsign = config.signs[diag_type]
+  return dsign[count] or assert(dsign[#dsign])
 end
 
 function handler.update(bufnr, winid)
@@ -121,7 +123,7 @@ function handler.update(bufnr, winid)
   for pos, mark in pairs(marks) do
     ret[#ret + 1] = {
       pos = pos,
-      highlight = diagnostic_hls[mark.severity],
+      highlight = assert(diagnostic_hls[mark.severity]),
       symbol = get_mark(mark.severity, mark.count),
     }
   end

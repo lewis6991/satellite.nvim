@@ -4,7 +4,7 @@ local util = require 'satellite.util'
 
 local HIGHLIGHT = 'SatelliteMark'
 
---- @type Satellite.Handler
+--- @class Satellite.Handler.Marks : Satellite.Handler
 local handler = {
   name = 'marks',
 }

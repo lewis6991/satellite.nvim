@@ -68,7 +68,6 @@ function Handler:enabled()
 end
 
 --- @package
---- @param self Satellite.Handler
 --- @param bufnr integer
 --- @param m Satellite.Mark
 --- @param max_pos integer
@@ -110,7 +109,6 @@ end
 
 --- @package
 --- @async
---- @param self Satellite.Handler
 --- @param winid integer
 --- @param bwinid integer
 function Handler:render(winid, bwinid)
@@ -141,12 +139,10 @@ end
 
 --- @param spec Satellite.Handler
 function M.register(spec)
-  vim.validate {
-    spec = { spec, 'table' },
-    name = { spec.name, 'string' },
-    setup = { spec.setup, 'function', true },
-    update = { spec.update, 'function' },
-  }
+  vim.validate('spec', spec, 'table')
+  vim.validate('name', spec.name, 'string')
+  vim.validate('setup', spec.setup, 'function', true)
+  vim.validate('update', spec.update, 'function')
 
   spec.ns = api.nvim_create_namespace('satellite.Handler.' .. spec.name)
   setmetatable(spec, { __index = Handler })

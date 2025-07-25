@@ -4,7 +4,7 @@ local util = require('satellite.util')
 
 local HIGHLIGHT = 'SatelliteQuickfix'
 
---- @type Satellite.Handler
+--- @class Satellite.Handler.Quickfix : Satellite.Handler
 local handler = {
   name = 'quickfix',
 }
@@ -40,7 +40,7 @@ function handler.setup(config0, update)
 end
 
 function handler.update(bufnr, winid)
-  local marks = {} --- @type {count: integer, severity: integer}[]
+  local marks = {} --- @type {count: integer}[]
   for _, item in ipairs(vim.fn.getqflist()) do
     if item.bufnr == bufnr then
       local pos = util.row_to_barpos(winid, item.lnum)
@@ -62,7 +62,7 @@ function handler.update(bufnr, winid)
     ret[#ret + 1] = {
       pos = pos,
       highlight = HIGHLIGHT,
-      symbol = config.signs[mark.count] or config.signs[#config.signs],
+      symbol = config.signs[mark.count] or assert(config.signs[#config.signs]),
     }
   end
 

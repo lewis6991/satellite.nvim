@@ -3,13 +3,12 @@ local api = vim.api
 local util = require 'satellite.util'
 local async = require 'satellite.async'
 
---- @type Satellite.Handler
+--- @class Satellite.Handler.Gitsigns : Satellite.Handler
 local handler = {
   name = 'gitsigns',
 }
 
 --- @class Satellite.Handlers.GitsignsConfig: Satellite.Handlers.BaseConfig
---- @field signs table<string, string>
 local config = {
   enable = true,
   overlap = false,

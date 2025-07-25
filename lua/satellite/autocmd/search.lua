@@ -16,7 +16,7 @@ end
 
 local last_hlsearch = vim.v.hlsearch
 
-local timer = assert(vim.loop.new_timer())
+local timer = assert(vim.uv.new_timer())
 
 -- default value of 'updatetime' is too long (4s). Make it 1s at most.
 local interval = math.min(vim.o.updatetime, 1000)
@@ -47,7 +47,7 @@ end
 
 local group = api.nvim_create_augroup('satellite_autocmd_search', {})
 
-api.nvim_create_autocmd({ 'CmdlineEnter', 'CmdLineChanged', 'CmdlineLeave' }, {
+api.nvim_create_autocmd({ 'CmdlineEnter', 'CmdlineChanged', 'CmdlineLeave' }, {
   group = group,
   callback = function()
     if is_search_mode() then

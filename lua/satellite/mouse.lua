@@ -154,12 +154,6 @@ local function read_input_stream()
   return table.concat(chars, ''), chars_props
 end
 
---- @param winid integer
---- @return integer
-local function get_winrow(winid)
-  return fn.getwininfo(winid)[1].winrow --- @type integer
-end
-
 local M = {}
 
 --- @param count integer
@@ -202,7 +196,7 @@ local function update_mouse_props(idx, input_string, chars_props)
       idx = 1
       input_string, chars_props = read_input_stream()
     end
-    local mouse_props = chars_props[idx]
+    local mouse_props = assert(chars_props[idx])
 
     -- Break unless it's a mouse drag followed by another mouse drag, so
     -- that the first drag is skipped.
@@ -214,9 +208,12 @@ local function update_mouse_props(idx, input_string, chars_props)
       break
     end
 
-    local next = chars_props[idx + 1]
+    local next_props = chars_props[idx + 1]
 
-    if next.winid == 0 or vim.tbl_contains({ LEFTMOUSE, LEFTRELEASE }, next.char) then
+    if
+      next_props
+      and (next_props.winid == 0 or vim.tbl_contains({ LEFTMOUSE, LEFTRELEASE }, next_props.char))
+    then
       break
     end
   end
@@ -306,7 +303,7 @@ function M.handle_leftmouse()
 
   while true do
     idx, input_string, chars_props = update_mouse_props(idx, input_string, chars_props)
-    local mouse_props = chars_props[idx]
+    local mouse_props = assert(chars_props[idx])
     local str_idx = mouse_props.str_idx
     local char = mouse_props.char
     local mouse_winid = mouse_props.winid
@@ -353,8 +350,8 @@ function M.handle_leftmouse()
       -- not on the tabline or command line).
       if mouse_winid > 0 then
         local winheight = util.get_winheight(winid)
-        local mouse_winrow = get_winrow(mouse_winid)
-        local winrow = get_winrow(winid)
+        local mouse_winrow = assert(fn.getwininfo(mouse_winid)[1]).winrow
+        local winrow = assert(fn.getwininfo(winid)[1]).winrow
         local window_offset = mouse_winrow - winrow
         local row = mouse_props.row + window_offset + scrollbar_offset
         local props = view.get_props(winid)
