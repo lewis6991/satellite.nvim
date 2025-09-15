@@ -31,6 +31,7 @@ function. Here is an example with most of the default settings:
 ```lua
 require('satellite').setup {
   current_only = false,
+  show_always = false,
   winblend = 50,
   zindex = 40,
   excluded_filetypes = {},
