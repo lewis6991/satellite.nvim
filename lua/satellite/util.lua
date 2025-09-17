@@ -35,10 +35,9 @@ end
 --- @param vend? integer
 --- @return integer
 function M.virtual_line_count(winid, start, vend)
-  if not vend then
-    local buf = api.nvim_win_get_buf(winid)
-    vend = api.nvim_buf_line_count(buf) - 1
-  end
+  local buf = api.nvim_win_get_buf(winid)
+  local max_vend = api.nvim_buf_line_count(buf) - 1
+  vend = vend or max_vend
 
   if vend == 0 then
     return 0
@@ -52,7 +51,7 @@ function M.virtual_line_count(winid, start, vend)
   if api.nvim_win_text_height then
     local res = api.nvim_win_text_height(winid, {
       start_row = start,
-      end_row = vend,
+      end_row = math.min(vend, max_vend),
     })
     --- @cast res -string
     virtual_line_count_cache[winid][start][vend] = res.all
