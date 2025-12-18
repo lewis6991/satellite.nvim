@@ -257,7 +257,8 @@ function M.refresh_bars()
           render(bwinid_or_err, winid)
           current_bar_wins[#current_bar_wins + 1] = bwinid_or_err
         else
-          local msg = debug.traceback('satellite.nvim: unable to get a view')
+          --- @cast bwinid_or_err string
+          local msg = debug.traceback('satellite.nvim: unable to get a view: ' .. bwinid_or_err)
           vim.schedule(function()
             vim.notify(msg, vim.log.levels.ERROR)
           end)
