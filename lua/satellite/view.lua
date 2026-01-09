@@ -240,7 +240,11 @@ local function close(winid)
   if util.in_cmdline_win(winid) then
     return
   end
-  util.noautocmd(api.nvim_win_close)(bar_winid, true)
+  vim.schedule(function()
+    if api.nvim_win_is_valid(bar_winid) then
+      util.noautocmd(api.nvim_win_close)(bar_winid, true)
+    end
+  end)
   winids[winid] = nil
 end
 
