@@ -13,6 +13,24 @@ local enabled = false
 --- @type table<integer,integer?>
 local winids = {}
 
+--- Returns the scrollbar window for `winid` if it still exists.
+--- Clears stale cache entries when the scrollbar window was already closed.
+--- @param winid integer
+--- @return integer?
+local function get_bar_winid(winid)
+  local bar_winid = winids[winid]
+  if not bar_winid then
+    return
+  end
+
+  if not api.nvim_win_is_valid(bar_winid) then
+    winids[winid] = nil
+    return
+  end
+
+  return bar_winid
+end
+
 --- @param win integer
 --- @param opt string
 --- @param value string|boolean|integer
@@ -103,7 +121,7 @@ local function get_or_create_view(winid)
     col = api.nvim_win_get_width(winid) - 1,
   }
 
-  local bar_winid = winids[winid]
+  local bar_winid = get_bar_winid(winid)
   if bar_winid then
     local bar_wininfo = vim.fn.getwininfo(bar_winid)[1]
     -- wininfo can be nil when pressing <C-w>o in help buffers
@@ -198,7 +216,7 @@ end
 --- @param winid integer
 --- @return {height:integer, row: integer, col: integer, width:integer}?
 function M.get_props(winid)
-  local bar_winid = winids[winid]
+  local bar_winid = get_bar_winid(winid)
   if not bar_winid then
     return
   end
@@ -230,11 +248,8 @@ end
 --- @param winid integer
 local function close(winid)
   util.invalidate_virtual_line_count_cache(winid)
-  local bar_winid = winids[winid]
+  local bar_winid = get_bar_winid(winid)
   if not bar_winid then
-    return
-  end
-  if not api.nvim_win_is_valid(bar_winid) then
     return
   end
   if util.in_cmdline_win(winid) then
