@@ -19,7 +19,7 @@ local config = {
     delete = '-',
   },
   staged = {
-    enable = true,
+    enable = false,
     signs = {
       add = '│',
       change = '│',
