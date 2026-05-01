@@ -61,7 +61,7 @@ function handler.setup(config0, update)
       local bufnr = args.buf
       buf_diags[bufnr] = vim.diagnostic.get(bufnr)
 
-      vim.schedule(update)
+      update()
     end,
   })
 end

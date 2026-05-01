@@ -37,8 +37,9 @@ local function enable()
   -- The following one ensures that the scrollbar is correctly
   -- updated after leaving a window.
   api.nvim_create_autocmd('WinLeave', {
+    group = gid,
     callback = function()
-      vim.defer_fn(view.refresh_bars, 0)
+      view.schedule_refresh()
     end,
   })
 
@@ -71,7 +72,7 @@ local function enable()
     'VimResized',
   }, {
     group = gid,
-    callback = vim.schedule_wrap(view.refresh_bars),
+    callback = view.schedule_refresh,
   })
 end
 
@@ -95,7 +96,7 @@ function M.zf_operator(optype)
   else
     -- Unsupported
   end
-  view.refresh_bars()
+  view.schedule_refresh()
 end
 
 local foldmaps = {
@@ -139,7 +140,7 @@ local function apply_keymaps()
       local seq = prev .. typed
       if foldmaps[seq] or seq == 'zf' then
         util.invalidate_virtual_line_count_cache(0)
-        vim.schedule(view.refresh_bars)
+        view.schedule_refresh()
       end
       prev = ''
     end)
@@ -156,7 +157,7 @@ local function apply_keymaps()
       if vim.fn.maparg(seq) == '' then
         vim.keymap.set({ 'n', 'x' }, seq, function()
           util.invalidate_virtual_line_count_cache(0)
-          vim.schedule(view.refresh_bars)
+          view.schedule_refresh()
           return seq
         end, { unique = true, expr = true })
       end

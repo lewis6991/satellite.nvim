@@ -55,8 +55,7 @@ local function get_pattern()
   if is_search_mode() then
     return vim.fn.getcmdline()
   end
-  return vim.v.hlsearch == 1 and fn.getreg('/') --[[@as string]]
-    or ''
+  return vim.v.hlsearch == 1 and fn.getreg('/') --[[@as string]] or ''
 end
 
 --- @async
@@ -117,8 +116,7 @@ end
 --- @param update fun()
 local function refresh(update)
   update_matches(api.nvim_get_current_buf())
-  -- Run update outside of an async context.
-  vim.schedule(update)
+  update()
 end
 
 --- @class Satellite.Handler.Search : Satellite.Handler

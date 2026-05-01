@@ -5,6 +5,7 @@
   },
   "diagnostics" : {
     "disable" : [
+      "incomplete-signature-doc",
       "unnecessary-if"
     ],
     "enables": [

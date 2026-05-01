@@ -52,7 +52,7 @@ function handler.setup(config0, update)
   api.nvim_create_autocmd('User', {
     group = group,
     pattern = 'Mark',
-    callback = vim.schedule_wrap(update),
+    callback = update,
   })
 end
 

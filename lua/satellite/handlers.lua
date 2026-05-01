@@ -180,7 +180,7 @@ function M.init()
     end
   end
 
-  local update = vim.schedule_wrap(require('satellite.view').refresh_bars)
+  local update = require('satellite.view').schedule_refresh
 
   -- Initialize handlers
   for _, h in ipairs(M.handlers) do

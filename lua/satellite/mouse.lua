@@ -257,7 +257,7 @@ local function handle_initial_leftmouse_event(char, mouse_props)
   -- approach was deemed preferable to refreshing scrollbars initially, as
   -- that could result in unintended clicking/dragging where there is no
   -- scrollbar.
-  api.nvim_exec_autocmds('WinScrolled', {})
+  view.refresh_bars()
   vim.cmd.redraw()
 
   -- Don't restore toplines whenever a scrollbar was clicked. This
@@ -363,7 +363,7 @@ function M.handle_leftmouse()
         if props.row ~= row0 then
           local bufnr = api.nvim_win_get_buf(winid)
           set_topline(winid, get_topline(winid, bufnr, row0, props.height))
-          api.nvim_exec_autocmds('WinScrolled', {})
+          view.refresh_bars()
           vim.cmd.redraw()
         end
       end

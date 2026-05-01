@@ -9,6 +9,7 @@ local ns = api.nvim_create_namespace('satellite')
 local M = {}
 
 local enabled = false
+local refresh_scheduled = false
 
 --- @type table<integer,integer?>
 local winids = {}
@@ -292,6 +293,18 @@ function M.refresh_bars()
       close(winid)
     end
   end
+end
+
+function M.schedule_refresh()
+  if refresh_scheduled then
+    return
+  end
+
+  refresh_scheduled = true
+  vim.schedule(function()
+    refresh_scheduled = false
+    M.refresh_bars()
+  end)
 end
 
 function M.remove_bars()
