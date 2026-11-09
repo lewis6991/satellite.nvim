@@ -87,6 +87,22 @@ describe('mouse', function()
     eq(16, after.cursor)
   end)
 
+  it('keeps scrolling when a click on the track turns into a drag', function()
+    local before = get_state()
+
+    mouse('press', 10, before.bar_col)
+    local jumped = get_state()
+    for row = 11, 18 do
+      mouse('drag', row, before.bar_col)
+    end
+    mouse('release', 18, before.bar_col)
+
+    local after = get_state()
+    ok(jumped.topline > 1)
+    ok(after.topline > jumped.topline)
+    ok(after.bar_row > jumped.bar_row)
+  end)
+
   it('still scrolls when the scrollbar is dragged', function()
     local before = get_state()
 
