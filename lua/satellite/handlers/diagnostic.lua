@@ -56,12 +56,21 @@ function handler.setup(config0, update)
   api.nvim_create_autocmd('DiagnosticChanged', {
     group = group,
     callback = function(args)
-      --- vim.diagnostic.get() is expensive as it runs vim.deepcopy() on every
-      --- call. Keep a local copy that is only updated when diagnostics change.
-      local bufnr = args.buf
-      buf_diags[bufnr] = vim.diagnostic.get(bufnr)
+      buf_diags[args.buf] = nil
 
-      update()
+      for _, winid in ipairs(api.nvim_tabpage_list_wins(0)) do
+        if api.nvim_win_get_buf(winid) == args.buf and util.is_ordinary_window(winid) then
+          update()
+          break
+        end
+      end
+    end,
+  })
+
+  api.nvim_create_autocmd('BufWipeout', {
+    group = group,
+    callback = function(args)
+      buf_diags[args.buf] = nil
     end,
   })
 end
@@ -93,14 +102,26 @@ end
 
 function handler.update(bufnr, winid)
   local marks = {} --- @type {count: integer, severity: integer}[]
-  local diags = buf_diags[bufnr] or {}
+  local diags = buf_diags[bufnr]
+  if not diags then
+    -- Load a copy only when the buffer is rendered, and sort it for incremental
+    -- line counting. vim.diagnostic.get() includes all diagnostic namespaces.
+    diags = vim.diagnostic.get(bufnr)
+    table.sort(diags, function(a, b)
+      return a.lnum < b.lnum
+    end)
+    buf_diags[bufnr] = diags
+  end
+
   local pred = util.winbuf_pred(bufnr, winid)
+  local map_row --- @type (fun(row: integer): integer)?
   for _, diag in async.ipairs(diags) do
     if pred() == false then
       return {}
     end
     if diag.severity <= config.min_severity then
-      local pos = util.row_to_barpos(winid, diag.lnum)
+      map_row = map_row or util.row_to_barpos_mapper(winid)
+      local pos = map_row(diag.lnum)
 
       local count = 1
       if marks[pos] and marks[pos].count then
