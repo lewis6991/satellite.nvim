@@ -129,8 +129,7 @@ local function apply_keymaps()
     end)
   end
 
-  local version = vim.version()
-  if version.major == 0 and version.minor >= 11 then
+  if vim.fn.has('nvim-0.11') == 1 then
     local prev = ''
     vim.on_key(function(_, typed)
       if typed == 'z' then
@@ -167,7 +166,7 @@ end
 
 local did_setup = false
 
---- @param cfg? SatelliteConfig
+--- @param cfg? Partial<SatelliteConfig>
 function M.setup(cfg)
   if cfg then
     require('satellite.config').apply(cfg)
@@ -179,8 +178,7 @@ function M.setup(cfg)
 
   did_setup = true
 
-  local version = vim.version()
-  if version.major == 0 and version.minor < 10 then
+  if vim.fn.has('nvim-0.10') == 0 then
     vim.notify('satellite.nvim only supports nvim 0.10 and newer', vim.log.levels.ERROR)
     return
   end

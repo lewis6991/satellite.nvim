@@ -17,7 +17,10 @@ local function get_bar_windows()
 end
 
 local function get_state()
-  return { bars = #get_bar_windows(), notifications = exec_lua('return _G.notifications') }
+  return {
+    bars = #get_bar_windows(),
+    notifications = exec_lua('return vim.g.satellite_test_notifications'),
+  }
 end
 
 describe('scrollbars', function()
@@ -27,9 +30,11 @@ describe('scrollbars', function()
       vim.opt.runtimepath:prepend(root)
       vim.o.lines = 24
       vim.o.columns = 80
-      _G.notifications = {}
+      local notifications = {} --- @type string[]
+      vim.g.satellite_test_notifications = notifications
       vim.notify = function(message)
-        table.insert(_G.notifications, message)
+        table.insert(notifications, message)
+        vim.g.satellite_test_notifications = notifications
       end
 
       local lines = {}
@@ -105,7 +110,8 @@ describe('scrollbars', function()
         local ns = vim.api.nvim_get_namespaces().satellite
         local rows = {}
         for _, mark in ipairs(vim.api.nvim_buf_get_extmarks(bufnr, ns, 0, -1, { details = true })) do
-          if mark[4].virt_text[1][2] == 'SatelliteBar' then
+          local chunks = assert(mark[4]).virt_text
+          if chunks and chunks[1] and chunks[1][2] == 'SatelliteBar' then
             rows[#rows + 1] = mark[2]
           end
         end

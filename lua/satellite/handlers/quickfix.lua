@@ -10,7 +10,7 @@ local handler = {
 }
 
 --- @class Satellite.Handlers.QuickfixConfig: Satellite.Handlers.BaseConfig
---- @field symbols string[]
+--- @field signs table<integer, string?>
 local config = {
   priority = 60,
   signs = { '-', '=', '≡' },
@@ -24,7 +24,7 @@ function handler.setup(config0, update)
   config = vim.tbl_deep_extend('force', config, config0)
   handler.config = config
 
-  local group = vim.api.nvim_create_augroup('satellite_quickfix', {})
+  local group = api.nvim_create_augroup('satellite_quickfix', {})
 
   api.nvim_create_autocmd('ColorScheme', {
     group = group,
@@ -33,7 +33,7 @@ function handler.setup(config0, update)
 
   setup_hl()
 
-  vim.api.nvim_create_autocmd('QuickFixCmdPost', {
+  api.nvim_create_autocmd('QuickFixCmdPost', {
     group = group,
     callback = update,
   })

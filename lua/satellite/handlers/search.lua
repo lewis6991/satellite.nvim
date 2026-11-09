@@ -10,6 +10,7 @@ local HIGHLIGHT = 'SatelliteSearch'
 local HIGHLIGHT_CURRENT = 'SatelliteSearchCurrent'
 
 --- @class Satellite.Handlers.SearchConfig: Satellite.Handlers.BaseConfig
+--- @field symbols table<integer, string?>
 local config = {
   enable = true,
   overlap = true,
@@ -53,9 +54,10 @@ end
 --- @return string
 local function get_pattern()
   if is_search_mode() then
-    return vim.fn.getcmdline()
+    return fn.getcmdline()
   end
-  return vim.v.hlsearch == 1 and fn.getreg('/') --[[@as string]] or ''
+  return vim.v.hlsearch == 1 and fn.getreg('/') --[[@as string]]
+    or ''
 end
 
 --- @async
