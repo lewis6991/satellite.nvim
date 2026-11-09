@@ -202,6 +202,35 @@ function M.row_to_barpos(winid, row)
   return vr, vr - v
 end
 
+--- Map rows in ascending order without recounting the preceding buffer lines.
+--- @param winid integer
+--- @return fun(row: integer): integer
+function M.row_to_barpos_mapper(winid)
+  local max_row = api.nvim_buf_line_count(api.nvim_win_get_buf(winid)) - 1
+  local total = M.virtual_line_count(winid, 1) - 1
+  local height = M.get_winheight(winid) - 1
+  local previous_row, count = 0, 0
+
+  return function(row)
+    row = math.min(row, max_row)
+    if row == 0 then
+      return 0
+    end
+
+    if previous_row > 0 and row >= previous_row then
+      -- Overlap the boundary row, then subtract its height. This also works
+      -- when both rows are inside the same closed fold.
+      count = count
+        + M.virtual_line_count(winid, previous_row, row)
+        - M.virtual_line_count(winid, previous_row, previous_row)
+    else
+      count = M.virtual_line_count(winid, 1, row)
+    end
+    previous_row = row
+    return M.round(height * count / total)
+  end
+end
+
 --- Run callback when command is run
 --- @param cmd string
 --- @param augroup string|integer
