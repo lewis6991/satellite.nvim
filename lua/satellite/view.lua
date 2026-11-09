@@ -320,7 +320,7 @@ end
 
 function M.enable()
   enabled = true
-  M.refresh_bars()
+  M.schedule_refresh()
 end
 
 function M.enabled()
