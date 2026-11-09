@@ -1,7 +1,7 @@
 local util = require('satellite.util')
 local async = require('satellite.async')
 
---- @type Satellite.Handler
+--- @class Satellite.Handler.MiniDiff : Satellite.Handler
 local handler = {
   name = 'minidiff',
 }
@@ -52,23 +52,34 @@ function handler.setup(config0, update)
 end
 
 function handler.update(bufnr, winid)
-  if not package.loaded['mini.diff'] then return {} end
+  local minidiff = package.loaded['mini.diff']
+  if not minidiff then
+    return {}
+  end
 
-  --- @type Satellite.Mark
+  --- @type Satellite.Mark[]
   local marks = {}
 
-  local buf_data = require('mini.diff').get_buf_data(bufnr)
-  if not buf_data then return {} end
+  --- @type { hunks: { type: string, buf_start: integer, buf_count: integer }[] }?
+  local buf_data = minidiff.get_buf_data(bufnr)
+  if not buf_data then
+    return {}
+  end
 
-  local pred = async.winbuf_pred(bufnr, winid)
+  local pred = util.winbuf_pred(bufnr, winid)
 
-  for _, hunk in async.ipairs(buf_data.hunks or {}, pred) do
+  for _, hunk in async.ipairs(buf_data.hunks or {}) do
+    if pred() == false then
+      return {}
+    end
     local hl = hunk.type == 'add' and 'SatelliteMiniDiffAdd'
       or hunk.type == 'change' and 'SatelliteMiniDiffChange'
       or 'SatelliteMiniDiffDelete'
 
     local symbol = config.signs[hunk.type]
-    if not symbol or type(symbol) ~= 'string' then symbol = hunk.type == 'delete' and '-' or '│' end
+    if not symbol or type(symbol) ~= 'string' then
+      symbol = hunk.type == 'delete' and '-' or '│'
+    end
 
     local min_lnum = math.max(1, hunk.buf_start)
     local min_pos = util.row_to_barpos(winid, min_lnum - 1)

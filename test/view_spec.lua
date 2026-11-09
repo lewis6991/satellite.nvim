@@ -53,6 +53,41 @@ describe('scrollbars', function()
     eq({ bars = 1, notifications = {} }, get_state())
   end)
 
+  it('shows mini.diff additions, changes and deletions in the scrollbar', function()
+    exec_lua(function()
+      package.loaded['mini.diff'] = {
+        get_buf_data = function(_)
+          return {
+            hunks = {
+              { type = 'add', buf_start = 10, buf_count = 1 },
+              { type = 'change', buf_start = 100, buf_count = 2 },
+              { type = 'delete', buf_start = 200, buf_count = 0 },
+            },
+          }
+        end,
+      }
+      require('satellite.handlers.minidiff')
+      require('satellite').setup()
+    end)
+    eq({ bars = 1, notifications = {} }, get_state())
+
+    local signs = exec_lua(function(winid)
+      local bufnr = vim.api.nvim_win_get_buf(winid)
+      local ns = vim.api.nvim_get_namespaces()['satellite.Handler.minidiff']
+      local result = {}
+      for _, mark in ipairs(vim.api.nvim_buf_get_extmarks(bufnr, ns, 0, -1, { details = true })) do
+        local details = assert(mark[4])
+        result[#result + 1] = { details.sign_text, details.sign_hl_group }
+      end
+      return result
+    end, get_bar_windows()[1])
+    eq({
+      { ' │', 'SatelliteMiniDiffAdd' },
+      { ' │', 'SatelliteMiniDiffChange' },
+      { ' -', 'SatelliteMiniDiffDelete' },
+    }, signs)
+  end)
+
   it('can load from an expression mapping #96', function()
     exec_lua(function()
       vim.keymap.set('n', 'x', function()
