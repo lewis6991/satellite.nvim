@@ -3,8 +3,8 @@
   "runtime": {
     "version": "LuaJIT"
   },
-  "diagnostics" : {
-    "disable" : [
+  "diagnostics": {
+    "disable": [
       "incomplete-signature-doc",
       "unnecessary-if"
     ],
@@ -13,6 +13,11 @@
       "non-literal-expressions-in-assert",
       "incomplete-signature-doc",
       "missing-global-doc"
+    ],
+    "globals": [
+      "describe",
+      "before_each",
+      "it"
     ]
   },
   "strict": {
@@ -25,7 +30,20 @@
   "workspace": {
     "ignoreDir": [
       ".luarocks",
-      "deps"
+      "deps",
+      ".deps"
+    ],
+    "library": [
+      "$VIMRUNTIME"
+    ],
+    "packages": [
+      {
+        "path": "$NVIM_TEST_SOURCE/test",
+        "ignoreGlobs": [
+          "**/*_spec.lua",
+          "**/fixtures/**"
+        ]
+      }
     ]
   }
 }

@@ -30,6 +30,23 @@ test: $(TEST_DEPS)/test/functional/testnvim.lua $(filter $(TEST_DEPS)/%,$(NVIM))
 	NVIM_LOG_FILE=.deps/nvim.log "$(NVIM)" --clean \
 		-l test/runner.lua "$(TEST_DEPS)" "$(TEST_FILE)"
 
+EMMYLUA_VERSION := 0.25.1
+EMMYLUA_PLATFORM_MACOS := darwin-$(subst x86_64,x64,$(shell uname -m))
+EMMYLUA_PLATFORM_LINUX := linux-$(subst x86_64,x64,$(shell uname -m))-glibc.2.17
+EMMYLUA_DEPS := .deps/emmylua/$(EMMYLUA_VERSION)
+
+$(EMMYLUA_DEPS)/emmylua_check:
+	mkdir -p "$(EMMYLUA_DEPS)"
+	curl -fsSL --output "$(EMMYLUA_DEPS)/emmylua.tar.gz" \
+		https://github.com/EmmyLuaLs/emmylua-analyzer-rust/releases/download/$(EMMYLUA_VERSION)/emmylua_check-$(EMMYLUA_PLATFORM_$(UNAME)).tar.gz
+	tar -xzf "$(EMMYLUA_DEPS)/emmylua.tar.gz" -C "$(EMMYLUA_DEPS)"
+
+.PHONY: emmylua-check
+emmylua-check: $(EMMYLUA_DEPS)/emmylua_check $(TEST_DEPS)/bin/nvim $(TEST_DEPS)/test/functional/testnvim.lua
+	VIMRUNTIME="$(abspath $(TEST_DEPS)/share/nvim/runtime)" \
+		NVIM_TEST_SOURCE="$(abspath $(TEST_DEPS))" \
+		"$(EMMYLUA_DEPS)/emmylua_check" . --ignore '.deps/**' --warnings-as-errors
+
 STYLUA_PLATFORM_MACOS := macos-aarch64
 STYLUA_PLATFORM_LINUX := linux-x86_64
 STYLUA_PLATFORM := $(STYLUA_PLATFORM_$(UNAME))
@@ -48,8 +65,8 @@ stylua: $(STYLUA_ZIP)
 
 .PHONY: stylua-check
 stylua-check: stylua
-	./stylua --check lua/**/*.lua
+	./stylua --check lua plugin test
 
 .PHONY: stylua-run
 stylua-run: stylua
-	./stylua lua/**/*.lua lua/*.lua
+	./stylua lua plugin test

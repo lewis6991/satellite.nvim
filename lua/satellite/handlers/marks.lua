@@ -63,7 +63,7 @@ local function add_mark_to_bar(marks, mark, winid)
   local lnum = mark.pos[2]
   local pos = util.row_to_barpos(winid, lnum - 1)
 
-  if config and config.show_builtins or not mark_is_builtin(mark.mark) then
+  if config.show_builtins or not mark_is_builtin(mark.mark) then
     marks[#marks + 1] = {
       pos = pos,
       highlight = HIGHLIGHT,
@@ -76,7 +76,7 @@ end
 function handler.update(bufnr, winid)
   local ret = {}
 
-  local current_file = vim.api.nvim_buf_get_name(bufnr)
+  local current_file = api.nvim_buf_get_name(bufnr)
   for _, mark in ipairs(vim.fn.getmarklist()) do
     local mark_file = vim.fn.fnamemodify(mark.file, ':p:a')
     if mark_file == current_file and mark.mark:find('[a-zA-Z]') ~= nil then

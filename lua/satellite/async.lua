@@ -3,17 +3,13 @@ local M = {}
 local yield_marker = {}
 
 local function resume(thread, ...)
-  --- @type [boolean, {}, string|fun(callback: fun(...))]]
-  local ret = { coroutine.resume(thread, ...) }
-  local stat = ret[1]
+  local stat, marker, fn = coroutine.resume(thread, ...)
 
   if not stat then
-    error(debug.traceback(thread, ret[2]), 0)
+    error(debug.traceback(thread, marker), 0)
   elseif coroutine.status(thread) == 'dead' then
     return
   end
-
-  local marker, fn = ret[2], ret[3]
 
   assert(type(fn) == 'function', 'type error :: expected func')
 

@@ -10,5 +10,5 @@ vim.api.nvim_create_autocmd('BufWinEnter', {
     if vim.api.nvim_buf_line_count(0) > vim.api.nvim_win_get_height(0) then
       require('satellite').setup()
     end
-  end
+  end,
 })

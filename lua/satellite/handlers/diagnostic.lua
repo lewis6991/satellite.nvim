@@ -86,7 +86,8 @@ local function get_mark(severity, count)
   elseif severity == vim.diagnostic.severity.HINT then
     diag_type = 'hint'
   end
-  local dsign = config.signs[diag_type]
+  --- @type table<integer, string?>
+  local dsign = assert(config.signs[diag_type])
   return dsign[count] or assert(dsign[#dsign])
 end
 

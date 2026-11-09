@@ -1,5 +1,6 @@
-local deps = vim.fs.abspath(assert(table.remove(arg, 1), 'Missing Neovim source directory'))
-arg[1] = vim.fs.abspath(assert(arg[1], 'Missing test path'))
+assert(#arg >= 2, 'Expected Neovim source directory and test path')
+local deps = vim.fs.abspath(table.remove(arg, 1))
+arg[1] = vim.fs.abspath(arg[1])
 package.path = deps .. '/?.lua;' .. deps .. '/test/?.lua;' .. package.path
 
 -- Neovim's build normally generates these settings.
@@ -22,4 +23,5 @@ vim.env.NVIM_LOG_FILE = vim.fs.abspath(vim.env.NVIM_LOG_FILE or 'nvim.log')
 -- The functional helpers load fixtures relative to Neovim's source directory.
 assert(vim.uv.chdir(deps))
 
-os.exit(require('test.harness').main(arg))
+-- The harness reads the array part of the command-line arguments.
+os.exit(require('test.harness').main(arg --[[@as string[] ]]))
