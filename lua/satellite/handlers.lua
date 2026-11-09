@@ -135,6 +135,11 @@ function Handler:render(winid, bwinid)
   for _, m in ipairs(marks) do
     self:apply_mark(bbufnr, m, max_pos)
   end
+
+  -- Command-line input does not redraw marks set by scheduled handlers.
+  if api.nvim_get_mode().mode == 'c' then
+    api.nvim__redraw { buf = bbufnr, valid = true, flush = true }
+  end
 end
 
 --- @param spec Satellite.Handler
