@@ -124,6 +124,10 @@ Documentation can be accessed with:
 :help satellite
 ```
 
+## Tests
+
+Run `make test` to run the test suite.
+
 ## Credit
 
 This plugin was based on [nvim-scrollview] which provides a very good implementation for a normal scrollbar.
