@@ -23,6 +23,7 @@ of the default settings:
 >lua
     require('satellite').setup {
       current_only = false,
+      show_always = false,
       winblend = 50,
       zindex = 40,
       excluded_filetypes = {},
@@ -82,6 +83,13 @@ excluded_filetypes                       *satellite-config-excluded_filetypes*
         Default: `[]`
 
         File types for which scrollbars should not be displayed.
+
+show_always                                     *satellite-config-show_always*
+        Type: `boolean`
+        Default: `false`
+
+        If true, scrollbars will show even if buffers are drawn without
+        cut-off.
 
 winblend                                           *satellite-config-winblend*
         Type: `integer`
