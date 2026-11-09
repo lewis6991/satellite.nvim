@@ -221,9 +221,24 @@ local function update_mouse_props(idx, input_string, chars_props)
   return idx, input_string, chars_props
 end
 
+--- Scroll the window so the scrollbar is centred on the clicked row.
+--- @param winid integer
+--- @param mouse_row integer
+--- @param bar_height integer
+local function jump_to_row(winid, mouse_row, bar_height)
+  local winheight = util.get_winheight(winid)
+  local row = mouse_row - 1 - math.floor(bar_height / 2)
+  row = math.max(0, math.min(row, winheight - bar_height))
+  local bufnr = api.nvim_win_get_buf(winid)
+  set_topline(winid, get_topline(winid, bufnr, row, bar_height))
+  view.refresh_bars()
+  vim.cmd.redraw()
+end
+
 --- @param char string
 --- @param mouse_props Satellite.Mouse.Props
---- @return boolean
+--- @return boolean on_scrollbar
+--- @return boolean? jumped
 local function handle_initial_leftmouse_event(char, mouse_props)
   if mouse_props.winid < 0 then
     -- The mouse event was on the tabline or command line.
@@ -237,15 +252,19 @@ local function handle_initial_leftmouse_event(char, mouse_props)
     return false
   end
 
+  local on_bar_row = mouse_props.row >= props.row and mouse_props.row < props.row + props.height
+  local on_bar_column = mouse_props.col > props.col and mouse_props.col <= props.col + props.width
+
+  if on_bar_column and not on_bar_row then
+    -- The click was on the scrollbar track, above or below the scrollbar.
+    jump_to_row(mouse_props.winid, mouse_props.row, props.height)
+    return true, true
+  end
+
   -- Add 1 cell horizontal left-padding for grabbing the scrollbar. Don't
   -- add right-padding as this would extend past the window and will
   -- interfere with dragging the vertical separator to resize the window.
-  if
-    mouse_props.row < props.row
-    or mouse_props.row >= props.row + props.height
-    or mouse_props.col < props.col
-    or mouse_props.col > props.col + props.width
-  then
+  if not on_bar_row or mouse_props.col < props.col or mouse_props.col > props.col + props.width then
     -- The click was not on a scrollbar.
     api.nvim_feedkeys(char, 'ni', false)
     return false
@@ -338,12 +357,18 @@ function M.handle_leftmouse()
       end
 
       if count == 0 then
-        if not handle_initial_leftmouse_event(input_char, mouse_props) then
+        local on_scrollbar, jumped = handle_initial_leftmouse_event(input_char, mouse_props)
+        if not on_scrollbar then
           return
         end
         local props = assert(view.get_props(mouse_winid))
         winid = mouse_winid
         scrollbar_offset = props.row - mouse_props.row
+        if jumped then
+          -- The window has already scrolled, so treat the release like the
+          -- end of a drag rather than passing the click through.
+          count = count + 1
+        end
       end
 
       -- Only consider a scrollbar update for mouse events on windows (i.e.,

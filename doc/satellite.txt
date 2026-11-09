@@ -118,7 +118,8 @@ Mouse Support ~
                                                     *satellite-mouse-support*
 
 A |<LeftMouse>| mapping is automatically created for interactive mouse
-support.
+support. Drag the scrollbar to scroll the window, or click above or below it
+to jump to that part of the buffer.
 
 ==============================================================================
 ISSUES                                                      *satellite-issues*
